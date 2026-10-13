@@ -2,13 +2,13 @@
 
 ## Scope and implementation
 
-Phase three targets iOS and Android initially. The app is named 卓乐文档 and embeds the same three editors used by the web and desktop clients. The bundled UI works without downloading executable application code from the cloud service.
+Phase three targets iOS, Android, and HarmonyOS. The current native implementation covers iOS and Android; a HarmonyOS ArkUI/ArkWeb host is planned. The app is named 卓乐文档 and embeds the same three editors used by the web and desktop clients. The bundled UI works without downloading executable application code from the cloud service.
 
 Capacitor provides native HTTP, preferences, filesystem, sharing, app lifecycle, and keyboard integration. A common native bridge keeps desktop behavior intact while enabling server configuration, local drafts, account-scoped caching, revision-aware synchronization, and file export on mobile. Native HTTP sends the configured service Origin; the existing API authentication and 3 GB quota enforcement remain authoritative. Cookies are handled by the native transport and removed on logout. Only HTTPS roots and loopback HTTP development addresses are accepted.
 
 The mobile UI includes safe-area padding, a contained scrolling viewport, 44-point icon controls, a horizontally scrollable formatting toolbar, visible backup controls, and a connection button on the workspace/login screen. Android back returns from an editor through its save queue or dismisses the current workspace dialog. Returning to the foreground retries synchronization.
 
-Import uses the system file chooser exposed by the WebView file input. Export writes a cache file and presents the native share sheet; the user chooses Files or a receiving application. Shared files remain in the app cache so the receiving app can finish reading them. A share-sheet result is not proof that an external recipient persisted a file. Cache cleanup policy, incoming system share/open integration, and complete native offline acceptance remain follow-up work.
+Import uses the system file chooser exposed by the WebView file input. Export writes a cache file and presents the native share sheet; the user chooses Files or a receiving application. Shared files remain in the app cache so the receiving app can finish reading them. A share-sheet result is not proof that an external recipient persisted a file. Incoming system document opens on iOS and content-URI open/share intents on Android copy DOCX, XLSX, PPTX, and ZDOC files into a private persistent inbox (10 MB per file, eight pending files). The UI asks for confirmation before cloud import and processes one file at a time. Taking a file into the confirmation dialog consumes its inbox copy; cancellation or process termination at that point requires reopening the original source. Source files are never deleted. Cache cleanup policy and complete native offline acceptance remain follow-up work.
 
 ## Build
 
@@ -41,3 +41,5 @@ For local Android emulator testing, map port 3173 with `adb reverse tcp:3173 tcp
 ## Current evidence and remaining gates
 
 See `docs/verification.md` for checks actually completed. Web viewport checks do not establish keyboard, lifecycle, or native file behavior on every OS. Windows desktop distribution, public hosting, mobile native acceptance, signing, and store publication remain separate work items. The full project goal is still active.
+
+The selected public service target is `https://wpx.youdroid.top` on Cloudflare. Deployment adaptation is tracked in WPX-4 and is not yet verified live.

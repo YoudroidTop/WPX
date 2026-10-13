@@ -47,3 +47,13 @@ This is a local desktop development delivery, not a signed public release. Devel
 - The Android APK installed and its activity launched on an Android 12 emulator, but its bundled WebView 91 is below the supported WebView 111 baseline. This is not Android editing acceptance. A local update-required page now guards unsupported engines; a newer Android emulator image is being prepared for further validation.
 
 Remaining mobile gates: Android supported-engine interaction, native spreadsheet/presentation editing, full offline/reconnect/account isolation on both mobile platforms, incoming OS file/share integration, software-keyboard and text-scaling coverage, iPad/native landscape acceptance, cache retention policy, physical-device signing, and store distribution. Current packages are development artifacts. Public cloud deployment and desktop distribution gates remain open separately.
+
+## Native document inbox checkpoint
+
+- iOS simulator and Android debug builds passed with application-owned native inbox plugins.
+- Android `:app:connectedDebugAndroidTest` passed on the Android 12 emulator: a FileProvider content URI delivered through ACTION_SEND produced byte-identical private inbox contents, persisted across activity restart, and preserved the original source. This verifies the native transport, not editing under its unsupported WebView 91.
+- iOS simulator system file URL dispatch opened the import confirmation with the correct ZDOC filename and size. A valid fixture imported successfully into the local cloud service. An invalid fixture was rejected without creating a document.
+- Ten unit/API tests, five web scenarios, and six desktop scenarios passed after the serialized native import-dialog change.
+- A broad Gradle test invocation initially overlapped Capacitor sync and failed on a regenerated Cordova metadata path; the final app-scoped run was executed after sync and passed.
+
+The platform requirement now includes HarmonyOS. Cloudflare hosting at `wpx.youdroid.top` is selected and tracked separately; no public deployment is claimed by these native checks.

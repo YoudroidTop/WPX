@@ -1,11 +1,16 @@
 import { decodeNativeResponse } from './mobile-response';
-import { Capacitor, CapacitorCookies, CapacitorHttp } from '@capacitor/core';
+import { Capacitor, CapacitorCookies, CapacitorHttp, registerPlugin } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { App } from '@capacitor/app';
 import { normalizeServer, safeFilename } from '../desktop/policy';
 import type { NativeBridge } from './platform';
+
+const inbox = registerPlugin<{
+  take(): Promise<{ file: { name: string; data: string } | null }>;
+  addListener(event: 'filesAvailable', callback: () => void): Promise<unknown>;
+}>('DocumentInbox');
 
 export const isMobile = Capacitor.isNativePlatform();
 let origin = '';
@@ -74,7 +79,13 @@ export const mobileBridge: NativeBridge = {
     await CapacitorCookies.clearCookies({ url: origin });
   },
   async pendingFiles() {
-    return null;
+    const { file } = await inbox.take();
+    return file
+      ? {
+          name: file.name,
+          bytes: Uint8Array.from(atob(file.data), (character) => character.charCodeAt(0)),
+        }
+      : null;
   },
   async openFile() {
     return new Promise((resolve) => {
@@ -119,6 +130,8 @@ export const mobileBridge: NativeBridge = {
 };
 if (isMobile) {
   document.documentElement.classList.add('native-mobile');
+  void inbox.addListener('filesAvailable', () => sendMobileCommand('pending-files'));
+
   void App.addListener('appStateChange', ({ isActive }) => {
     if (isActive) window.dispatchEvent(new Event('online'));
   });

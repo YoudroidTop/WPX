@@ -75,8 +75,8 @@ export default function App() {
   const upload = useRef<HTMLInputElement>(null);
   const [localDrafts, setLocalDrafts] = useState<LocalDraft[]>([]);
   const refreshing = useRef(false);
-  const nativeState = useRef({ account, opened, busy });
-  nativeState.current = { account, opened, busy };
+  const nativeState = useRef({ account, opened, busy, dialog });
+  nativeState.current = { account, opened, busy, dialog };
   const notify = useCallback((message: string) => setToast(message), []);
   useEffect(() => {
     if (nativeBridge) {
@@ -173,6 +173,26 @@ export default function App() {
       setDialog(null);
     });
   }
+  const receivingFile = useRef(false);
+  const receiveNativeFile = useCallback(
+    async (pending: boolean) => {
+      if (receivingFile.current || nativeState.current.dialog) return;
+      receivingFile.current = true;
+      try {
+        const file = await openNativeFile(pending);
+        if (file) {
+          const next: Dialog = { type: 'import', file };
+          nativeState.current.dialog = next;
+          setDialog(next);
+        }
+      } catch (error) {
+        notify((error as Error).message);
+      } finally {
+        receivingFile.current = false;
+      }
+    },
+    [notify],
+  );
   const actions = useRef({ create, notify });
   actions.current = { create, notify };
   useEffect(() => {
@@ -190,21 +210,13 @@ export default function App() {
       }
       if (command.startsWith('new-')) void actions.current.create(command.slice(4) as DocumentKind);
       if (command === 'open' || command === 'pending-files')
-        void openNativeFile(command === 'pending-files')
-          .then((file) => {
-            if (file) setDialog({ type: 'import', file });
-          })
-          .catch((error) => actions.current.notify(error.message));
+        void receiveNativeFile(command === 'pending-files');
     });
-  }, []);
+  }, [receiveNativeFile]);
   useEffect(() => {
-    if (!account || opened || !nativeBridge) return;
-    void openNativeFile(true)
-      .then((file) => {
-        if (file) setDialog({ type: 'import', file });
-      })
-      .catch((error) => notify(error.message));
-  }, [account?.id, opened, notify]);
+    if (!account || opened || dialog || !nativeBridge) return;
+    void receiveNativeFile(true);
+  }, [account?.id, opened, Boolean(dialog), receiveNativeFile]);
   useEffect(() => {
     const reconnect = () => {
       if (nativeState.current.account && !nativeState.current.opened) void refresh();
