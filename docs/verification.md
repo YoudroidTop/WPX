@@ -134,3 +134,12 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - `node scripts/smoke-harmony.mjs`: passed against the actual API 24 device ArkWeb. Production account registration, Word editing/save/reload, spreadsheet SUM=200, slide edit/presentation and logout all passed without page errors. Three generated test documents were removed; the empty QA account remains.
 - Visually inspected login and workspace screenshots under `releases/harmony/`. The native bridge was present and mobile CSS active. No file-picker or offline-device acceptance is claimed yet.
 - Artifact: `releases/harmony/ZhuoleDocs-0.1.0-harmony-debug.hap`. Log: `releases/harmony/device-smoke.log`. This is development signing, not a store release.
+
+## Harmony offline draft and account isolation — 2026-10-13
+
+- Extended the physical-device ArkWeb smoke to abort only this debug page's `/api/` requests. Device-wide networking and unrelated applications were unchanged, and the route is removed in `finally`.
+- Passed: offline cached library, Word draft editing, page reload preserving the draft, reconnection, saved indicator and independent authenticated API readback of the synchronized content.
+- Passed: a second named account has an empty library after offline reload, cannot see the first account's Word document, and offline logout remains logged out after another reload. Reauthentication restores the original account's document.
+- The first attempt timed out after the default five seconds during second-account registration, while the form was still pending. The final run used a 30-second assertion timeout and passed. Failure logging now omits Playwright registration snapshots to avoid recording generated passwords.
+- The successful run removed its three generated documents and logged out. The earlier interrupted run left three test documents in its generated QA account; no real user data was involved. These fixtures are not represented as cleaned up.
+- Log: `releases/harmony/device-offline-smoke.log`. This verifies page reload persistence and API failure recovery on the actual device, not application-process termination, airplane mode or background lifecycle behavior.
