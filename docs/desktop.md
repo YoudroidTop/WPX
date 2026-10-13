@@ -53,7 +53,7 @@ The 3 GB limit continues to apply to persisted cloud document content, not to lo
 
 macOS test packages use ad-hoc signing (`identity: '-'`) deliberately. A Developer ID certificate, notarization, and a release update service are separate distribution tasks. The user explicitly accepted unsigned Windows installers for this delivery; Windows code signing is deferred. Unsigned installation does not establish trusted-publisher status. No updater is enabled against an unconfigured endpoint.
 
-Current platform artifacts and runtime evidence are recorded in `docs/verification.md`. Building a Windows artifact on macOS is not Windows installation or runtime acceptance. The cloud service is deployed at https://wpx.youdroid.top. macOS Developer ID signing/notarization and an update distribution endpoint remain open delivery work.
+Current platform artifacts and runtime evidence are recorded in `docs/verification.md`. Building a Windows artifact on macOS is not Windows installation or runtime acceptance. The cloud service is deployed at https://wpx.youdroid.top. macOS Developer ID signing and notarization are verified below; an update distribution endpoint remains open delivery work.
 
 ## Production connection default
 
@@ -73,33 +73,38 @@ Use the 7zz binary already provided by the installed Electron builder toolchain,
 
 DMGs are mounted read-only in a task-owned temporary directory and detached after checking the embedded app signature, executable and ASAR. A detach failure leaves the mount directory intact. This verifies packaged contents, not user installation. Payload comparison is recorded per artifact. Windows installer execution, macOS Developer ID signing/notarization and update delivery are separate gates. Windows signing is deferred by user decision. `publicReleaseReady` remains false until those gates are independently satisfied.
 
-## Latest artifact verification (2026-10-13)
+## Verified macOS distribution (2026-10-13)
 
-All four CPU targets match the 13 current staged files. Both macOS ZIP and both Windows NSIS payloads match their unpacked applications; all six intended files have SHA-256 entries. The verifier also rejected an extra staged sentinel file in a negative test. The refreshed Apple Silicon packaged application passed its runtime smoke test (1/1). Windows installers have not been executed on Windows.
+Developer ID Application certificate DBFQZ3TW3Z was issued for team Y4MB2B6UD3 with the G2 chain, valid through 2031-09-17. Its public key matches the local RSA-2048 private key. Signing credentials remain outside the repository. Both architectures use Developer ID signatures, secure timestamps and Hardened Runtime; DMG containers are also signed.
 
-Developer ID Application certificate DBFQZ3TW3Z was issued for team Y4MB2B6UD3 after explicit final confirmation. It expires on 2031-09-17 and uses the G2 chain. Its public key matches the locally generated RSA-2048 private key, and Keychain reports a valid signing identity. Private signing material remains outside the repository. Certificate issuance alone does not establish signed or notarized artifacts.
+All four Mac distribution files passed signature, stapled-ticket and Gatekeeper verification. ZIPs were independently extracted before checks, including CPU architecture verification. The final files are:
 
-## Developer ID build and notarization
+- ZhuoleDocs-0.1.0-mac-arm64.dmg
+- ZhuoleDocs-0.1.0-mac-x64.dmg
+- ZhuoleDocs-0.1.0-mac-arm64-stapled.zip
+- ZhuoleDocs-0.1.0-mac-x64-stapled.zip
+
+Use releases/desktop/mac-distribution-manifest.json and MAC-SHA256SUMS for these exact files. Original submission ZIPs remain unchanged for hash traceability. The Apple Silicon packaged app launch passed (1/1). Intel physical runtime and Windows installer execution remain separate acceptance work.
+
+Apple accepted these submission IDs:
+
+| Architecture | App ZIP | Signed DMG |
+| --- | --- | --- |
+| arm64 | 9f474189-112e-4530-b866-285eec16ffc4 | 092ed9a5-b381-46c9-84b9-0b39f01bbea5 |
+| x64 | b77cc586-7d80-40b5-ab8e-8317a3e57592 | 638c8099-e858-4f95-abd8-56d6bf4fa85c |
+
+The distribution verifier previously rejected an unstapled Intel DMG, then passed once its accepted ticket was attached. General artifact verification checks all four unpacked CPU targets against all 13 staged files, compares DMG/ZIP/NSIS payloads and hashes six original packaging outputs. Windows installers remain unsigned by user decision.
+
+## Reproduce signing and notarization
 
 ```sh
 npm run desktop:pack:mac:signed
 SEVEN_ZIP=/path/to/trusted/7zz npm run desktop:verify-release
 node scripts/notarize-mac.mjs /path/to/asc.env
 node scripts/notarize-mac.mjs /path/to/asc.env --status
+npm run desktop:verify:mac-distribution
 ```
 
-The separate release configuration requires the project team's signing identity and Hardened Runtime, and fails if signing is unavailable. The original development packaging command retains ad-hoc signing. The signed build intentionally leaves notarization to the explicit submission step.
+The separate release configuration requires the project team's identity and fails if signing is unavailable. Development packaging retains ad-hoc signing. The notarization command reads ASC_API_KEY_PATH, ASC_KEY_ID (or ASC_API_KEY_ID) and ASC_ISSUER_ID without executing the environment file. It saves submission IDs with input hashes. Optional arm64/x64 arguments limit submissions to one architecture. Use --status after stapling changes bytes: it polls stored IDs without reading or uploading artifacts. Run these commands serially because they share a local record file. Status-only mode was verified with missing original files and a submit-forbidden fixture.
 
-The notarization command reads only ASC_API_KEY_PATH, ASC_KEY_ID (or ASC_API_KEY_ID) and ASC_ISSUER_ID from the supplied local environment file without executing it. It submits the two ZIP and two DMG files, stores job IDs with their artifact hashes under ignored releases/desktop/notarization.json, and queries their status on later runs. Authentication was verified using the existing PinyinDic configuration; credentials are not copied into this repository. After Apple accepts the submissions, staple and validate the DMGs and app bundles, recreate ZIPs from stapled bundles, and regenerate the release hash inventory. Acceptance, stapling and Gatekeeper verification remain distinct checks.
-
-Developer ID verification in this run: the Apple Silicon app passed strict deep code-signature validation and its packaged launch test (1/1). Its DMG was mounted read-only, its embedded signature validated, and its executable/ASAR matched the signed app. The ARM64 ZIP was submitted to Apple with job ID 9f474189-112e-4530-b866-285eec16ffc4 and initially reported In Progress. Intel signing and remaining submissions were still active at that checkpoint; do not interpret submission as acceptance.
-
-Both CPU builds subsequently completed, and the complete release verifier passed for all four CPU targets and six artifacts, including read-only DMG payload checks. ARM64 ZIP and the initial unsigned DMG were accepted by Apple; the app ticket was stapled and validated, and Gatekeeper reported Notarized Developer ID. The unsigned DMG itself failed the container Gatekeeper assessment. The release configuration now enables DMG signing, and the ARM64 container was signed with a secure timestamp after one transient timestamp-service failure. That changed container requires a fresh notarization submission. Container signature status is recorded separately from the embedded app's signature. Intel notarization upload remains a live task.
-
-## Notarized ZIP delivery checkpoint
-
-Both architecture ZIP submissions were accepted by Apple (ARM64 9f474189-112e-4530-b866-285eec16ffc4; x64 b77cc586-7d80-40b5-ab8e-8317a3e57592). Both app bundles were stapled and validated; Gatekeeper reported Notarized Developer ID. New ZhuoleDocs-0.1.0-mac-{arm64,x64}-stapled.zip artifacts preserve the tickets. Each ZIP was independently extracted into a fresh temporary directory and passed strict deep signature validation, stapler validation, Gatekeeper assessment and CPU architecture verification. Their hashes and sizes are recorded in releases/desktop/notarized-zip-manifest.json. This proves archive integrity and platform trust; it does not claim physical Intel runtime acceptance. Original submission ZIPs remain unchanged for job-hash traceability.
-
-Both DMG containers now carry Developer ID signatures with secure timestamps. The serial notarization process is submitting their changed bytes; these DMGs are not yet the final notarized distribution artifacts. Do not replace or staple an artifact while its upload is active.
-
-The signed ARM64 DMG resubmission 092ed9a5-b381-46c9-84b9-0b39f01bbea5 was accepted. Its ticket was stapled and validated, and the container Gatekeeper assessment reported Notarized Developer ID. Intel signed-DMG upload remains active. After stapling changes artifact bytes, use --status to query saved submission IDs without hashing or re-uploading artifacts. Run submission/status commands serially because they share the same local record file. A fixture verified that status-only mode updates recorded results even when original artifact files are absent and never invokes submit.
+After Apple accepts each submission, staple and validate the app bundles and DMGs. Recreate the -stapled.zip archives from the stapled app bundles using ditto with resource preservation. Then run both verifiers. The distribution verifier emits its manifest only after every target passes, and rejects files that change during verification. Apple acceptance, ticket attachment, Gatekeeper assessment and device runtime remain distinct evidence.
