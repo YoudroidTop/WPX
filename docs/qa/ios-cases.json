@@ -1,0 +1,130 @@
+{
+  "app": "Zhuole Docs",
+  "runner": {
+    "platform": "iOS Simulator",
+    "bundleId": "com.youdroid.zhuoledocs",
+    "launchCommand": "xcrun simctl launch 1CB10EAA-A09B-4732-BCAE-4A7A89AE0F89 com.youdroid.zhuoledocs",
+    "evidenceTypes": [
+      "native screenshot",
+      "accessibility tree",
+      "visible content",
+      "server readback"
+    ]
+  },
+  "coverageAreas": [
+    { "area": "Upgrade/session", "caseIds": ["ios-upgrade-session"], "status": "passed" },
+    { "area": "Spreadsheet", "caseIds": ["ios-sheet-formula"], "status": "blocked" },
+    { "area": "Presentation", "caseIds": ["ios-slides"], "status": "blocked" },
+    { "area": "Offline/cache", "caseIds": ["ios-cache-draft"], "status": "blocked" }
+  ],
+  "cases": [
+    {
+      "id": "ios-upgrade-session",
+      "title": "Installed update restores the existing QA session",
+      "priority": "P1",
+      "platforms": ["iOS"],
+      "tags": ["session", "upgrade"],
+      "preconditions": ["Task-owned simulator with an existing local QA session"],
+      "steps": [
+        "Install current simulator app preserving its data",
+        "Launch the app",
+        "Inspect the native screenshot"
+      ],
+      "assertions": ["Workspace shows Mobile QA greeting and previous test documents"],
+      "failureSignals": ["Login screen", "Crash", "Blank workspace"]
+    },
+    {
+      "id": "ios-sheet-formula",
+      "title": "Spreadsheet formula survives reopening",
+      "priority": "P1",
+      "platforms": ["iOS"],
+      "tags": ["sheet", "persistence"],
+      "preconditions": ["Isolated QA account and interactive simulator"],
+      "steps": [
+        "Create a uniquely named spreadsheet",
+        "Enter A1=120, A2=80 and B1=SUM(A1:A2)",
+        "Save and reopen"
+      ],
+      "assertions": ["B1 shows 200 before and after reopen", "Server content retains the formula"],
+      "failureSignals": ["Wrong result", "Save error", "Lost formula"]
+    },
+    {
+      "id": "ios-slides",
+      "title": "Presentation edit and slideshow",
+      "priority": "P1",
+      "platforms": ["iOS"],
+      "tags": ["slides"],
+      "preconditions": ["Isolated QA account and interactive simulator"],
+      "steps": [
+        "Create a uniquely named presentation",
+        "Edit its title",
+        "Start and dismiss slideshow",
+        "Reopen"
+      ],
+      "assertions": ["Title appears in slideshow and after reopening"],
+      "failureSignals": ["Lost title", "Slideshow cannot dismiss"]
+    },
+    {
+      "id": "ios-cache-draft",
+      "title": "Cache cleanup preserves an offline draft",
+      "priority": "P1",
+      "platforms": ["iOS"],
+      "tags": ["offline", "cache"],
+      "preconditions": ["Two QA documents", "App-specific network isolation"],
+      "steps": [
+        "Make one draft pending",
+        "Clear synced bodies in account settings",
+        "Restart offline and open draft",
+        "Reconnect and reopen cleared document"
+      ],
+      "assertions": [
+        "Draft text survives",
+        "Cleared document requires network",
+        "Cloud original remains unchanged"
+      ],
+      "failureSignals": ["Lost draft", "Cross-account deletion", "Changed cloud original"]
+    }
+  ],
+  "lastRun": {
+    "date": "2026-10-13",
+    "device": "Zhuole Docs QA / iPhone 17 Pro / iOS 26.1",
+    "build": "7bf19ba simulator Debug",
+    "authSource": "Existing task-owned local Mobile QA session; no credentials logged",
+    "results": [
+      {
+        "caseId": "ios-upgrade-session",
+        "status": "passed",
+        "mode": "manual",
+        "evidence": ["releases/mobile/ios-cache-build-workspace.png"],
+        "notes": "simctl install and launch succeeded; native screenshot shows restored workspace and previous QA documents."
+      },
+      {
+        "caseId": "ios-sheet-formula",
+        "status": "blocked",
+        "mode": "planned",
+        "evidence": [],
+        "notes": "CUA returned windowNotFoundAtPosition for content clicks and no app accessibility elements; no spreadsheet mutation attempted."
+      },
+      {
+        "caseId": "ios-slides",
+        "status": "blocked",
+        "mode": "planned",
+        "evidence": [],
+        "notes": "Same Simulator content interaction limitation; not evidence of an application failure."
+      },
+      {
+        "caseId": "ios-cache-draft",
+        "status": "blocked",
+        "mode": "planned",
+        "evidence": [],
+        "notes": "Same Simulator content interaction limitation. Desktop evidence does not establish iOS runtime behavior."
+      }
+    ],
+    "exclusions": [
+      "Physical iPhone/iPad",
+      "Store distribution",
+      "Keyboard and tablet layouts",
+      "No test documents created in this run"
+    ]
+  }
+}

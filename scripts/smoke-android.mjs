@@ -208,8 +208,20 @@ try {
     .getByRole('textbox', { name: '文档正文' })
     .fill('Android offline draft survives restart.');
   await expect(page.getByText('已保存到此设备 · 待同步')).toBeVisible({ timeout: 20000 });
+  await back();
+  await page.getByRole('button', { name: '账号设置' }).click();
+  await page.getByRole('button', { name: '清理已同步缓存', exact: true }).click();
+  await page.getByRole('button', { name: '确认清理缓存', exact: true }).click();
+  await expect(page.getByText('已清理 2 份文档缓存，未同步草稿已保留')).toBeVisible();
+  await page.screenshot({ path: 'releases/mobile/android-cache-cleanup.png' });
   await restart();
   await expect(page.getByText('Android QA，开启今天的好想法。')).toBeVisible();
+  const sheetButton = page.getByRole('button', {
+    name: `${list.documents.find((doc) => doc.kind === 'sheet').name} XLSX · 电子表格`,
+    exact: true,
+  });
+  await sheetButton.click();
+  await expect(page.getByText('云服务暂不可用；尚未缓存的文档需要联网打开')).toBeVisible();
   await page.getByRole('button', { name: 'Android Word QA DOCX · 文字文档' }).click();
   await expect(page.getByRole('textbox', { name: '文档正文' })).toContainText(
     'Android offline draft survives restart.',
@@ -224,6 +236,12 @@ try {
   );
   await saved();
   await back();
+  await sheetButton.click();
+  await expect(page.getByRole('textbox', { name: 'B1', exact: true })).toHaveValue('200');
+  await back();
+  console.log(
+    'Account cache cleanup preserved the pending draft across process restart; cleared sheet required a connection and redownloaded correctly.',
+  );
   await page.getByRole('button', { name: '账号设置' }).click();
   await page.getByRole('button', { name: '退出登录', exact: true }).click();
   await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible();
