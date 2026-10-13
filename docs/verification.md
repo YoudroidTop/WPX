@@ -67,3 +67,12 @@ The platform requirement now includes HarmonyOS. Cloudflare hosting at `wpx.youd
 - Runtime testing exposed and fixed the Node-only JSZip stream dependency and blank-sheet ExcelJS columns handling. These shared fixes preserve the bounded decompression checks on both server runtimes.
 
 Production plan capacity, domain attachment, public deployment, live acceptance, and recovery checks remain open under WPX-4.
+
+## First public Cloudflare acceptance — 2026-10-13
+
+`https://wpx.youdroid.top` is deployed at Worker version `ef808837-acc9-40fe-8236-ca260e847641` with 100% traffic confirmed remotely.
+
+- Live API smoke passed HTTPS health, unauthenticated 401, registration with Secure/HttpOnly cookies, exact 3 GB account allowance, private document access, DOCX/XLSX/PPTX ZIP exports, updates, stale-write 409, test-document deletion and logout. Generated documents and sessions were cleaned up; empty generated accounts remain.
+- Real Chromium smoke passed registration, Word save/reopen persistence, SUM formula result 200, slide presentation mode, reload and logout. No page errors were observed. Generated test documents were removed.
+- The first local DNS lookup failed before the new hostname resolved locally. Public Google DNS returned Cloudflare addresses, and both TLS-preserving pinned-address HTTP and existing-proxy HTTPS reached the production API. No certificate checks were disabled.
+- Initial code deployment has no earlier rollback version. Data restore rehearsal, signed client distribution and HarmonyOS implementation remain open; these are not implied by web acceptance.

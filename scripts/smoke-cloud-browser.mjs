@@ -1,0 +1,83 @@
+import { chromium, expect } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+import { mkdir } from 'node:fs/promises';
+const origin = 'https://wpx.youdroid.top';
+const browser = await chromium.launch({
+  headless: true,
+  ...(process.env.SMOKE_PROXY ? { proxy: { server: process.env.SMOKE_PROXY } } : {}),
+});
+const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
+const errors = [];
+page.on('pageerror', (error) => errors.push(error.message));
+const saved = () =>
+  expect(page.getByText('已保存到云端', { exact: true })).toBeVisible({ timeout: 20000 });
+const back = async () => {
+  await page.getByRole('button', { name: '返回工作空间' }).click();
+  await expect(page.getByText('YOUR SPACE TO CREATE')).toBeVisible();
+};
+try {
+  await page.goto(origin);
+  await page.getByRole('button', { name: '创建免费账号' }).click();
+  await page.getByLabel('怎么称呼你').fill('公网验收');
+  await page.getByLabel('邮箱地址').fill(`browser-${randomUUID()}@example.com`);
+  await page.getByLabel('密码', { exact: true }).fill(randomUUID());
+  await page.getByRole('button', { name: '创建账号', exact: true }).click();
+  await expect(page.getByText('公网验收，开启今天的好想法。')).toBeVisible({ timeout: 20000 });
+  await page.getByRole('button', { name: /新建文字文档 落笔/ }).click();
+  await page.getByRole('textbox', { name: '文档名称', exact: true }).fill('Live Word QA');
+  await page.getByRole('textbox', { name: '文档正文' }).fill('卓乐云文档公网保存验证。');
+  await saved();
+  await back();
+  await page.getByRole('button', { name: /新建电子表格 用数据/ }).click();
+  await page.getByRole('textbox', { name: 'A1', exact: true }).fill('120');
+  await page.getByRole('textbox', { name: 'A2', exact: true }).fill('80');
+  await page.getByRole('textbox', { name: 'B1', exact: true }).fill('=SUM(A1:A2)');
+  await page.getByRole('textbox', { name: 'C1', exact: true }).click();
+  await expect(page.getByRole('textbox', { name: 'B1', exact: true })).toHaveValue('200');
+  await saved();
+  await back();
+  await page.getByRole('button', { name: /新建演示文稿 把好/ }).click();
+  await page.getByRole('textbox', { name: '幻灯片标题', exact: true }).fill('Live presentation QA');
+  await saved();
+  await page.getByRole('button', { name: '开始放映' }).click();
+  await expect(page.getByRole('dialog', { name: '幻灯片放映' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await back();
+  await page.reload();
+  await page.getByRole('button', { name: 'Live Word QA DOCX · 文字文档' }).click();
+  await expect(page.getByRole('textbox', { name: '文档正文' })).toContainText(
+    '卓乐云文档公网保存验证。',
+  );
+  await back();
+  await mkdir('releases/cloudflare', { recursive: true });
+  await expect(page.locator('.file-row')).toHaveCount(3);
+  await page.screenshot({
+    path: 'releases/cloudflare/live-workspace.png',
+    fullPage: true,
+    animations: 'disabled',
+  });
+  expect(errors).toEqual([]);
+  // Only this generated account's test documents are removed.
+  const listing = await page.request.get(`${origin}/api/documents`);
+  expect(listing.status()).toBe(200);
+  for (const doc of (await listing.json()).documents) {
+    const trash = await page.request.patch(`${origin}/api/documents/${doc.id}`, {
+      headers: { Origin: origin },
+      data: { revision: doc.revision, deleted: true },
+    });
+    expect(trash.status()).toBe(200);
+    const removed = await page.request.delete(`${origin}/api/documents/${doc.id}`, {
+      headers: { Origin: origin },
+      data: { revision: (await trash.json()).revision },
+    });
+    expect(removed.status()).toBe(204);
+  }
+  await page.getByRole('button', { name: '账号设置' }).click();
+  await page.getByRole('button', { name: '退出登录', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible();
+  console.log(
+    'Production browser passed: registration, Word persistence, sheet formula, slide presentation, reload, logout. Test documents removed.',
+  );
+} finally {
+  await browser.close();
+}

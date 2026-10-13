@@ -37,6 +37,23 @@ The HTTP integration suite verifies registration, failed login, account isolatio
 
 Office ZIP validation uses JSZip's chunk stream rather than its Node-only stream adapter so expansion limits also apply in Workers. Empty spreadsheet exports tolerate ExcelJS's null columns collection.
 
-`wrangler.jsonc` defines bindings, initial SQLite class creation and the target Origin. It deliberately does not claim a live custom domain before domain inspection and deployment. The dry-run bundle is approximately 784 KiB compressed.
+`wrangler.jsonc` defines bindings, initial SQLite class creation and the target Origin. The verified custom domain is configured as a Worker route. The dry-run bundle is approximately 784 KiB compressed.
 
-Pending: production plan and domain inspection, deployment, rollback rehearsal, live API/browser acceptance, and backup/recovery evidence. No production data has been migrated or created by these local checks.
+The local checks do not constitute deployment evidence. The production deployment and remaining recovery work are recorded below.
+
+## First production deployment — 2026-10-13
+
+- Service: `https://wpx.youdroid.top`.
+- Worker version: `ef808837-acc9-40fe-8236-ca260e847641`, 100% traffic confirmed by `wrangler deployments list`.
+- Account preflight: the Workers Standard API returned `standard: true`; zone active; no existing target Worker or custom-domain binding. Billing subscriptions and raw DNS record listing were not available to the OAuth scope. No subscription or existing DNS record was manually changed.
+- Custom-domain deployment succeeded without an overwrite prompt. Public DNS returned Cloudflare A records; authenticated HTTPS API and browser checks passed on the custom hostname.
+- The local resolver initially returned ENOTFOUND. Public DNS and an HTTPS request pinned to the public address independently confirmed the domain; subsequent smoke used the existing local proxy without disabling TLS validation.
+- The workers.dev fallback timed out from this network. Its registration is confirmed, but reachability is not claimed.
+
+Run `node scripts/smoke-cloud.mjs` for the named production host only. It creates a random test account, verifies private document access, DOCX/XLSX/PPTX exports, revision rejection, trash/deletion and logout, then removes its test documents. `node scripts/smoke-cloud-browser.mjs` verifies registration, Word persistence, formula evaluation, presentation mode, reload and logout in Chromium, and removes its generated account's documents. Both retain empty test accounts because account deletion is not implemented. Credentials and session tokens are never printed or saved. Browser screenshots go to ignored `releases/cloudflare/`. `SMOKE_PROXY` optionally selects an existing proxy for the browser runner; Node HTTP smoke can use standard proxy environment variables with `--use-env-proxy`.
+
+## Recovery boundary
+
+This is the first deployment, so there is no earlier application version to roll back to. Keep the version above as the known working code baseline. For a later incompatible code-only rollout, inspect `wrangler deployments list`, then use `wrangler rollback <verified-version-id>`; code rollback does not restore document data or reverse SQLite schema changes. Do not delete Durable Object classes, bindings, namespaces, or migrations as a rollback shortcut.
+
+User-level recovery is available through native ZDOC backups and imports; Office exports preserve the supported basic content. SQLite Durable Objects provide point-in-time recovery, but an operator restore workflow and rehearsal have not yet been implemented here. Production data recovery acceptance remains open and must not be inferred from a successful code deployment.
