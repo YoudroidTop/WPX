@@ -34,7 +34,7 @@ xcodebuild -workspace ios/App/App.xcworkspace -scheme App \
   -derivedDataPath releases/mobile/DerivedData CODE_SIGNING_ALLOWED=NO build
 ```
 
-Use the `.xcworkspace`, not the `.xcodeproj`, for iOS. Simulator builds do not produce a distributable IPA. Physical-device signing and store distribution have not been configured.
+Use the `.xcworkspace`, not the `.xcodeproj`, for iOS. Simulator builds do not produce a distributable IPA. A development-signed device IPA is now available using an existing local team profile; physical-device runtime and store distribution remain unverified.
 
 For local Android emulator testing, map port 3173 with `adb reverse tcp:3173 tcp:3173` and connect to `http://127.0.0.1:3173`. The iOS simulator can use the same host loopback address directly. Public deployment uses an HTTPS server.
 
@@ -78,3 +78,18 @@ The iOS case catalog is `docs/qa/ios-cases.json`. Run `node scripts/report-ios-q
 ### iOS service fault injection
 
 Run the local API on port 3173, then `node scripts/mobile-qa-proxy.mjs`. After logging out, connect the simulator app to `http://127.0.0.1:3174` and use a dedicated QA account. Enter `offline` to close connections, `online` to restore forwarding, and `quit` to stop the proxy. Only loopback API requests are accepted; this does not change system networking or other clients using port 3173. Restore the app connection to port 3173 after logout before stopping the proxy. Credentials and generated evidence stay under ignored `releases/mobile/`.
+
+### iOS development device package
+
+`releases/mobile/ZhuoleDocs-0.1.0-ios-development.ipa` is a Release-configuration arm64 device build, signed for development by team `Y4MB2B6UD3`. It is restricted to the existing profile's registered devices (10 at export); the profile expires on 2027-07-14. It is not an App Store, TestFlight, enterprise, or unrestricted distribution artifact. No iPhone was online for installation/runtime acceptance.
+
+The local wildcard profile already contained the available Apple Development certificate. No new certificate, profile, device registration or portal submission was needed. Archive with the certificate category, not its fingerprint, because the project uses automatic signing:
+
+```sh
+xcodebuild -workspace ios/App/App.xcworkspace -scheme App -configuration Release -destination 'generic/platform=iOS' -derivedDataPath releases/mobile/DeviceDerivedData -archivePath releases/mobile/ZhuoleDocs-device.xcarchive DEVELOPMENT_TEAM=Y4MB2B6UD3 CODE_SIGN_IDENTITY='Apple Development' archive
+xcodebuild -exportArchive -archivePath releases/mobile/ZhuoleDocs-device.xcarchive -exportPath releases/mobile/ios-development-export -exportOptionsPlist releases/mobile/ios-development-export-options.plist
+```
+
+The generated local export plist uses `method=debugging`, `signingStyle=automatic`, `teamID=Y4MB2B6UD3`, and `manageAppVersionAndBuildNumber=false`. Do not force a manual provisioning profile for this Xcode-managed profile. The archive/export commands do not enable provisioning updates. Export metadata and provisioning material remain under ignored `releases/mobile/`.
+
+`ios-development-verification.json` records SHA-256, arm64/iPhoneOS identity, development entitlement, profile expiry, registered-device count, and byte equality for all 12 staged web files. The extracted IPA passed `codesign --verify --deep --strict`. `SHA256SUMS` includes this package alongside the Android debug APK and iOS simulator ZIP.
