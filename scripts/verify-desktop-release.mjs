@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createReadStream, openSync, closeSync } from 'node:fs';
-import { readFile, readdir, stat, writeFile, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, readdir, stat, writeFile, mkdtemp, rm, rmdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { extractFile, listPackage, statFile } from '@electron/asar';
 
@@ -44,6 +44,17 @@ const targets = [
   { os: 'win', arch: 'x64', folder: 'win-unpacked', machine: 0x8664 },
   { os: 'win', arch: 'arm64', folder: 'win-arm64-unpacked', machine: 0xaa64 },
 ];
+function macSignature(app) {
+  const result = spawnSync('codesign', ['-dv', '--verbose=4', app], { encoding: 'utf8' });
+  assert.equal(result.status, 0, 'Cannot inspect macOS signature');
+  return {
+    authorities: [...result.stderr.matchAll(/^Authority=(.+)$/gm)].map((match) => match[1]),
+    teamIdentifier: result.stderr.match(/^TeamIdentifier=(.+)$/m)?.[1] ?? null,
+    hardenedRuntime: /flags=.*\(.*runtime.*\)/.test(result.stderr),
+    integrityVerified: true,
+    notarization: 'not verified',
+  };
+}
 const packages = [];
 for (const target of targets) {
   const root = join(output, target.folder);
@@ -93,6 +104,34 @@ for (const target of targets) {
     const info = await stat(path);
     assert.ok(info.isFile() && info.size > 1000000, `Invalid installer: ${name}`);
     let payloadCompared = false;
+    if (extension === 'dmg') {
+      const mount = await mkdtemp(join(tmpdir(), 'zhuole-dmg-verify-'));
+      let attached = false;
+      try {
+        execFileSync('hdiutil', ['attach', '-readonly', '-nobrowse', '-mountpoint', mount, path], {
+          stdio: 'pipe',
+        });
+        attached = true;
+        const app = join(mount, '卓乐文档.app');
+        execFileSync('codesign', ['--verify', '--deep', '--strict', app], { stdio: 'pipe' });
+        assert.equal(
+          await fileDigest(join(app, 'Contents/Resources/app.asar')),
+          await fileDigest(archive),
+          `${name}: DMG payload mismatch`,
+        );
+        assert.equal(
+          await fileDigest(join(app, 'Contents/MacOS/卓乐文档')),
+          await fileDigest(join(root, '卓乐文档.app/Contents/MacOS/卓乐文档')),
+          `${name}: DMG executable mismatch`,
+        );
+        assert.deepEqual(macSignature(app), macSignature(join(root, '卓乐文档.app')));
+        payloadCompared = true;
+      } finally {
+        if (attached) execFileSync('hdiutil', ['detach', mount], { stdio: 'pipe' });
+        // Never recurse into a mount after a failed detach.
+        await rmdir(mount);
+      }
+    }
     if (extension === 'zip') {
       const payload = execFileSync(
         'unzip',
@@ -153,7 +192,7 @@ for (const target of targets) {
     },
     signature:
       target.os === 'mac'
-        ? 'integrity verified; Developer ID and notarization not established'
+        ? macSignature(join(root, '卓乐文档.app'))
         : 'code signing deferred by user; not verified',
     installerRuntime: 'not verified by this script',
     artifacts,

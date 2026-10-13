@@ -1,0 +1,6 @@
+extends: ./electron-builder.yml
+forceCodeSigning: true
+mac:
+  identity: Michale Yang (Y4MB2B6UD3)
+  hardenedRuntime: true
+  notarize: false

@@ -69,12 +69,26 @@ After both packaging commands finish, run on macOS:
 SEVEN_ZIP=/path/to/trusted/7zz npm run desktop:verify-release
 ```
 
-Use the 7zz binary already provided by the installed Electron builder toolchain, or an independently trusted installation. The verifier compares every ASAR file against the current staged build, checks Mach-O/PE CPU architectures and macOS signature integrity, extracts ZIP/NSIS payloads for comparison, and hashes all six artifacts. It fails on stale/missing/extra packaged content. It writes `releases/desktop/release-manifest.json` and `SHA256SUMS`; the manifest records Git HEAD and dirty state without claiming that HEAD alone identifies the build.
+Use the 7zz binary already provided by the installed Electron builder toolchain, or an independently trusted installation. The verifier compares every ASAR file against the current staged build, checks Mach-O/PE CPU architectures and macOS signature integrity, mounts DMGs read-only and extracts ZIP/NSIS payloads for comparison, and hashes all six artifacts. It fails on stale/missing/extra packaged content. It writes `releases/desktop/release-manifest.json` and `SHA256SUMS`; the manifest records Git HEAD and dirty state without claiming that HEAD alone identifies the build.
 
-The DMG bytes are hashed, but the script does not mount/install the DMG. Payload comparison is recorded per artifact. Windows installer execution, macOS Developer ID signing/notarization and update delivery are separate gates. Windows signing is deferred by user decision. `publicReleaseReady` remains false until those gates are independently satisfied.
+DMGs are mounted read-only in a task-owned temporary directory and detached after checking the embedded app signature, executable and ASAR. A detach failure leaves the mount directory intact. This verifies packaged contents, not user installation. Payload comparison is recorded per artifact. Windows installer execution, macOS Developer ID signing/notarization and update delivery are separate gates. Windows signing is deferred by user decision. `publicReleaseReady` remains false until those gates are independently satisfied.
 
 ## Latest artifact verification (2026-10-13)
 
 All four CPU targets match the 13 current staged files. Both macOS ZIP and both Windows NSIS payloads match their unpacked applications; all six intended files have SHA-256 entries. The verifier also rejected an extra staged sentinel file in a negative test. The refreshed Apple Silicon packaged application passed its runtime smoke test (1/1). Windows installers have not been executed on Windows.
 
-Developer ID creation was requested through the authenticated in-app browser. Browser access recovered using the documented tab API. The application is prepared for team Y4MB2B6UD3 with Developer ID Application, G2 Sub-CA and a verified RSA-2048 CSR. The private key is outside the repository in the local application-support signing directory with mode 0600. The CSR is selected in the portal; certificate issuance awaits the browser-required final credential-creation confirmation. No certificate has been issued. Existing macOS artifacts remain ad-hoc signed and are not notarized.
+Developer ID Application certificate DBFQZ3TW3Z was issued for team Y4MB2B6UD3 after explicit final confirmation. It expires on 2031-09-17 and uses the G2 chain. Its public key matches the locally generated RSA-2048 private key, and Keychain reports a valid signing identity. Private signing material remains outside the repository. Certificate issuance alone does not establish signed or notarized artifacts.
+
+## Developer ID build and notarization
+
+```sh
+npm run desktop:pack:mac:signed
+SEVEN_ZIP=/path/to/trusted/7zz npm run desktop:verify-release
+node scripts/notarize-mac.mjs /path/to/asc.env
+```
+
+The separate release configuration requires the project team's signing identity and Hardened Runtime, and fails if signing is unavailable. The original development packaging command retains ad-hoc signing. The signed build intentionally leaves notarization to the explicit submission step.
+
+The notarization command reads only ASC_API_KEY_PATH, ASC_KEY_ID (or ASC_API_KEY_ID) and ASC_ISSUER_ID from the supplied local environment file without executing it. It submits the two ZIP and two DMG files, stores job IDs with their artifact hashes under ignored releases/desktop/notarization.json, and queries their status on later runs. Authentication was verified using the existing PinyinDic configuration; credentials are not copied into this repository. After Apple accepts the submissions, staple and validate the DMGs and app bundles, recreate ZIPs from stapled bundles, and regenerate the release hash inventory. Acceptance, stapling and Gatekeeper verification remain distinct checks.
+
+Developer ID verification in this run: the Apple Silicon app passed strict deep code-signature validation and its packaged launch test (1/1). Its DMG was mounted read-only, its embedded signature validated, and its executable/ASAR matched the signed app. The ARM64 ZIP was submitted to Apple with job ID 9f474189-112e-4530-b866-285eec16ffc4 and initially reported In Progress. Intel signing and remaining submissions were still active at that checkpoint; do not interpret submission as acceptance.
