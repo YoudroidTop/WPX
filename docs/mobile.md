@@ -2,7 +2,7 @@
 
 ## Scope and implementation
 
-Phase three targets iOS, Android, and HarmonyOS. The current native implementation covers iOS and Android; a HarmonyOS ArkUI/ArkWeb host is planned. The app is named 卓乐文档 and embeds the same three editors used by the web and desktop clients. The bundled UI works without downloading executable application code from the cloud service.
+Phase three targets iOS, Android, and HarmonyOS. Native implementations exist for iOS and Android, with a build-verified HarmonyOS ArkUI/ArkWeb foundation described in `docs/harmony.md`. HarmonyOS device execution still requires a matching development signing profile. The app is named 卓乐文档 and embeds the same three editors used by the web and desktop clients. The bundled UI works without downloading executable application code from the cloud service.
 
 Capacitor provides native HTTP, preferences, filesystem, sharing, app lifecycle, and keyboard integration. A common native bridge keeps desktop behavior intact while enabling server configuration, local drafts, account-scoped caching, revision-aware synchronization, and file export on mobile. Native HTTP sends the configured service Origin; the existing API authentication and 3 GB quota enforcement remain authoritative. Cookies are handled by the native transport and removed on logout. Only HTTPS roots and loopback HTTP development addresses are accepted.
 
@@ -40,11 +40,11 @@ For local Android emulator testing, map port 3173 with `adb reverse tcp:3173 tcp
 
 ## Current evidence and remaining gates
 
-See `docs/verification.md` for checks actually completed. Web viewport checks do not establish keyboard, lifecycle, or native file behavior on every OS. Windows desktop distribution, public hosting, mobile native acceptance, signing, and store publication remain separate work items. The full project goal is still active.
+See `docs/verification.md` for checks actually completed. Web viewport checks do not establish keyboard, lifecycle, or native file behavior on every OS. The public Cloudflare service is deployed. Windows runtime acceptance, the remaining mobile native scenarios, signing, and store publication remain separate work items. The full project goal is still active.
 
 The selected public service target is `https://wpx.youdroid.top` on Cloudflare. Deployment adaptation is tracked in WPX-4 and is not yet verified live.
 
-The shared iOS/Android first-connection form pre-fills `https://wpx.youdroid.top`; users can connect directly or enter their own service. Saved connections are not overwritten. The Android 35 emulator image is now installed for supported-WebView acceptance, which remains separate from building the APK.
+The shared iOS/Android first-connection form pre-fills `https://wpx.youdroid.top`; users can connect directly or enter their own service. Saved connections are not overwritten. The Android 35 emulator with WebView 124 has passed editor persistence, offline drafts and account isolation checks; those results remain separate from physical-device acceptance.
 
 ## Android native smoke
 
@@ -61,4 +61,4 @@ node scripts/smoke-android.mjs
 ANDROID_SHARE_QA=1 node scripts/smoke-android.mjs
 ```
 
-The default scenario includes account switching, offline restart isolation, offline logout and original-account recovery. The optional scenario additionally checks native Office exports and their ZIP/XML bytes through the system share chooser. It requires a responsive Android System UI; cancellation must return control to an enabled export button. The 2026-10-13 attempt reached DOCX byte verification but was interrupted by a System UI ANR; native sharing remains a release acceptance gate.
+The default scenario includes account switching, offline restart isolation, offline logout and original-account recovery. The optional scenario additionally checks native Office exports and their ZIP/XML bytes through the system share chooser. It requires a responsive Android System UI; cancellation must return control to an enabled export button. The first 2026-10-13 attempt was interrupted by a System UI ANR. After the system recovered and the harness was corrected to inspect the current foreground chooser rather than historical activity records, all three exports passed ZIP/XML verification and chooser dismissal. This proves file generation and the chooser cancellation path; it does not prove that an external app persisted a received file.

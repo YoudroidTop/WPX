@@ -73,9 +73,11 @@ async function verifyNativeExport(extension, entry, text) {
   await page.getByRole('button', { name: '导出 ' + extension.toUpperCase(), exact: true }).click();
   await expect
     .poll(() => adb('shell', 'dumpsys', 'activity', 'activities'))
-    .toContain('ChooserActivity');
-  const files = listFiles().filter((path) => !before.has(path) && path.endsWith('.' + extension));
-  expect(files).toHaveLength(1);
+    .toMatch(/topResumedActivity=.*com\.android\.intentresolver\/.*Chooser/);
+  const newFiles = () =>
+    listFiles().filter((path) => !before.has(path) && path.endsWith('.' + extension));
+  await expect.poll(newFiles).toHaveLength(1);
+  const files = newFiles();
   const bytes = execFileSync(process.env.ADB || 'adb', [
     '-s',
     'emulator-5554',
@@ -88,9 +90,13 @@ async function verifyNativeExport(extension, entry, text) {
   const zip = await JSZip.loadAsync(bytes);
   expect(await zip.file(entry).async('string')).toContain(text);
   adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+  await expect
+    .poll(() => adb('shell', 'dumpsys', 'activity', 'activities'))
+    .toMatch(/topResumedActivity=.*com\.youdroid\.zhuoledocs\/\.MainActivity/);
   await expect(
     page.getByRole('button', { name: '导出 ' + extension.toUpperCase(), exact: true }),
   ).toBeEnabled();
+  console.log(`${extension.toUpperCase()} native export bytes and chooser dismissal passed.`);
 }
 const credentials = {
   email: `android-${randomUUID()}@example.com`,

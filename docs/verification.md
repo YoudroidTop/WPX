@@ -110,3 +110,11 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - Optional `ANDROID_SHARE_QA=1 node scripts/smoke-android.mjs` exercises native Office export, system chooser appearance, private-cache ZIP/XML byte readback and chooser dismissal. This optional scenario did not pass: DOCX generation and `word/document.xml` content assertions passed, but the emulator displayed `System UI isn't responding`; the chooser remained active and the export button remained busy while it was open.
 - XLSX/PPTX native export and successful chooser dismissal are not claimed. This attempt does not establish an application defect. Revalidate the optional scenario on a responsive emulator or physical device; do not bypass the busy-state assertion.
 - Test fixtures use random local accounts on port 3173. The script restores the task-owned emulator's port mapping in `finally`, and no production accounts were mutated.
+
+## Android native Office export acceptance — 2026-10-13
+
+- Rechecked the live task-owned emulator: System UI had recovered, and the application was foreground.
+- The next attempt exposed a harness race: `dumpsys activity` includes historical chooser records. Changed the assertion to require the currently resumed chooser and poll for a newly generated export file. Dismissal additionally requires the app to become foreground and the export control to become enabled.
+- `ANDROID_SHARE_QA=1 node scripts/smoke-android.mjs`: passed. DOCX `word/document.xml` contains the authored text; XLSX `xl/worksheets/sheet1.xml` contains `SUM(A1:A2)`; PPTX `ppt/slides/slide1.xml` contains the authored title. Each file was read from the native app cache as ZIP bytes. Each native chooser opened and dismissed successfully.
+- The same run passed editor persistence, offline draft process restart and synchronization, second-account isolation, offline logout and original-account recovery, with no page errors.
+- Evidence: `releases/mobile/android-share-passed.log`. This supersedes the earlier unsuccessful chooser attempt for emulator acceptance. It does not establish persistence by an external receiving app or physical-device behavior.
