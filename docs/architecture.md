@@ -68,4 +68,4 @@ The implemented Electron shell keeps the API authoritative for accounts and clou
 
 ### Phase three: mobile
 
-Select target operating systems and native/cross-platform UI before implementation. Prioritize document access, focused editing, file provider/share integration, and touch-sized controls. Reuse API authorization and quota rules. Mobile offline sync should share the desktop protocol. Store submission, review, publication, and actual device acceptance remain separate delivery states.
+The initial mobile targets are iOS and Android using Capacitor with bundled React editors. Native HTTP, file export, share sheets, preferences, keyboard and lifecycle integrations sit behind the shared client bridge. Mobile caches and drafts share the desktop revision protocol. Incoming system file/share integration and full native offline acceptance remain open. Store submission, review, publication, and actual device acceptance remain separate delivery states.

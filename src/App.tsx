@@ -39,7 +39,7 @@ import {
 import Auth from './components/Auth';
 import { listDrafts, isOffline, type LocalDraft } from './cache';
 import { synchronizeDrafts } from './sync';
-import { nativeCommand, openNativeFile } from './platform';
+import { nativeBridge, nativeCommand, openNativeFile } from './platform';
 import Editor from './components/Editor';
 import { KindIcon, Logo, Modal } from './components/ui';
 
@@ -78,13 +78,19 @@ export default function App() {
   const nativeState = useRef({ account, opened, busy });
   nativeState.current = { account, opened, busy };
   const notify = useCallback((message: string) => setToast(message), []);
+  useEffect(() => {
+    if (nativeBridge) {
+      window.scrollTo(0, 0);
+      document.querySelector('.desktop-host')?.scrollTo(0, 0);
+    }
+  }, [account?.id, Boolean(opened)]);
   const refresh = useCallback(async () => {
     if (refreshing.current) return;
     refreshing.current = true;
     setLoading(true);
     try {
       let result = await api<{ account: Account; documents: DocumentSummary[] }>('/documents');
-      if (window.zhuoleDesktop && !isOffline() && !nativeState.current.opened) {
+      if (nativeBridge && !isOffline() && !nativeState.current.opened) {
         const summary = await synchronizeDrafts();
         if (summary.saved) result = await api('/documents');
         if (summary.conflicts)
@@ -173,6 +179,11 @@ export default function App() {
     return nativeCommand((command) => {
       const current = nativeState.current;
       if (current.opened || current.busy) return;
+      if (command === 'back') {
+        setDialog(null);
+        setMobileNav(false);
+        return;
+      }
       if (!current.account) {
         if (command !== 'connection') actions.current.notify('请先登录，再打开或新建文档');
         return;
@@ -187,7 +198,7 @@ export default function App() {
     });
   }, []);
   useEffect(() => {
-    if (!account || opened || !window.zhuoleDesktop) return;
+    if (!account || opened || !nativeBridge) return;
     void openNativeFile(true)
       .then((file) => {
         if (file) setDialog({ type: 'import', file });

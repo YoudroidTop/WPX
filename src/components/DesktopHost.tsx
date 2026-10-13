@@ -1,16 +1,17 @@
+import { isMobile } from '../mobile';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Cloud, Link2 } from 'lucide-react';
 import { clientAccount, configureClientCache, isOffline, setOffline } from '../cache';
-import { nativeCommand, type DesktopConnection } from '../platform';
+import { nativeBridge, nativeCommand, type DesktopConnection } from '../platform';
 import { Logo, Modal } from './ui';
 export default function DesktopHost({ children }: { children: ReactNode }) {
   const [connection, setConnection] = useState<DesktopConnection | null>(null),
-    [loading, setLoading] = useState(Boolean(window.zhuoleDesktop)),
+    [loading, setLoading] = useState(Boolean(nativeBridge)),
     [settings, setSettings] = useState(false),
     [offline, setOfflineState] = useState(false);
   useEffect(() => {
-    if (!window.zhuoleDesktop) return;
-    void window.zhuoleDesktop
+    if (!nativeBridge) return;
+    void nativeBridge
       .getConnection()
       .then((value) => {
         configureClientCache(value.origin);
@@ -20,14 +21,17 @@ export default function DesktopHost({ children }: { children: ReactNode }) {
     const unlisten = nativeCommand((command) => {
       if (command === 'connection') setSettings(true);
     });
+    const showConnection = () => setSettings(true);
+    window.addEventListener('zhuole-show-connection', showConnection);
     const update = () => setOfflineState(isOffline());
     window.addEventListener('zhuole-connectivity', update);
     return () => {
       unlisten();
+      window.removeEventListener('zhuole-show-connection', showConnection);
       window.removeEventListener('zhuole-connectivity', update);
     };
   }, []);
-  if (!window.zhuoleDesktop) return children;
+  if (!nativeBridge) return children;
   if (loading)
     return (
       <div className="boot">
@@ -46,7 +50,7 @@ export default function DesktopHost({ children }: { children: ReactNode }) {
       <div className="desktop-connect">
         <Logo />
         <ConnectionForm onConnected={connected} />
-        <p className="muted">桌面客户端与 Web 使用同一账号和 3 GB 云空间。</p>
+        <p className="muted">客户端与 Web 使用同一账号和 3 GB 云空间。</p>
       </div>
     );
   return (
@@ -59,6 +63,15 @@ export default function DesktopHost({ children }: { children: ReactNode }) {
         </div>
       )}
       {children}
+      {isMobile && (
+        <button
+          className="mobile-connection-button"
+          aria-label="云服务连接"
+          onClick={() => setSettings(true)}
+        >
+          <Link2 size={18} />
+        </button>
+      )}
       {settings && (
         <Modal title="云服务连接" onClose={() => setSettings(false)}>
           <p className="muted">
@@ -94,7 +107,7 @@ function ConnectionForm({
         }
         setBusy(true);
         try {
-          onConnected(await window.zhuoleDesktop!.connect(origin));
+          onConnected(await nativeBridge!.connect(origin));
         } catch (error) {
           setError(
             (error as Error).message.replace(/^Error invoking remote method '[^']+': Error: /, ''),
@@ -105,7 +118,7 @@ function ConnectionForm({
       }}
     >
       <h2>连接你的云端工作空间</h2>
-      <p>输入已部署的卓乐云文档地址，登录后即可在桌面继续创作。</p>
+      <p>输入已部署的卓乐云文档地址，登录后即可继续创作。</p>
       <label>
         云服务地址
         <input

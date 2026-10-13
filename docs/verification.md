@@ -35,3 +35,15 @@ Implemented Electron clients with bundled editors, native menus and file dialogs
 Desktop screenshots are `test-results/desktop-offline.png`, `test-results/desktop-workspace.png`, and `test-results/desktop-packaged.png`. Installer SHA-256 checksums are written beside the generated artifacts in `releases/desktop/SHA256SUMS`.
 
 This is a local desktop development delivery, not a signed public release. Developer ID/notarization, Windows code signing, a verified update distribution service, public cloud deployment, and Windows native installation/runtime checks remain open. Mobile clients have not yet been delivered.
+
+## Phase-three mobile foundation checkpoint
+
+- `npm test`: ten tests passed, including native HTTP JSON/error handling, binary Office bytes, cookie-header removal, and 204 responses.
+- `npm run test:e2e`: five scenarios passed. The added mobile editor check exercises Word, sheets, and slides at 360×780, 430×930, 780×360, 768×1024, and 1024×768, verifies no document-level horizontal overflow, visible return controls, and 44-point return targets.
+- `npm run test:desktop`: six scenarios passed after introducing the common native bridge. The previously built macOS artifact remains the prior desktop checkpoint; mobile changes do not imply a newly distributed desktop release.
+- iOS simulator source build and Android `assembleDebug` passed. iOS uses CocoaPods and a pinned source podspec after the original SPM binary release download stalled; the failing binary route is not the delivered build path.
+- On the iPhone 17 Pro / iOS 26.1 simulator, the installed app connected to the local API, signed in, restored its session after reinstall/relaunch, created/opened a Word document, and saved `Created on iPhone.`. Independent API readback returned revision 2 with that exact content. The DOCX export reached the real iOS share sheet; the 9,560-byte cache file was opened as ZIP and its `word/document.xml` contained the same text.
+- Native visual testing found and fixed retained login scrolling obscuring the editor header. The fixed build was reinstalled; the workspace, document title, return button, save state, and export controls were visibly below the system status area.
+- The Android APK installed and its activity launched on an Android 12 emulator, but its bundled WebView 91 is below the supported WebView 111 baseline. This is not Android editing acceptance. A local update-required page now guards unsupported engines; a newer Android emulator image is being prepared for further validation.
+
+Remaining mobile gates: Android supported-engine interaction, native spreadsheet/presentation editing, full offline/reconnect/account isolation on both mobile platforms, incoming OS file/share integration, software-keyboard and text-scaling coverage, iPad/native landscape acceptance, cache retention policy, physical-device signing, and store distribution. Current packages are development artifacts. Public cloud deployment and desktop distribution gates remain open separately.

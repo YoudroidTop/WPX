@@ -78,7 +78,7 @@ See [Desktop delivery](docs/desktop.md) for artifact locations, platform validat
 - **Phase 2 / WPX-2:** 卓乐文档 for Windows and macOS; native file integration, offline editing/sync, signed installers and updates.
 - **Phase 3 / WPX-3:** mobile clients; touch editing, system files/share integration, offline sync, store distribution.
 
-Desktop delivery is in progress; the mobile phase remains in the backlog. They will reuse the account, quota, and document API. See [Architecture](docs/architecture.md) for the implementation boundaries.
+Desktop distribution and mobile delivery are in progress. iOS and Android client projects now bundle the editors and native cloud/file adapters; see [Mobile clients](docs/mobile.md). They will reuse the account, quota, and document API. See [Architecture](docs/architecture.md) for the implementation boundaries.
 
 ```text
 desktop/             Sandboxed Electron main process, preload and packaging assets

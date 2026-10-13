@@ -4,7 +4,7 @@ import { api, downloadFile, downloadLocal, RequestError } from '../api';
 import { extensions, type CloudDocument, type DocumentContent } from '../../shared/documents';
 import { KindIcon } from './ui';
 import { draftScope, persistDraft, readDraft, removeDraft, type LocalDraft } from '../cache';
-import { isDesktop, nativeCommand } from '../platform';
+import { isNative, nativeCommand } from '../platform';
 const WordEditor = lazy(() => import('./WordEditor'));
 import SheetEditor from './SheetEditor';
 import SlideEditor from './SlideEditor';
@@ -66,7 +66,7 @@ function EditorSession({
           await pendingWrite.current.catch(() => {});
           await removeDraft(current.id, token, localScope.current).catch(() => {});
         } catch (error) {
-          if (isDesktop && error instanceof RequestError && error.status === 0) {
+          if (isNative && error instanceof RequestError && error.status === 0) {
             try {
               await pendingWrite.current;
               if (persistedGeneration.current === generation.current) {
@@ -106,7 +106,7 @@ function EditorSession({
       savedAt: Date.now(),
       token,
     };
-    if (isDesktop) {
+    if (isNative) {
       pendingLocal.current = { snapshot, version };
       if (!writingLocal.current) {
         writingLocal.current = true;
@@ -134,7 +134,7 @@ function EditorSession({
     const beforeUnload = (event: BeforeUnloadEvent) => {
       if (
         generation.current !== savedGeneration.current &&
-        (!isDesktop || generation.current !== persistedGeneration.current)
+        (!isNative || generation.current !== persistedGeneration.current)
       ) {
         event.preventDefault();
         event.returnValue = '';
@@ -164,17 +164,20 @@ function EditorSession({
   }, [flush]);
   const commands = useRef({
     flush,
+    close,
     exportFile,
     backup: () => downloadLocal(doc.name, draft.current.content),
   });
   commands.current = {
     flush,
+    close,
     exportFile,
     backup: () => downloadLocal(doc.name, draft.current.content),
   };
   useEffect(
     () =>
       nativeCommand((command) => {
+        if (command === 'back') void commands.current.close();
         if (command === 'save') void commands.current.flush();
         if (command === 'export') void commands.current.exportFile();
         if (command === 'backup')

@@ -1,5 +1,8 @@
+import { isMobile, mobileRequest } from './mobile';
 import { cacheRead, cacheResponse, forgetAccount, offlineAccount, setOffline } from './cache';
-import { isDesktop } from './platform';
+import { isNative, nativeBridge } from './platform';
+const request = (path: string, options?: RequestInit) =>
+  isMobile ? mobileRequest(path, options) : fetch(path, options);
 export class RequestError extends Error {
   constructor(
     message: string,
@@ -11,7 +14,7 @@ export class RequestError extends Error {
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const method = options.method ?? 'GET';
   try {
-    const response = await fetch(`/api${path}`, {
+    const response = await request(`/api${path}`, {
       credentials: 'same-origin',
       ...options,
       headers: {
@@ -34,15 +37,15 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     await cacheResponse(path, value, method).catch(() => {
       /* Cloud success remains authoritative when a cache is unavailable. */
     });
-    if (path === '/auth/logout') await window.zhuoleDesktop?.clearSession();
+    if (path === '/auth/logout') await nativeBridge?.clearSession();
     return value as T;
   } catch (error) {
     const networkFailure =
       error instanceof TypeError || (error instanceof RequestError && error.status === 0);
-    if (isDesktop && networkFailure) {
+    if (isNative && networkFailure) {
       setOffline(true);
       if (path === '/auth/logout') {
-        await window.zhuoleDesktop!.clearSession();
+        await nativeBridge!.clearSession();
         await forgetAccount();
         return undefined as T;
       }
@@ -56,7 +59,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
   }
 }
 async function saveBytes(name: string, extension: string, bytes: Uint8Array) {
-  if (window.zhuoleDesktop) return window.zhuoleDesktop.saveFile(name, extension, bytes);
+  if (nativeBridge) return nativeBridge.saveFile(name, extension, bytes);
   const url = URL.createObjectURL(
     new Blob([new Uint8Array(bytes)], { type: 'application/octet-stream' }),
   );
@@ -71,7 +74,7 @@ export async function downloadLocal(name: string, content: unknown) {
   return saveBytes(name, 'zdoc', new TextEncoder().encode(JSON.stringify(content, null, 2)));
 }
 export async function downloadFile(id: string, name: string, extension: string) {
-  const response = await fetch(
+  const response = await request(
     `/api/documents/${id}/export${extension === 'zdoc' ? '?format=zdoc' : ''}`,
   );
   if (!response.ok) {

@@ -20,9 +20,18 @@
     "desktop:dev": "npm run desktop:build && electron desktop-dist",
     "desktop:pack:mac": "npm run desktop:build && electron-builder --config electron-builder.yml --mac --publish never",
     "desktop:pack:win": "npm run desktop:build && electron-builder --config electron-builder.yml --win --publish never",
-    "test:desktop": "playwright test --config playwright.desktop.config.ts"
+    "test:desktop": "playwright test --config playwright.desktop.config.ts",
+    "mobile:sync": "npm run build && cap sync"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.4",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/share": "^8.0.3",
     "@tiptap/extension-placeholder": "^3.31.4",
     "@tiptap/extension-table": "^3.31.4",
     "@tiptap/extension-text-align": "^3.31.4",
@@ -44,6 +53,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "@playwright/test": "^1.64.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",

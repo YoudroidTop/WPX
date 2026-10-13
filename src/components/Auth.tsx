@@ -1,7 +1,8 @@
+import { isMobile } from '../mobile';
 import { useState, type FormEvent } from 'react';
 import { ArrowUpRight, Cloud, Check, ArrowRight } from 'lucide-react';
 import { api } from '../api';
-import { isDesktop } from '../platform';
+import { isNative } from '../platform';
 import type { Account } from '../../shared/documents';
 import { Logo, KindIcon } from './ui';
 export default function Auth({ onLogin }: { onLogin: (account: Account) => void }) {
@@ -90,7 +91,7 @@ export default function Auth({ onLogin }: { onLogin: (account: Account) => void 
       </section>
       <section className="auth-form-side">
         <span className="edition-label">
-          卓乐文档 / {isDesktop ? 'DESKTOP EDITION' : 'WEB EDITION'}
+          卓乐文档 / {isMobile ? 'MOBILE EDITION' : isNative ? 'DESKTOP EDITION' : 'WEB EDITION'}
         </span>
         <div className="auth-form-wrap">
           <span className="small-tag">为你的创造留一个位置</span>

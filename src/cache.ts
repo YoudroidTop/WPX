@@ -1,6 +1,6 @@
 import { openDB } from 'idb';
 import type { Account, CloudDocument, DocumentSummary } from '../shared/documents';
-import { isDesktop } from './platform';
+import { isNative } from './platform';
 
 export interface LocalDraft {
   document: CloudDocument;
@@ -39,10 +39,10 @@ function ownerKey() {
 }
 export async function rememberAccount(account: Account) {
   currentAccount = account;
-  if (isDesktop && origin) await (await db()).put('entries', account, `${origin}:active-account`);
+  if (isNative && origin) await (await db()).put('entries', account, `${origin}:active-account`);
 }
 export async function offlineAccount(): Promise<Account | undefined> {
-  if (!isDesktop || !origin) return;
+  if (!isNative || !origin) return;
   const account = (await (await db()).get('entries', `${origin}:active-account`)) as
     Account | undefined;
   currentAccount = account ?? null;
@@ -50,10 +50,10 @@ export async function offlineAccount(): Promise<Account | undefined> {
 }
 export async function forgetAccount() {
   currentAccount = null;
-  if (isDesktop && origin) await (await db()).delete('entries', `${origin}:active-account`);
+  if (isNative && origin) await (await db()).delete('entries', `${origin}:active-account`);
 }
 export async function cacheRead(path: string): Promise<unknown> {
-  if (!isDesktop || !currentAccount) return;
+  if (!isNative || !currentAccount) return;
   const database = await db();
   if (path === '/documents') {
     const documents = (await database.get('entries', `${ownerKey()}:library`)) as
@@ -63,7 +63,7 @@ export async function cacheRead(path: string): Promise<unknown> {
   if (/^\/documents\/[^/]+$/.test(path)) return database.get('entries', `${ownerKey()}:${path}`);
 }
 export async function cacheResponse(path: string, value: any, method: string) {
-  if (!isDesktop || !origin) return;
+  if (!isNative || !origin) return;
   if (path === '/me' || path === '/auth/register' || path === '/auth/login') {
     await rememberAccount(value);
     return;
@@ -98,20 +98,20 @@ export async function cacheResponse(path: string, value: any, method: string) {
   }
 }
 export async function readDraft(id: string): Promise<LocalDraft | undefined> {
-  if (!isDesktop || !currentAccount) return;
+  if (!isNative || !currentAccount) return;
   return (await db()).get('entries', `${ownerKey()}:draft:${id}`);
 }
 export function draftScope() {
-  return isDesktop && currentAccount ? ownerKey() : undefined;
+  return isNative && currentAccount ? ownerKey() : undefined;
 }
 export async function persistDraft(draft: LocalDraft, scope = draftScope()): Promise<void> {
-  if (!isDesktop) return;
+  if (!isNative) return;
   if (!scope) throw new Error('Local account unavailable');
   const key = `${scope}:draft:${draft.document.id}`;
   await (await db()).put('entries', draft, key);
 }
 export async function removeDraft(id: string, token: string, scope = draftScope()): Promise<void> {
-  if (!isDesktop || !scope) return;
+  if (!isNative || !scope) return;
   const key = `${scope}:draft:${id}`;
   const transaction = (await db()).transaction('entries', 'readwrite');
   const current = (await transaction.store.get(key)) as LocalDraft | undefined;
@@ -119,7 +119,7 @@ export async function removeDraft(id: string, token: string, scope = draftScope(
   await transaction.done;
 }
 export async function listDrafts(): Promise<LocalDraft[]> {
-  if (!isDesktop || !currentAccount) return [];
+  if (!isNative || !currentAccount) return [];
   const prefix = `${ownerKey()}:draft:`;
   const database = await db();
   const transaction = database.transaction('entries');

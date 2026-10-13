@@ -7,3 +7,6 @@ package-lock.json
 
 desktop-dist/
 releases/
+
+ios/
+android/

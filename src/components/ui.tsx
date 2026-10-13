@@ -1,6 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { FileText, Table2, Presentation, X } from 'lucide-react';
-import { isDesktop } from '../platform';
+import { isNative } from '../platform';
 import type { DocumentKind } from '../../shared/documents';
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
@@ -10,7 +10,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
       </span>
       {!compact && (
         <span>
-          卓乐<span className="brand-light">{isDesktop ? '文档' : '云文档'}</span>
+          卓乐<span className="brand-light">{isNative ? '文档' : '云文档'}</span>
         </span>
       )}
     </div>
