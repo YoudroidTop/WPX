@@ -102,3 +102,11 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - `npm run desktop:build` and `npm run test:desktop`: passed, including all 6 desktop checks.
 - A connected HarmonyOS API 24 device was detected read-only. No matching application signing configuration is available; native runtime acceptance remains pending.
 - Artifact: `releases/harmony/ZhuoleDocs-0.1.0-harmony-unsigned.hap` (ignored build output).
+
+## Android account isolation and native export attempt — 2026-10-13
+
+- Extended `scripts/smoke-android.mjs` with a second account, offline process restart, absence of the first account's document, offline logout, another process restart requiring login, and recovery of the first account's document after reauthentication.
+- `node scripts/smoke-android.mjs`: passed on the task-owned API 35 emulator / WebView 124. The same run also passed all three editor flows, independent server readback and offline draft recovery/synchronization. No page errors were reported.
+- Optional `ANDROID_SHARE_QA=1 node scripts/smoke-android.mjs` exercises native Office export, system chooser appearance, private-cache ZIP/XML byte readback and chooser dismissal. This optional scenario did not pass: DOCX generation and `word/document.xml` content assertions passed, but the emulator displayed `System UI isn't responding`; the chooser remained active and the export button remained busy while it was open.
+- XLSX/PPTX native export and successful chooser dismissal are not claimed. This attempt does not establish an application defect. Revalidate the optional scenario on a responsive emulator or physical device; do not bypass the busy-state assertion.
+- Test fixtures use random local accounts on port 3173. The script restores the task-owned emulator's port mapping in `finally`, and no production accounts were mutated.

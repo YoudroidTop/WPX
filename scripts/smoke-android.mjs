@@ -1,6 +1,7 @@
 import { chromium, expect as baseExpect } from '@playwright/test';
 const expect = baseExpect.configure({ timeout: 45000 });
 import { randomUUID } from 'node:crypto';
+import JSZip from 'jszip';
 import { mkdir } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 const adb = (...args) =>
@@ -51,6 +52,46 @@ async function restart() {
   page.setDefaultTimeout(20000);
   page.on('pageerror', (error) => errors.push(error.message));
 }
+async function verifyNativeExport(extension, entry, text) {
+  if (process.env.ANDROID_SHARE_QA !== '1') return;
+  const listFiles = () => {
+    try {
+      return adb(
+        'shell',
+        'run-as',
+        'com.youdroid.zhuoledocs',
+        'find',
+        'cache/exports',
+        '-type',
+        'f',
+      ).split(/\r?\n/);
+    } catch {
+      return [];
+    }
+  };
+  const before = new Set(listFiles());
+  await page.getByRole('button', { name: '导出 ' + extension.toUpperCase(), exact: true }).click();
+  await expect
+    .poll(() => adb('shell', 'dumpsys', 'activity', 'activities'))
+    .toContain('ChooserActivity');
+  const files = listFiles().filter((path) => !before.has(path) && path.endsWith('.' + extension));
+  expect(files).toHaveLength(1);
+  const bytes = execFileSync(process.env.ADB || 'adb', [
+    '-s',
+    'emulator-5554',
+    'exec-out',
+    'run-as',
+    'com.youdroid.zhuoledocs',
+    'cat',
+    files[0],
+  ]);
+  const zip = await JSZip.loadAsync(bytes);
+  expect(await zip.file(entry).async('string')).toContain(text);
+  adb('shell', 'input', 'keyevent', 'KEYCODE_BACK');
+  await expect(
+    page.getByRole('button', { name: '导出 ' + extension.toUpperCase(), exact: true }),
+  ).toBeEnabled();
+}
 const credentials = {
   email: `android-${randomUUID()}@example.com`,
   password: randomUUID(),
@@ -93,6 +134,7 @@ try {
   await page.getByRole('textbox', { name: '文档名称', exact: true }).fill('Android Word QA');
   await page.getByRole('textbox', { name: '文档正文' }).fill('Saved through Android native HTTP.');
   await saved();
+  await verifyNativeExport('docx', 'word/document.xml', 'Saved through Android native HTTP.');
   await back();
   await page.getByRole('button', { name: /新建电子表格 用数据/ }).click();
   await page.getByRole('textbox', { name: 'A1', exact: true }).fill('120');
@@ -101,12 +143,14 @@ try {
   await page.getByRole('textbox', { name: 'C1', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'B1', exact: true })).toHaveValue('200');
   await saved();
+  await verifyNativeExport('xlsx', 'xl/worksheets/sheet1.xml', 'SUM(A1:A2)');
   await back();
   await page.getByRole('button', { name: /新建演示文稿 把好/ }).click();
   await page
     .getByRole('textbox', { name: '幻灯片标题', exact: true })
     .fill('Android presentation QA');
   await saved();
+  await verifyNativeExport('pptx', 'ppt/slides/slide1.xml', 'Android presentation QA');
   await page.getByRole('button', { name: '开始放映' }).click();
   await expect(page.getByRole('dialog', { name: '幻灯片放映' })).toBeVisible();
   await page.keyboard.press('Escape');
@@ -177,9 +221,42 @@ try {
   await page.getByRole('button', { name: '账号设置' }).click();
   await page.getByRole('button', { name: '退出登录', exact: true }).click();
   await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible();
+  await page.getByRole('button', { name: '创建免费账号' }).click();
+  await page.getByLabel('怎么称呼你').fill('Android Isolation QA');
+  await page.getByLabel('邮箱地址').fill(`isolation-${randomUUID()}@example.com`);
+  await page.getByLabel('密码', { exact: true }).fill(randomUUID());
+  await page.getByRole('button', { name: '创建账号', exact: true }).click();
+  await expect(page.getByText('Android Isolation QA，开启今天的好想法。')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Android Word QA DOCX · 文字文档' })).toHaveCount(
+    0,
+  );
+  await expect(page.getByText('第一份好想法，从这里开始')).toBeVisible();
+  adb('reverse', '--remove', 'tcp:3173');
+  await restart();
+  await expect(page.getByText('Android Isolation QA，开启今天的好想法。')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Android Word QA DOCX · 文字文档' })).toHaveCount(
+    0,
+  );
+  await expect(page.getByText('离线模式 · 已缓存的文档可继续编辑，草稿保存在此设备')).toBeVisible();
+  await expect(page.getByText('第一份好想法，从这里开始')).toBeVisible();
+  await page.getByRole('button', { name: '账号设置' }).click();
+  await page.getByRole('button', { name: '退出登录', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible();
+  await restart();
+  await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible();
+  adb('reverse', 'tcp:3173', 'tcp:3173');
+  await page.getByLabel('邮箱地址').fill(credentials.email);
+  await page.getByLabel('密码', { exact: true }).fill(credentials.password);
+  await page.getByRole('button', { name: '登录', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Android Word QA DOCX · 文字文档' })).toBeVisible();
+  await page.getByRole('button', { name: '账号设置' }).click();
+  await page.getByRole('button', { name: '退出登录', exact: true }).click();
+  await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible();
   expect(errors).toEqual([]);
+  if (process.env.ANDROID_SHARE_QA === '1')
+    console.log('Native Office export/share chooser and byte readback passed.');
   console.log(
-    'Android WebView/native HTTP passed: register, Word/sheet/slide editing, save, reload, slideshow, independent server readback, offline process restart and reconnect, logout.',
+    'Android WebView/native HTTP passed: register, Word/sheet/slide editing, save, reload, slideshow, independent server readback, offline process restart and reconnect, account-switch cache isolation, offline logout and original-account recovery.',
   );
 } finally {
   adb('reverse', 'tcp:3173', 'tcp:3173');

@@ -51,3 +51,14 @@ The shared iOS/Android first-connection form pre-fills `https://wpx.youdroid.top
 `scripts/smoke-android.mjs` attaches Playwright to the task-owned Android debug WebView on emulator-5554 using CDP with `noDefaults: true`; ordinary Chromium context/download overrides are unsupported by Android WebView. It requires a running local test API on port 3173, an installed debug APK, and `ADB` pointing to the Android platform-tools executable. The first run validates the production default before selecting the loopback test service. Subsequent runs use the saved local connection.
 
 The test creates random local-only credentials, exercises all editors through the rendered WebView, checks native HTTP persistence through an independent host API session, and logs out. Its offline phase removes only the emulator's port-3173 reverse mapping, restarts the application process, writes a cached draft, restarts again, restores the mapping, and retries synchronization. It never changes device-wide networking and restores the mapping in its finalizer. Local generated test accounts/documents remain available for inspection. It does not establish physical-device keyboard, accessibility, store-signing, or iOS/HarmonyOS acceptance.
+
+### Android account isolation and export smoke
+
+With the task-owned `Zhuole_Docs_API35` emulator running the debug application, the local API on port 3173, and the emulator port reverse configured, run:
+
+```sh
+node scripts/smoke-android.mjs
+ANDROID_SHARE_QA=1 node scripts/smoke-android.mjs
+```
+
+The default scenario includes account switching, offline restart isolation, offline logout and original-account recovery. The optional scenario additionally checks native Office exports and their ZIP/XML bytes through the system share chooser. It requires a responsive Android System UI; cancellation must return control to an enabled export button. The 2026-10-13 attempt reached DOCX byte verification but was interrupted by a System UI ANR; native sharing remains a release acceptance gate.
