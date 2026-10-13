@@ -5,7 +5,10 @@ import { resolve } from 'node:path';
 
 const configPath = process.argv[2];
 const architecture = process.argv[3];
-assert.ok(!architecture || ['arm64', 'x64'].includes(architecture), 'Expected arm64 or x64');
+assert.ok(
+  !architecture || ['arm64', 'x64', '--status'].includes(architecture),
+  'Expected arm64, x64 or --status',
+);
 assert.ok(configPath, 'Usage: node scripts/notarize-mac.mjs /path/to/asc.env');
 const config = Object.fromEntries(
   (await readFile(configPath, 'utf8'))
@@ -45,6 +48,15 @@ const run = (args) => {
   if (result.status !== 0) throw new Error(result.stderr || 'notarytool failed');
   return JSON.parse(result.stdout);
 };
+if (architecture === '--status') {
+  for (const record of records) {
+    record.status = run(['info', record.id]).status;
+    await writeFile(recordsPath, JSON.stringify(records, null, 2) + '\n');
+    console.log(`${record.id}: ${record.status}`);
+  }
+  process.exit(records.some((record) => record.status === 'Invalid') ? 1 : 0);
+}
+
 // Save each submission immediately; reruns poll existing jobs instead of uploading duplicates.
 const { createHash } = await import('node:crypto');
 for (const arch of architecture ? [architecture] : ['arm64', 'x64']) {

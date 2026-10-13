@@ -85,6 +85,7 @@ Developer ID Application certificate DBFQZ3TW3Z was issued for team Y4MB2B6UD3 a
 npm run desktop:pack:mac:signed
 SEVEN_ZIP=/path/to/trusted/7zz npm run desktop:verify-release
 node scripts/notarize-mac.mjs /path/to/asc.env
+node scripts/notarize-mac.mjs /path/to/asc.env --status
 ```
 
 The separate release configuration requires the project team's signing identity and Hardened Runtime, and fails if signing is unavailable. The original development packaging command retains ad-hoc signing. The signed build intentionally leaves notarization to the explicit submission step.
@@ -100,3 +101,5 @@ Both CPU builds subsequently completed, and the complete release verifier passed
 Both architecture ZIP submissions were accepted by Apple (ARM64 9f474189-112e-4530-b866-285eec16ffc4; x64 b77cc586-7d80-40b5-ab8e-8317a3e57592). Both app bundles were stapled and validated; Gatekeeper reported Notarized Developer ID. New ZhuoleDocs-0.1.0-mac-{arm64,x64}-stapled.zip artifacts preserve the tickets. Each ZIP was independently extracted into a fresh temporary directory and passed strict deep signature validation, stapler validation, Gatekeeper assessment and CPU architecture verification. Their hashes and sizes are recorded in releases/desktop/notarized-zip-manifest.json. This proves archive integrity and platform trust; it does not claim physical Intel runtime acceptance. Original submission ZIPs remain unchanged for job-hash traceability.
 
 Both DMG containers now carry Developer ID signatures with secure timestamps. The serial notarization process is submitting their changed bytes; these DMGs are not yet the final notarized distribution artifacts. Do not replace or staple an artifact while its upload is active.
+
+The signed ARM64 DMG resubmission 092ed9a5-b381-46c9-84b9-0b39f01bbea5 was accepted. Its ticket was stapled and validated, and the container Gatekeeper assessment reported Notarized Developer ID. Intel signed-DMG upload remains active. After stapling changes artifact bytes, use --status to query saved submission IDs without hashing or re-uploading artifacts. Run submission/status commands serially because they share the same local record file. A fixture verified that status-only mode updates recorded results even when original artifact files are absent and never invokes submit.
