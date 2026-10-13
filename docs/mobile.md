@@ -43,3 +43,5 @@ For local Android emulator testing, map port 3173 with `adb reverse tcp:3173 tcp
 See `docs/verification.md` for checks actually completed. Web viewport checks do not establish keyboard, lifecycle, or native file behavior on every OS. Windows desktop distribution, public hosting, mobile native acceptance, signing, and store publication remain separate work items. The full project goal is still active.
 
 The selected public service target is `https://wpx.youdroid.top` on Cloudflare. Deployment adaptation is tracked in WPX-4 and is not yet verified live.
+
+The shared iOS/Android first-connection form pre-fills `https://wpx.youdroid.top`; users can connect directly or enter their own service. Saved connections are not overwritten. The Android 35 emulator image is now installed for supported-WebView acceptance, which remains separate from building the APK.

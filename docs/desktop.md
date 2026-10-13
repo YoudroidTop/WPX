@@ -54,3 +54,7 @@ The 3 GB limit continues to apply to persisted cloud document content, not to lo
 macOS test packages use ad-hoc signing (`identity: '-'`) deliberately. A Developer ID certificate, notarization, and a release update service are separate distribution tasks. Windows installers likewise require a production code-signing certificate before a trusted public distribution claim. No updater is enabled against an unconfigured endpoint.
 
 Current platform artifacts and runtime evidence are recorded in `docs/verification.md`. Building a Windows artifact on macOS is not Windows installation or runtime acceptance. Public hosting, signing credentials, notarization, and an update distribution endpoint are still external delivery gates.
+
+## Production connection default
+
+The shared native connection form now pre-fills `https://wpx.youdroid.top`. First launch still validates the selected service before storing it. Existing connection settings, account partitions and local drafts remain unchanged; custom HTTPS services remain supported. A real Electron run connected through the production default and reached the login screen. The six desktop regression scenarios passed, including the default-field assertion and custom-service persistence. Previously packaged installers are not automatically updated by a source build.

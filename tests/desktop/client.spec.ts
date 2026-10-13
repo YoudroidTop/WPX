@@ -158,6 +158,9 @@ test('first launch validates and persists the cloud connection', async () => {
   try {
     const page = await app.firstWindow();
     await expect(page.getByRole('heading', { name: '连接你的云端工作空间' })).toBeVisible();
+    await expect(page.getByLabel('云服务地址', { exact: true })).toHaveValue(
+      'https://wpx.youdroid.top',
+    );
     await page.getByLabel('云服务地址').fill('http://example.com');
     await page.getByRole('button', { name: '连接云服务', exact: true }).click();
     await expect(page.getByRole('alert')).toContainText('HTTPS');

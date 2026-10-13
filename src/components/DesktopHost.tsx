@@ -1,4 +1,5 @@
 import { isMobile } from '../mobile';
+import { DEFAULT_CLOUD_ORIGIN } from '../../shared/service';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Cloud, Link2 } from 'lucide-react';
 import { clientAccount, configureClientCache, isOffline, setOffline } from '../cache';
@@ -86,7 +87,7 @@ export default function DesktopHost({ children }: { children: ReactNode }) {
   );
 }
 function ConnectionForm({
-  current = '',
+  current = DEFAULT_CLOUD_ORIGIN,
   onConnected,
 }: {
   current?: string;
@@ -118,13 +119,13 @@ function ConnectionForm({
       }}
     >
       <h2>连接你的云端工作空间</h2>
-      <p>输入已部署的卓乐云文档地址，登录后即可继续创作。</p>
+      <p>已为你填入卓乐云文档，连接后即可登录并继续创作。</p>
       <label>
         云服务地址
         <input
           type="url"
           value={origin}
-          placeholder="https://docs.example.com"
+          placeholder={DEFAULT_CLOUD_ORIGIN}
           required
           onChange={(event) => setOrigin(event.target.value)}
         />
@@ -138,7 +139,7 @@ function ConnectionForm({
         <Link2 size={16} />
         {busy ? '正在验证服务…' : '连接云服务'}
       </button>
-      <p className="muted">本机调试可使用 http://127.0.0.1:3173</p>
+      <p className="muted">也可填写自己的卓乐云文档 HTTPS 服务地址。</p>
     </form>
   );
 }
