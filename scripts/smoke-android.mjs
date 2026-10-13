@@ -159,7 +159,8 @@ try {
   await verifyNativeExport('pptx', 'ppt/slides/slide1.xml', 'Android presentation QA');
   await page.getByRole('button', { name: '开始放映' }).click();
   await expect(page.getByRole('dialog', { name: '幻灯片放映' })).toBeVisible();
-  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: '退出放映', exact: true }).click();
+  await expect(page.getByRole('dialog', { name: '幻灯片放映' })).toBeHidden();
   await back();
   await page.reload();
   await expect(page.getByText('Android QA，开启今天的好想法。')).toBeVisible();
