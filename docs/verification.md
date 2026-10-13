@@ -76,3 +76,17 @@ Production plan capacity, domain attachment, public deployment, live acceptance,
 - Real Chromium smoke passed registration, Word save/reopen persistence, SUM formula result 200, slide presentation mode, reload and logout. No page errors were observed. Generated test documents were removed.
 - The first local DNS lookup failed before the new hostname resolved locally. Public Google DNS returned Cloudflare addresses, and both TLS-preserving pinned-address HTTP and existing-proxy HTTPS reached the production API. No certificate checks were disabled.
 - Initial code deployment has no earlier rollback version. Data restore rehearsal, signed client distribution and HarmonyOS implementation remain open; these are not implied by web acceptance.
+
+## Android native editing and offline acceptance
+
+On the task-owned Android 35 emulator with WebView 124.0.6367.219 and the installed debug APK, `scripts/smoke-android.mjs` passed against the local API through native Capacitor HTTP:
+
+- Registration/login, Word text editing, spreadsheet SUM result 200, slide title editing and presentation mode, save, reload/reopen, and logout.
+- Independent host-side authenticated API readback confirmed all three document models, including the exact Word text, stored formula and slide title.
+- Removed the emulator's API reverse mapping, force-stopped and restarted the app, opened the cached Word document, and saved an offline draft. A second process restart preserved that draft. Restoring the mapping and retrying synchronization reached the saved-to-cloud state; reopening retained the edited content.
+- The reverse mapping is restored in the test finalizer. No device-wide networking was changed. Local test fixtures remain available for inspection.
+- `releases/mobile/android-word.png` was visually inspected: the title, saved state, formatting controls, document text and export controls were visible. This screenshot is a WebView surface capture and does not prove software keyboard or system share-sheet behavior.
+
+The first full native smoke passed before offline coverage was added. During offline test development, a GUI emulator exited with status 134; a headless restart preserved its data and completed boot. Early retries exposed test harness timing assumptions (missing PID immediately after launch and a 5-second assertion shorter than the native offline timeout); the final run uses bounded startup polling and a 45-second assertion budget and passed end to end. No app authentication or document model changes were required.
+
+Still open: Android native share/export acceptance, account-switch isolation under native storage, physical keyboard/touch/accessibility coverage, iOS equivalent full offline acceptance, and HarmonyOS implementation.
