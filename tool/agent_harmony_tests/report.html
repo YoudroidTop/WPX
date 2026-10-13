@@ -31,21 +31,21 @@
     Target: TLR-AL00, HarmonyOS API 24, <code>4UQ9K25530058677</code><br>
     App: Zhuole Docs <code>0.1.0 (1)</code>, bundle <code>com.youdroid.zhuoledocs</code><br>
     HAP: <code>releases/harmony/ZhuoleDocs-0.1.0-harmony-debug.hap</code><br>
-    Auth source: No account used during this run. Existing isolated fixture credentials remain outside Git.
+    Auth source: Existing isolated file QA account; credentials remain outside Git.
   </p>
 
   <section class="summary" aria-label="Run summary">
     <div class="metric"><strong>6</strong>Total cases</div>
-    <div class="metric"><strong>2</strong>Executed</div>
-    <div class="metric"><strong>1</strong>Passed</div>
+    <div class="metric"><strong>3</strong>Executed</div>
+    <div class="metric"><strong>3</strong>Passed</div>
     <div class="metric"><strong>0</strong>Failed</div>
-    <div class="metric"><strong>1</strong>Blocked</div>
-    <div class="metric"><strong>4</strong>Not run</div>
+    <div class="metric"><strong>0</strong>Blocked</div>
+    <div class="metric"><strong>3</strong>Not run</div>
   </section>
 
   <h2>Executive Summary</h2>
   <p>
-    The agent QA suite contains 6 Harmony scenarios. This run executed 2 cases with fresh evidence.
+    The agent QA suite contains 6 Harmony scenarios. This run executed 3 cases with fresh evidence.
     Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
   </p>
 
@@ -61,15 +61,15 @@
       </tr>
       <tr>
         <td>Startup</td>
-        <td class="status-blocked">blocked</td>
+        <td class="status-passed">passed</td>
         <td><code>harmony-startup</code></td>
-        <td>System explicitly rejected launch while locked.</td>
+        <td>Unlocked launch and visible workspace passed.</td>
       </tr>
       <tr>
         <td>Files and editor regression</td>
         <td class="status-not-run">not-run</td>
         <td><code>harmony-zdoc-open</code><br><code>harmony-office-roundtrip</code><br><code>harmony-paste-boundaries</code><br><code>harmony-inbox-capacity</code></td>
-        <td>Awaiting an unlocked available device. Historical runs are recorded separately.</td>
+        <td>External ZDOC save/open/restore passed; remaining current-build regression cases are not run.</td>
       </tr></tbody>
   </table>
 
@@ -88,14 +88,14 @@
         <td><code>harmony-startup</code></td>
         <td>p0</td>
         <td>Launch the current build visibly</td>
-        <td class="status-blocked">blocked</td>
+        <td class="status-passed">passed</td>
         <td>startup</td>
       </tr>
       <tr>
         <td><code>harmony-zdoc-open</code></td>
         <td>p1</td>
         <td>Open and restore a ZDOC backup from the system file manager</td>
-        <td class="status-not-run">not-run</td>
+        <td class="status-passed">passed</td>
         <td>zdoc</td>
       </tr>
       <tr>
@@ -129,14 +129,14 @@
         <ul><li><strong>hdc command result</strong><br>install bundle successfully. AppMod finish; local SHA-256 matched the current artifact record.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>harmony-startup</code> <span class="status-blocked">blocked</span></h3>
-        <p>Do not disable developer mode or bypass the lock. User unlock is pending.</p>
-        <ul><li><strong>launch output</strong>: <code>releases/harmony/current-launch.log</code><br>Error 10106102: device screen locked; developer mode cannot unlock automatically.</li></ul>
+        <h3><code>harmony-startup</code> <span class="status-passed">passed</span></h3>
+        <p>User unlocked the device; EntryAbility launched successfully and the workspace was visible.</p>
+        <ul><li><strong>native UI tree</strong>: <code>releases/harmony/current-layout.json</code><br>Visible document/workspace on the installed current HAP.</li></ul>
       </section>
       <section class="case-result">
-        <h3><code>harmony-zdoc-open</code> <span class="status-not-run">not-run</span></h3>
-        <p>Not executed on the latest installed HAP in this run.</p>
-        <p>No fresh HarmonyOS physical device evidence recorded for this case.</p>
+        <h3><code>harmony-zdoc-open</code> <span class="status-passed">passed</span></h3>
+        <p>Saved the dedicated ZDOC fixture in Download. System Other applications offered Zhuole Docs. Incoming file waited while editor was open, then showed confirmation on returning to workspace. Exactly one document existed before confirmation; the restored document content deeply matched the original via authenticated API readback. Both QA fixtures retained.</p>
+        <ul><li><strong>native chooser</strong>: <code>releases/harmony/zdoc-open-chooser.json</code><br>Zhuole Docs offered for .zdoc.</li><li><strong>screenshot</strong>: <code>releases/harmony/zdoc-confirmation.png</code><br>Explicit import confirmation.</li><li><strong>screenshot</strong>: <code>releases/harmony/zdoc-restored.png</code><br>Restored text visible.</li><li><strong>API readback</strong>: <code>releases/harmony/zdoc-restore-result.json</code><br>Complete supported content matches original.</li></ul>
       </section>
       <section class="case-result">
         <h3><code>harmony-office-roundtrip</code> <span class="status-not-run">not-run</span></h3>
@@ -170,8 +170,8 @@
       </tr>
       <tr>
         <td><code>hdc shell aa start -b com.youdroid.zhuoledocs -a EntryAbility</code></td>
-        <td class="status-blocked">blocked</td>
-        <td>System error 10106102.</td>
+        <td class="status-passed">passed</td>
+        <td>After user unlock, start ability successfully.</td>
       </tr></tbody>
   </table>
 

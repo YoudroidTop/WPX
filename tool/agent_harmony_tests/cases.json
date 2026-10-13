@@ -14,9 +14,9 @@
     },
     {
       "title": "Startup",
-      "status": "blocked",
+      "status": "passed",
       "caseIds": ["harmony-startup"],
-      "notes": "System explicitly rejected launch while locked."
+      "notes": "Unlocked launch and visible workspace passed."
     },
     {
       "title": "Files and editor regression",
@@ -27,7 +27,7 @@
         "harmony-paste-boundaries",
         "harmony-inbox-capacity"
       ],
-      "notes": "Awaiting an unlocked available device. Historical runs are recorded separately."
+      "notes": "External ZDOC save/open/restore passed; remaining current-build regression cases are not run."
     }
   ],
   "cases": [
@@ -132,7 +132,7 @@
       "hapPath": "releases/harmony/ZhuoleDocs-0.1.0-harmony-debug.hap",
       "sha256": "74128965bc102873919e4766e86a0af0cb756dbaad429b8df5c5d42332cb77f1"
     },
-    "authSource": "No account used during this run. Existing isolated fixture credentials remain outside Git.",
+    "authSource": "Existing isolated file QA account; credentials remain outside Git.",
     "results": [
       {
         "caseId": "harmony-install",
@@ -147,21 +147,42 @@
       },
       {
         "caseId": "harmony-startup",
-        "status": "blocked",
-        "notes": "Do not disable developer mode or bypass the lock. User unlock is pending.",
+        "status": "passed",
+        "notes": "User unlocked the device; EntryAbility launched successfully and the workspace was visible.",
         "evidence": [
           {
-            "type": "launch output",
-            "path": "releases/harmony/current-launch.log",
-            "summary": "Error 10106102: device screen locked; developer mode cannot unlock automatically."
+            "type": "native UI tree",
+            "path": "releases/harmony/current-layout.json",
+            "summary": "Visible document/workspace on the installed current HAP."
           }
         ]
       },
       {
         "caseId": "harmony-zdoc-open",
-        "status": "not-run",
-        "notes": "Not executed on the latest installed HAP in this run.",
-        "evidence": []
+        "status": "passed",
+        "notes": "Saved the dedicated ZDOC fixture in Download. System Other applications offered Zhuole Docs. Incoming file waited while editor was open, then showed confirmation on returning to workspace. Exactly one document existed before confirmation; the restored document content deeply matched the original via authenticated API readback. Both QA fixtures retained.",
+        "evidence": [
+          {
+            "type": "native chooser",
+            "path": "releases/harmony/zdoc-open-chooser.json",
+            "summary": "Zhuole Docs offered for .zdoc."
+          },
+          {
+            "type": "screenshot",
+            "path": "releases/harmony/zdoc-confirmation.png",
+            "summary": "Explicit import confirmation."
+          },
+          {
+            "type": "screenshot",
+            "path": "releases/harmony/zdoc-restored.png",
+            "summary": "Restored text visible."
+          },
+          {
+            "type": "API readback",
+            "path": "releases/harmony/zdoc-restore-result.json",
+            "summary": "Complete supported content matches original."
+          }
+        ]
       },
       {
         "caseId": "harmony-office-roundtrip",
@@ -195,8 +216,8 @@
       },
       {
         "command": "hdc shell aa start -b com.youdroid.zhuoledocs -a EntryAbility",
-        "status": "blocked",
-        "summary": "System error 10106102."
+        "status": "passed",
+        "summary": "After user unlock, start ability successfully."
       }
     ],
     "notes": "This report describes only the fresh run. Prior Office open/picker, lifecycle and cache evidence remains in docs/verification.md; it is not relabeled as current-build acceptance. iPhone devices remain unavailable; Windows runtime acceptance is assigned to the user. Store publication is not established."

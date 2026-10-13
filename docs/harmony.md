@@ -124,3 +124,7 @@ The current signed HAP (SHA-256 `74128965bc102873919e4766e86a0af0cb756dbaad429b8
 ```sh
 node /Users/liang/.agents/skills/pre-release-harmony-agent-qa/scripts/generate_report.js tool/agent_harmony_tests/cases.json tool/agent_harmony_tests/report.html
 ```
+
+### Current ZDOC device acceptance
+
+On 2026-10-13, the user unlocked TLR-AL00 and the current HAP (SHA-256 `74128965bc102873919e4766e86a0af0cb756dbaad429b8df5c5d42332cb77f1`) launched successfully. The dedicated `Harmony ZDOC Backup QA` fixture was saved to Download. File manager search and Other applications offered Zhuole Docs for the `.zdoc` file. With an editor open, confirmation waited until returning to the workspace. Before confirmation the account still contained one document; after import, authenticated API readback of the new document deeply matched the original content. The original and restored QA documents remain available. Evidence: `releases/harmony/zdoc-open-chooser.json`, `zdoc-confirmation.png`, `zdoc-restored.png`, and `zdoc-restore-result.json`. This closes external ZDOC acceptance, but does not establish the remaining current-build Office, native paste or inbox-capacity cases.
