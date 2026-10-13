@@ -30,7 +30,13 @@ function layout() {
     if (node.attributes) nodes.push(node.attributes);
     for (const child of node.children || []) walk(child);
   };
-  walk(JSON.parse(readFileSync('releases/harmony/file-qa-layout.json', 'utf8')));
+  const tree = JSON.parse(readFileSync('releases/harmony/file-qa-layout.json', 'utf8'));
+  const app = tree.children?.find(
+    (node) => node.attributes?.bundleName === 'com.youdroid.zhuoledocs',
+  );
+  // ArkUI retains covered modal subtrees, including stale picker coordinates.
+  const modals = app?.children?.filter((node) => node.attributes?.type === 'ModalPage');
+  if (app) walk(modals?.at(-1) || app);
   return nodes;
 }
 function click(node) {
@@ -79,11 +85,21 @@ async function roundTrip(extension, verify) {
   ).toBeEnabled();
   await page.getByRole('button', { name: '返回工作空间' }).click();
   await page.getByRole('button', { name: '导入文档', exact: true }).click();
-  nodes = layout();
+  await expect
+    .poll(() => {
+      nodes = layout();
+      return Boolean(nativeText(nodes, '仅可访问所选文件'));
+    })
+    .toBe(true);
   if (!nativeText(nodes, `${name}.${extension}`)) {
     click(nativeText(nodes, 'Download'));
-    nodes = layout();
   }
+  await expect
+    .poll(() => {
+      nodes = layout();
+      return Boolean(nativeText(nodes, `${name}.${extension}`));
+    })
+    .toBe(true);
   click(nativeText(nodes, `${name}.${extension}`));
   nodes = layout();
   click(nativeText(nodes, '完成'));

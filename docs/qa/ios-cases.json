@@ -12,10 +12,26 @@
     ]
   },
   "coverageAreas": [
-    { "area": "Upgrade/session", "caseIds": ["ios-upgrade-session"], "status": "passed" },
-    { "area": "Spreadsheet", "caseIds": ["ios-sheet-formula"], "status": "blocked" },
-    { "area": "Presentation", "caseIds": ["ios-slides"], "status": "blocked" },
-    { "area": "Offline/cache", "caseIds": ["ios-cache-draft"], "status": "blocked" }
+    {
+      "area": "Upgrade/session",
+      "caseIds": ["ios-upgrade-session"],
+      "status": "passed"
+    },
+    {
+      "area": "Spreadsheet",
+      "caseIds": ["ios-sheet-formula"],
+      "status": "passed"
+    },
+    {
+      "area": "Presentation",
+      "caseIds": ["ios-slides"],
+      "status": "not-run"
+    },
+    {
+      "area": "Offline/cache",
+      "caseIds": ["ios-cache-draft"],
+      "status": "not-run"
+    }
   ],
   "cases": [
     {
@@ -100,31 +116,34 @@
       },
       {
         "caseId": "ios-sheet-formula",
-        "status": "blocked",
-        "mode": "planned",
-        "evidence": [],
-        "notes": "CUA returned windowNotFoundAtPosition for content clicks and no app accessibility elements; no spreadsheet mutation attempted."
+        "status": "passed",
+        "mode": "manual",
+        "evidence": [
+          "releases/mobile/ios-sheet-reopened.png",
+          "releases/mobile/ios-sheet-server-readback.json"
+        ],
+        "notes": "Browser mirror touch and individual key events entered a numeric 120 and 80 (A2 stored as 080); SUM showed 200 before and after reopening. Read-only local server database query retained =sum(a1:a2), revision 7. The named QA sheet remains for inspection."
       },
       {
         "caseId": "ios-slides",
-        "status": "blocked",
+        "status": "not-run",
         "mode": "planned",
         "evidence": [],
-        "notes": "Same Simulator content interaction limitation; not evidence of an application failure."
+        "notes": "Browser mirror touch and key events now work. This scenario has not yet been executed."
       },
       {
         "caseId": "ios-cache-draft",
-        "status": "blocked",
+        "status": "not-run",
         "mode": "planned",
         "evidence": [],
-        "notes": "Same Simulator content interaction limitation. Desktop evidence does not establish iOS runtime behavior."
+        "notes": "Browser mirror touch and key events now work. This scenario has not yet been executed."
       }
     ],
     "exclusions": [
       "Physical iPhone/iPad",
       "Store distribution",
       "Keyboard and tablet layouts",
-      "No test documents created in this run"
+      "Presentation and offline/cache scenarios remain unexecuted in this run"
     ]
   }
 }
