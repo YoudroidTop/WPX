@@ -346,3 +346,47 @@ test('cache cleanup preserves pending drafts and other account namespaces', asyn
     await app.close();
   }
 });
+
+test('spreadsheet rejects oversized clipboard rectangles in the desktop renderer', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zhuole-desktop-paste-'));
+  const app = await launch(directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole('button', { name: '创建免费账号' }).click();
+    await page.getByLabel('怎么称呼你').fill('桌面粘贴验收');
+    await page.getByLabel('邮箱地址').fill(`paste-${crypto.randomUUID()}@example.com`);
+    await page.getByLabel('密码', { exact: true }).fill('desktop-test-password');
+    await page.getByRole('button', { name: '创建账号', exact: true }).click();
+    await page.getByRole('button', { name: /新建电子表格 用数据/ }).click();
+    const cell = (address: string) => page.getByRole('textbox', { name: address, exact: true });
+    await cell('A1').fill('120');
+    await cell('A2').fill('80');
+    await cell('B1').fill('=SUM(A1:A2)');
+    await cell('C1').click();
+    await expect(page.getByText('已保存到云端', { exact: true })).toBeVisible();
+    for (const [text, reason] of [
+      [Array(501).fill('replace').join('\n'), '500 行'],
+      [Array(53).fill('replace').join('\t'), '52 列'],
+      [`replace\t${'x'.repeat(10001)}`, '10000 字符'],
+    ]) {
+      await cell('A1').evaluate((input, value) => {
+        const clipboardData = new DataTransfer();
+        clipboardData.setData('text/plain', value);
+        input.dispatchEvent(
+          new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }),
+        );
+      }, text);
+      await expect(page.getByRole('alert')).toContainText(reason);
+      await expect(cell('A1')).toHaveValue('120');
+      await expect(cell('B1')).toHaveValue('200');
+    }
+    await page.screenshot({ path: 'test-results/desktop-paste-rejected.png' });
+    await page.getByRole('button', { name: '返回工作空间' }).click();
+    await page.reload();
+    await page.getByRole('button', { name: '未命名电子表格 XLSX · 电子表格' }).click();
+    await expect(cell('A1')).toHaveValue('120');
+    await expect(cell('B1')).toHaveValue('200');
+  } finally {
+    await app.close();
+  }
+});

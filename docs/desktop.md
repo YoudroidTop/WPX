@@ -88,10 +88,12 @@ Use releases/desktop/mac-distribution-manifest.json and MAC-SHA256SUMS for these
 
 Apple accepted these submission IDs:
 
-| Architecture | App ZIP | Signed DMG |
-| --- | --- | --- |
-| arm64 | 9f474189-112e-4530-b866-285eec16ffc4 | 092ed9a5-b381-46c9-84b9-0b39f01bbea5 |
-| x64 | b77cc586-7d80-40b5-ab8e-8317a3e57592 | 638c8099-e858-4f95-abd8-56d6bf4fa85c |
+| Architecture | App ZIP                              | Signed DMG                           |
+| ------------ | ------------------------------------ | ------------------------------------ |
+| arm64        | e3703b0a-ccd9-417c-9bfa-dada3db8acd0 | d7ccb019-27c2-47b1-84ca-dd7edc2010e5 |
+| x64          | 1e9fa5c7-a07e-4a33-b440-45c7311fa7af | dc75dbdb-b682-437e-8089-1642a8f33fdf |
+
+These are the refreshed artifacts containing the spreadsheet paste protection from `a443485`. Both Windows architectures were rebuilt unsigned as requested. The desktop suite passed eight cases, including paste rejection and preserved contents after reopening. The final Apple Silicon packaged app separately passed its launch/sandbox check. All four Mac distribution files passed notarization, ticket validation and Gatekeeper again; the earlier submissions remain in the local notarization history.
 
 The distribution verifier previously rejected an unstapled Intel DMG, then passed once its accepted ticket was attached. General artifact verification checks all four unpacked CPU targets against all 13 staged files, compares DMG/ZIP/NSIS payloads and hashes six original packaging outputs. Windows installers remain unsigned by user decision.
 
