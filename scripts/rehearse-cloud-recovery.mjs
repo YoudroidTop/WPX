@@ -1,0 +1,51 @@
+import assert from 'node:assert/strict';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { unstable_DevEnv as DevEnv } from 'wrangler';
+
+// Use Node's --use-env-proxy when the network requires an existing HTTP(S) proxy.
+// Wrangler preview authorization stays in memory and is sent only to its own host.
+const environment = new DevEnv();
+let timer;
+const preview = new Promise((resolve, reject) => {
+  timer = setTimeout(() => reject(new Error('Preview startup timed out')), 60_000);
+  environment.once('reloadComplete', ({ proxyData }) => resolve(proxyData));
+});
+try {
+  const [, data] = await Promise.all([
+    environment.startWorker({
+      config: 'wrangler.recovery-driver.jsonc',
+      dev: { remote: true, server: { hostname: '127.0.0.1', port: 8791 } },
+    }),
+    preview,
+  ]);
+  clearTimeout(timer);
+  const { protocol, hostname, port } = data.userWorkerUrl;
+  assert.equal(protocol, 'https:');
+  assert.ok(hostname.endsWith('.workers.dev') || hostname.endsWith('.cloudflareworkers.com'));
+  assert.equal(port, '443');
+  const origin = `https://${hostname}`;
+  const probe = await fetch(origin + '/', {
+    headers: data.headers,
+    redirect: 'error',
+    signal: AbortSignal.timeout(30_000),
+  });
+  assert.equal(probe.status, 404, 'Preview must reach the isolated driver');
+  console.log('Isolated preview transport passed.');
+  const response = await fetch(origin + '/rehearse', {
+    method: 'POST',
+    headers: data.headers,
+    redirect: 'error',
+    signal: AbortSignal.timeout(60_000),
+  });
+  assert.equal(response.status, 200, 'Recovery rehearsal did not return success');
+  const result = await response.json();
+  assert.equal(result.passed, true);
+  assert.deepEqual(result.restored, result.before);
+  assert.deepEqual(result.undone, result.changed);
+  await mkdir('releases/cloudflare', { recursive: true });
+  await writeFile('releases/cloudflare/recovery-result.json', JSON.stringify(result, null, 2));
+  console.log('Remote recovery and undo passed; evidence saved without preview credentials.');
+} finally {
+  clearTimeout(timer);
+  await environment.teardown();
+}

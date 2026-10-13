@@ -81,7 +81,15 @@ curl --fail-with-body --max-time 60 -X POST http://127.0.0.1:8791/rehearse
 
 Stop that exact preview process afterward. A successful result must contain `passed: true`; a deployment, ready message, timeout or mock result is not acceptance. Each invocation allocates a new test object, retains approximately 1.2 MB of generated history for diagnosis, and incurs normal test-resource usage. No scheduled trigger is configured.
 
-2026-10-13: the isolated class deployed as `zhuole-recovery-rehearsal`, version `0e374ceb-8686-4378-8abd-8be3472651bb`, with no public targets. Direct remote preview warned that SQLite is unsupported, so the driver binds to this deployed class instead. Both direct and existing-system-proxy attempts timed out; an ordinary no-op path also timed out. **The live restoration/undo assertions have not completed.** Type checking passed. Logs are in ignored `releases/cloudflare/recovery-*.log`; production deployment and objects were not modified.
+2026-10-13: the isolated class deployed as `zhuole-recovery-rehearsal`, version `0e374ceb-8686-4378-8abd-8be3472651bb`, with no public targets. Direct remote preview warned that SQLite is unsupported, so the driver binds to this deployed class instead. Requests through Wrangler's local forwarding runtime timed out, including an ordinary no-op path. The Node runner below successfully reached the same remote preview through the existing system proxy and completed both restoration and undo. Production deployment and objects were not modified.
+
+Use `scripts/rehearse-cloud-recovery.mjs` for a self-contained run. It starts the preview, receives the documented reload event from the locked Wrangler package, and sends its temporary authorization headers only to that preview's HTTPS host. Credentials remain in memory; redirects are rejected. The runner checks the no-op path first, verifies the full restore result, writes only non-secret evidence and tears down the preview in `finally`. Use the existing network proxy environment when required; do not configure a new public endpoint to bypass preview transport failures.
+
+```sh
+node --use-env-proxy scripts/rehearse-cloud-recovery.mjs
+```
+
+Verified result: three documents and one trashed item at 1,200,430 quota bytes; mutation reduced these to two documents, zero trashed items and 174 bytes. Restore recovered the original full-document SHA-256 and all counters; undo recovered the changed SHA-256 and counters. Evidence: `releases/cloudflare/recovery-result.json` and `recovery-node-run.log`. This proves the real remote PITR mechanism with production document storage code in an isolated namespace; it does not establish a customer-facing or production operator restore service.
 
 ### Customer recovery gate
 
