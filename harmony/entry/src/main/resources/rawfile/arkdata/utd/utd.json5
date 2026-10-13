@@ -1,0 +1,12 @@
+{
+  "UniformDataTypeDeclarations": [
+    {
+      "TypeId": "com.youdroid.zhuoledocs.document",
+      "BelongingToTypes": ["general.json"],
+      "FilenameExtensions": [".zdoc"],
+      "MIMETypes": ["application/x-zhuole-document"],
+      "Description": "Zhuole document backup",
+      "ReferenceURL": "https://wpx.youdroid.top"
+    }
+  ]
+}

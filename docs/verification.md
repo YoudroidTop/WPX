@@ -252,3 +252,10 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - Final debug HAP built and installed; 17 unit tests passed. The final three-format native save/picker reimport regression also exited 0, with six generated cloud documents removed and the account logged out. SHA-256 was refreshed and verified. No temporary diagnostics remain.
 - Evidence: `releases/harmony/external-open-result.json`, `external-docx-imported.png`, `external-xlsx-imported.png`, `external-pptx-imported.png`, `external-login-deferred.png`, `file-open-build.log`, `file-open-tests.log`, and `file-open-picker-regression.log`. DOCX cold-open evidence includes a temporary diagnostic build with identical bridge/manifest behavior; XLSX/PPTX, login/cancel and picker regression were repeated on the final build.
 - External ZDOC MIME association and physical queue-full feedback remain unverified. Existing unit coverage for queue capacity does not replace those device gates.
+
+## Harmony ZDOC type declaration — 2026-10-13
+
+- Added the missing custom UTD declaration linking `.zdoc` to the existing native backup MIME and a bundle-scoped type identifier. Only this extension is registered; generic JSON remains outside the ability's advertised MIME list.
+- Development signing/build passed. Inspected the final HAP archive: declaration bytes match source and its MIME matches the FileOpen manifest entry. Refreshed and verified the HAP SHA-256. Evidence: `releases/harmony/zdoc-type-build.log` and `zdoc-type-verification.json`.
+- Created a dedicated Word cloud fixture and selected confirmation in the application's native backup save sheet; the resulting file has not been independently read back. The device then became active in an unrelated application, so interaction stopped. The new HAP is not installed; external ZDOC discovery, URI delivery and complete-model restore remain unverified. The previously installed Office-verified build remains on the device.
+- Configuration review under the Harmony development/review skills found no P0/P1/P2 issues. No editor/runtime code changed; no broad editor regression was rerun for this resource-only change.
