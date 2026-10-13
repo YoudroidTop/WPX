@@ -104,7 +104,10 @@ for (const target of targets) {
     const info = await stat(path);
     assert.ok(info.isFile() && info.size > 1000000, `Invalid installer: ${name}`);
     let payloadCompared = false;
+    let containerSignatureVerified = null;
     if (extension === 'dmg') {
+      containerSignatureVerified =
+        spawnSync('codesign', ['--verify', '--strict', path]).status === 0;
       const mount = await mkdtemp(join(tmpdir(), 'zhuole-dmg-verify-'));
       let attached = false;
       try {
@@ -180,7 +183,13 @@ for (const target of targets) {
         await rm(temporary, { recursive: true, force: true });
       }
     }
-    artifacts.push({ name, bytes: info.size, sha256: await fileDigest(path), payloadCompared });
+    artifacts.push({
+      name,
+      bytes: info.size,
+      sha256: await fileDigest(path),
+      payloadCompared,
+      containerSignatureVerified,
+    });
   }
   packages.push({
     os: target.os,
