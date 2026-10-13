@@ -1,0 +1,19 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zhuole-recovery-driver",
+  "main": "cloud/recovery-driver.ts",
+  "compatibility_date": "2026-10-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "REHEARSAL",
+        "class_name": "RecoveryRehearsal",
+        "script_name": "zhuole-recovery-rehearsal",
+      },
+    ],
+  },
+}

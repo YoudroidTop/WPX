@@ -56,4 +56,35 @@ Run `node scripts/smoke-cloud.mjs` for the named production host only. It create
 
 This is the first deployment, so there is no earlier application version to roll back to. Keep the version above as the known working code baseline. For a later incompatible code-only rollout, inspect `wrangler deployments list`, then use `wrangler rollback <verified-version-id>`; code rollback does not restore document data or reverse SQLite schema changes. Do not delete Durable Object classes, bindings, namespaces, or migrations as a rollback shortcut.
 
-User-level recovery is available through native ZDOC backups and imports; Office exports preserve the supported basic content. SQLite Durable Objects provide point-in-time recovery, but an operator restore workflow and rehearsal have not yet been implemented here. Production data recovery acceptance remains open and must not be inferred from a successful code deployment.
+User-level recovery is available through native ZDOC backups and imports; Office exports preserve the supported basic content. SQLite Durable Objects provide point-in-time recovery. An isolated rehearsal is prepared below, but the production operator restore workflow and successful recovery acceptance remain open and must not be inferred from a successful code deployment.
+
+### Isolated recovery rehearsal
+
+`cloud/recovery-rehearsal.ts` reuses the production `AccountDocuments` repository in a separate `RecoveryRehearsal` class. `wrangler.recovery.jsonc` has no routes, workers.dev endpoint, account binding, or production namespace binding. Never add production bindings to either rehearsal configuration.
+
+The test seeds a multi-chunk Unicode Word document, a spreadsheet formula, and a starred slide in trash. It captures a bookmark, changes document bodies and metadata, permanently removes only its generated trash fixture, and schedules a restore. After aborting/restarting the object, full-document SHA-256, document count, quota bytes and trash count must exactly match. A second restore to the returned undo bookmark must recover the changed state. No caller can choose an object, customer account, content or bookmark.
+
+Cloudflare's [PITR documentation](https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/#pitr-point-in-time-recovery-api) describes a 30-day history and requires a new object session after scheduling recovery. Local development does not implement PITR, so local tests cannot certify this operation.
+
+```sh
+npx wrangler whoami
+npx tsc -p tsconfig.cloud.json
+npx wrangler deploy --config wrangler.recovery.jsonc
+npx wrangler dev --remote --config wrangler.recovery-driver.jsonc --ip 127.0.0.1 --port 8791 --inspector-port 9241
+```
+
+In a second terminal, while the preview is ready:
+
+```sh
+curl --fail-with-body --max-time 60 -X POST http://127.0.0.1:8791/rehearse
+```
+
+Stop that exact preview process afterward. A successful result must contain `passed: true`; a deployment, ready message, timeout or mock result is not acceptance. Each invocation allocates a new test object, retains approximately 1.2 MB of generated history for diagnosis, and incurs normal test-resource usage. No scheduled trigger is configured.
+
+2026-10-13: the isolated class deployed as `zhuole-recovery-rehearsal`, version `0e374ceb-8686-4378-8abd-8be3472651bb`, with no public targets. Direct remote preview warned that SQLite is unsupported, so the driver binds to this deployed class instead. Both direct and existing-system-proxy attempts timed out; an ordinary no-op path also timed out. **The live restoration/undo assertions have not completed.** Type checking passed. Logs are in ignored `releases/cloudflare/recovery-*.log`; production deployment and objects were not modified.
+
+### Customer recovery gate
+
+Before implementing or invoking a customer restore, record explicit approval for the exact account/object and target time; suspend writes and synchronization for that account, export its current documents, record the current bookmark and schema/code version, and preserve the undo bookmark outside the object before restarting it. Afterward verify IDs, content, revisions, trash and quota; force clients to reload so old drafts cannot silently overwrite recovered state. Resume traffic only after these checks.
+
+Restoring the shared Accounts directory is a separate, wider operation: it can roll credentials and sessions back for multiple users. Do not restore it as part of a single-account document repair. The production code currently exposes no restore endpoint or maintenance gate. The isolated rehearsal is groundwork, not a completed production restore workflow or an independent backup outside Cloudflare.

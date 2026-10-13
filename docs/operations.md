@@ -1,6 +1,10 @@
 # Hosting and operations
 
-## Deployment shape
+## Production Cloudflare deployment
+
+The public service is deployed at `https://wpx.youdroid.top` using Workers and SQLite Durable Objects. See [Cloudflare deployment](cloudflare.md) for bindings, deployed-version evidence, and recovery limits. Document data is account-local; credentials and sessions live in a separate Accounts object. Local filesystem backup commands below apply only to the optional Node.js server, not Cloudflare storage.
+
+## Optional Node.js deployment
 
 Use one Node.js 24+ process behind an HTTPS reverse proxy and a persistent local disk. The MVP uses one SQLite database and is not designed for concurrent app replicas or network-mounted SQLite files. Import and export currently run in the API process; use a bounded worker service before enabling large-scale public uploads.
 
@@ -31,4 +35,4 @@ Quota counts native document body bytes, including trash. It is a product quota,
 - Verify Secure/HttpOnly/SameSite cookies and rejected cross-origin writes.
 - Roll back to the prior application only if its schema remains compatible. `PRAGMA user_version` is 1 in this release; no destructive data migration is provided.
 
-No production deployment, public domain, TLS setup, SMTP email verification/recovery, automated backup scheduling, or external monitoring has been performed by this repository. Those require the actual hosting/account configuration. Password reset and email changes are deliberately not exposed without a verified recovery channel.
+Cloudflare production deployment, the custom domain and HTTPS have been verified. SMTP email verification/recovery, an independent scheduled backup, and external monitoring remain unconfigured. Password reset and email changes are deliberately not exposed without a verified recovery channel. Code rollback does not restore data. A test-namespace restore rehearsal is not authorization to restore customer accounts or proof of a production recovery procedure.
