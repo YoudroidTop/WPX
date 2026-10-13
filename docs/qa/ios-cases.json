@@ -30,7 +30,7 @@
     {
       "area": "Offline/cache",
       "caseIds": ["ios-cache-draft"],
-      "status": "not-run"
+      "status": "passed"
     }
   ],
   "cases": [
@@ -104,8 +104,8 @@
   "lastRun": {
     "date": "2026-10-13",
     "device": "Zhuole Docs QA / iPhone 17 Pro / iOS 26.1",
-    "build": "Mixed evidence: 7bf19ba baseline; presentation on 37283be plus native slideshow safe-area fix",
-    "authSource": "Existing task-owned local Mobile QA session; no credentials logged",
+    "build": "Mixed evidence: 7bf19ba baseline; presentation repair; offline/cache on ce151b7",
+    "authSource": "Task-owned local QA accounts; no credentials logged",
     "results": [
       {
         "caseId": "ios-upgrade-session",
@@ -137,17 +137,18 @@
       },
       {
         "caseId": "ios-cache-draft",
-        "status": "not-run",
-        "mode": "planned",
-        "evidence": [],
-        "notes": "Browser mirror touch and key events now work. This scenario has not yet been executed."
+        "status": "passed",
+        "mode": "manual",
+        "evidence": [
+          "releases/mobile/ios-cache-pending.png",
+          "releases/mobile/ios-cache-restarted-draft.png",
+          "releases/mobile/ios-cache-synced.png",
+          "releases/mobile/ios-cache-redownloaded.png",
+          "releases/mobile/ios-cache-server-readback.json"
+        ],
+        "notes": "On ce151b7, a loopback proxy disconnected only this app service. Cleared synchronized caches while Word draft was pending, terminated and relaunched the native process offline. The sheet displayed a network-required toast; Word retained Offline draft survives. Reconnection synchronized Word; reopening downloaded the blank sheet. Independent read-only SQLite checks confirmed both originals unchanged before reconnection and the sheet unchanged at revision 1 afterwards. Test fixtures remain for inspection."
       }
     ],
-    "exclusions": [
-      "Physical iPhone/iPad",
-      "Store distribution",
-      "Keyboard and tablet layouts",
-      "Offline/cache scenario remains unexecuted; latest native style change only rebuilt and installed on iOS Simulator"
-    ]
+    "exclusions": ["Physical iPhone/iPad", "Store distribution", "Keyboard and tablet layouts"]
   }
 }
