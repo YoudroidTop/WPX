@@ -1,3 +1,4 @@
+import { pruneExportCache } from './export-cache';
 import { decodeNativeResponse } from './mobile-response';
 import { Capacitor, CapacitorCookies, CapacitorHttp, registerPlugin } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
@@ -113,6 +114,16 @@ export const mobileBridge: NativeBridge = {
       recursive: true,
       data: encode(bytes),
     });
+    const cleanup = await pruneExportCache({
+      list: async (path) => (await Filesystem.readdir({ directory: Directory.Cache, path })).files,
+      removeFile: async (path) => {
+        await Filesystem.deleteFile({ directory: Directory.Cache, path });
+      },
+      removeDirectory: async (path) => {
+        await Filesystem.rmdir({ directory: Directory.Cache, path, recursive: false });
+      },
+    });
+    if (cleanup.failed) console.warn('Some expired export copies could not be removed');
     const result = await Share.share({
       title: name,
       files: [file.uri],

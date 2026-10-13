@@ -118,3 +118,11 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - `ANDROID_SHARE_QA=1 node scripts/smoke-android.mjs`: passed. DOCX `word/document.xml` contains the authored text; XLSX `xl/worksheets/sheet1.xml` contains `SUM(A1:A2)`; PPTX `ppt/slides/slide1.xml` contains the authored title. Each file was read from the native app cache as ZIP bytes. Each native chooser opened and dismissed successfully.
 - The same run passed editor persistence, offline draft process restart and synchronization, second-account isolation, offline logout and original-account recovery, with no page errors.
 - Evidence: `releases/mobile/android-share-passed.log`. This supersedes the earlier unsuccessful chooser attempt for emulator acceptance. It does not establish persistence by an external receiving app or physical-device behavior.
+
+## Mobile export cache retention — 2026-10-13
+
+- Implemented seven-day retention for generated iOS/Android export copies. Cleanup is restricted to UUID-v4 directories under the app's export cache, containing exactly one recognized file; both modification times must be expired. No recursive deletion is used. Offline drafts and user originals are outside this path.
+- `npm test`: 16 passed, including cutoff, recent file, unsafe path, nested contents, invalid time and failed-removal behavior. `npm run mobile:sync`, Android `assembleDebug` and unsigned iOS simulator `xcodebuild`: passed.
+- Installed the new Android debug APK with data preserved. Seeded an expired generated cache fixture and a recent fixture; after a real export, readback confirmed the expired directory was absent and the recent file remained. Removed only the test-owned recent fixture afterward.
+- `ANDROID_SHARE_QA=1 node scripts/smoke-android.mjs`: passed on the updated APK, including all three native exports, offline recovery and account isolation. Log: `releases/mobile/android-cache-retention.log`.
+- Refreshed the ignored Android debug APK and iOS simulator ZIP plus `releases/mobile/SHA256SUMS`. iOS native cleanup execution remains unverified; shared policy tests and its simulator build passed.
