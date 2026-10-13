@@ -7,3 +7,6 @@ data/
 test-results/
 playwright-report/
 .DS_Store
+
+desktop-dist/
+releases/

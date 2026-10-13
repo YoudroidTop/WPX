@@ -36,7 +36,7 @@ The client debounces edits for 800 ms, snapshots the current model, and performs
 
 A network, quota, or conflict failure leaves the local draft visible. It exposes native backup download and backup-then-return actions. No automatic merge or overwrite is performed. Backups contain document content; filenames carry the display name.
 
-The current app does not promise durable offline storage. A browser crash can lose edits that have not reached the API. Desktop/mobile offline editing will require an explicit local database and sync protocol.
+The web app does not promise durable offline storage. The desktop client adds IndexedDB document caching and write-through local drafts, scoped by cloud origin and account ID. Drafts preserve their base cloud revision. A successful sync only deletes the matching local snapshot token, so a newer local edit cannot be erased by completion of an earlier save. Local persistence failures retain the unsaved-change warning. Mobile clients will reuse this protocol where appropriate.
 
 ## API summary
 
@@ -64,7 +64,7 @@ HTTP 401 indicates a missing/expired session, 404 hides documents not owned by t
 
 ### Phase two: Windows and macOS
 
-Keep the API authoritative for accounts and cloud quota. Introduce a desktop shell only after choosing the packaging/runtime trade-off. Add local file open/save, native menus, keyboard shortcuts, durable local drafts, connectivity state, and sync conflict review. Ship platform-signed installers and a verified update channel. Desktop shell compilation is not installation, signing, or device acceptance.
+The implemented Electron shell keeps the API authoritative for accounts and cloud quota. Bundled UI assets use a secure custom protocol; the main process proxies only same-app API requests to a configured HTTPS server or loopback development server. Session cookies stay in a separate persistent Chromium session per server. Renderer sandboxing and context isolation are enabled, Node integration is disabled, IPC checks the main frame, and file access requires native dialogs or operating-system file-open events. New windows and external navigation are restricted. The packaging choice preserves one editor implementation across desktop platforms. Local file open/save, native menus, keyboard shortcuts, durable local drafts, connectivity state, and sync conflict review are implemented. Platform-signed distribution and a verified update channel remain open. Desktop shell compilation is not installation, signing, or device acceptance.
 
 ### Phase three: mobile
 

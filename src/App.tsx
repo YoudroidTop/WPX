@@ -37,6 +37,9 @@ import {
   type DocumentSummary,
 } from '../shared/documents';
 import Auth from './components/Auth';
+import { listDrafts, isOffline, type LocalDraft } from './cache';
+import { synchronizeDrafts } from './sync';
+import { nativeCommand, openNativeFile } from './platform';
 import Editor from './components/Editor';
 import { KindIcon, Logo, Modal } from './components/ui';
 
@@ -63,25 +66,42 @@ export default function App() {
   const [grid, setGrid] = useState(false),
     [sort, setSort] = useState('updated'),
     [dialog, setDialog] = useState<Dialog>(null);
-  const [opened, setOpened] = useState<CloudDocument | null>(null),
+  const [opened, setOpened] = useState<(CloudDocument & { fromLocalDraft?: true }) | null>(null),
     [busy, setBusy] = useState(false),
     [toast, setToast] = useState('');
   const [menu, setMenu] = useState<string | null>(null),
     [mobileNav, setMobileNav] = useState(false),
     [loading, setLoading] = useState(false);
   const upload = useRef<HTMLInputElement>(null);
+  const [localDrafts, setLocalDrafts] = useState<LocalDraft[]>([]);
+  const refreshing = useRef(false);
+  const nativeState = useRef({ account, opened, busy });
+  nativeState.current = { account, opened, busy };
   const notify = useCallback((message: string) => setToast(message), []);
   const refresh = useCallback(async () => {
+    if (refreshing.current) return;
+    refreshing.current = true;
     setLoading(true);
     try {
-      const result = await api<{ account: Account; documents: DocumentSummary[] }>('/documents');
+      let result = await api<{ account: Account; documents: DocumentSummary[] }>('/documents');
+      if (window.zhuoleDesktop && !isOffline() && !nativeState.current.opened) {
+        const summary = await synchronizeDrafts();
+        if (summary.saved) result = await api('/documents');
+        if (summary.conflicts)
+          notify(`${summary.conflicts} 份本地草稿需要处理，请打开检查或另存为副本`);
+      }
+      setLocalDrafts(await listDrafts());
       setAccount(result.account);
       setDocuments(result.documents);
     } catch (error) {
-      if (error instanceof RequestError && error.status === 401) setAccount(null);
-      else notify((error as Error).message);
+      if (error instanceof RequestError && error.status === 401) {
+        setAccount(null);
+        setDocuments([]);
+        setLocalDrafts([]);
+      } else notify((error as Error).message);
     } finally {
       setLoading(false);
+      refreshing.current = false;
     }
   }, [notify]);
   useEffect(() => {
@@ -143,9 +163,44 @@ export default function App() {
       await api('/auth/logout', { method: 'POST' });
       setAccount(null);
       setDocuments([]);
+      setLocalDrafts([]);
       setDialog(null);
     });
   }
+  const actions = useRef({ create, notify });
+  actions.current = { create, notify };
+  useEffect(() => {
+    return nativeCommand((command) => {
+      const current = nativeState.current;
+      if (current.opened || current.busy) return;
+      if (!current.account) {
+        if (command !== 'connection') actions.current.notify('请先登录，再打开或新建文档');
+        return;
+      }
+      if (command.startsWith('new-')) void actions.current.create(command.slice(4) as DocumentKind);
+      if (command === 'open' || command === 'pending-files')
+        void openNativeFile(command === 'pending-files')
+          .then((file) => {
+            if (file) setDialog({ type: 'import', file });
+          })
+          .catch((error) => actions.current.notify(error.message));
+    });
+  }, []);
+  useEffect(() => {
+    if (!account || opened || !window.zhuoleDesktop) return;
+    void openNativeFile(true)
+      .then((file) => {
+        if (file) setDialog({ type: 'import', file });
+      })
+      .catch((error) => notify(error.message));
+  }, [account?.id, opened, notify]);
+  useEffect(() => {
+    const reconnect = () => {
+      if (nativeState.current.account && !nativeState.current.opened) void refresh();
+    };
+    window.addEventListener('online', reconnect);
+    return () => window.removeEventListener('online', reconnect);
+  }, [refresh]);
   const visible = documents
     .filter(
       (doc) =>
@@ -190,6 +245,7 @@ export default function App() {
       <>
         <Editor
           initial={opened}
+          localOnly={opened.fromLocalDraft}
           onClose={async () => {
             setOpened(null);
             await refresh();
@@ -405,6 +461,32 @@ export default function App() {
               </div>
             </section>
           )}
+          {localDrafts.length > 0 && (
+            <section className="local-drafts">
+              <div className="section-heading">
+                <h2>此设备上的待同步草稿</h2>
+                <span className="muted">内容保存在本机，尚未覆盖云端</span>
+              </div>
+              {localDrafts.map((draft) => (
+                <button
+                  key={draft.document.id}
+                  className="local-draft-row"
+                  onClick={() =>
+                    setOpened({
+                      ...draft.document,
+                      revision: draft.baseRevision,
+                      fromLocalDraft: true,
+                    })
+                  }
+                >
+                  <KindIcon kind={draft.document.kind} small />
+                  <strong>{draft.document.name}</strong>
+                  <span>{new Date(draft.savedAt).toLocaleString('zh-CN')}</span>
+                  <ChevronRight size={16} />
+                </button>
+              ))}
+            </section>
+          )}
           <section className="documents-section">
             <div className="section-heading">
               <h2>
@@ -603,9 +685,9 @@ export default function App() {
                                 disabled={busy}
                                 onClick={() => {
                                   setMenu(null);
-                                  void perform(() =>
-                                    downloadFile(doc.id, doc.name, extensions[doc.kind]),
-                                  );
+                                  void perform(async () => {
+                                    await downloadFile(doc.id, doc.name, extensions[doc.kind]);
+                                  });
                                 }}
                               >
                                 <Download size={15} />

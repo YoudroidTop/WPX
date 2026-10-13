@@ -1,29 +1,41 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, CloudCheck, CloudUpload, Download, Save, AlertCircle } from 'lucide-react';
-import { api, downloadFile, downloadLocal } from '../api';
+import { api, downloadFile, downloadLocal, RequestError } from '../api';
 import { extensions, type CloudDocument, type DocumentContent } from '../../shared/documents';
 import { KindIcon } from './ui';
+import { draftScope, persistDraft, readDraft, removeDraft, type LocalDraft } from '../cache';
+import { isDesktop, nativeCommand } from '../platform';
 const WordEditor = lazy(() => import('./WordEditor'));
 import SheetEditor from './SheetEditor';
 import SlideEditor from './SlideEditor';
 
-export default function Editor({
+function EditorSession({
   initial,
   onClose,
   notify,
+  recovered,
 }: {
+  recovered?: LocalDraft;
   initial: CloudDocument;
   onClose: () => Promise<void>;
   notify: (message: string) => void;
 }) {
   const [doc, setDoc] = useState(initial),
-    [status, setStatus] = useState<'saved' | 'dirty' | 'saving' | 'error'>('saved'),
+    [status, setStatus] = useState<'saved' | 'dirty' | 'saving' | 'error' | 'local'>(
+      recovered ? 'dirty' : 'saved',
+    ),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   const draft = useRef(initial),
     revision = useRef(initial.revision),
-    generation = useRef(0),
+    generation = useRef(recovered ? 1 : 0),
     savedGeneration = useRef(0);
+  const localScope = useRef(draftScope());
+  const pendingLocal = useRef<{ snapshot: LocalDraft; version: number } | null>(null);
+  const writingLocal = useRef(false);
+  const persistedGeneration = useRef(recovered ? 1 : 0),
+    snapshotToken = useRef(recovered?.token ?? crypto.randomUUID()),
+    pendingWrite = useRef<Promise<void>>(Promise.resolve());
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null),
     inflight = useRef<Promise<boolean> | null>(null);
   const flush = useCallback((): Promise<boolean> => {
@@ -32,7 +44,8 @@ export default function Editor({
     const run = async () => {
       while (generation.current !== savedGeneration.current) {
         const current = draft.current,
-          version = generation.current;
+          version = generation.current,
+          token = snapshotToken.current;
         if (!current.name.trim()) {
           setError('请输入文档名称后保存');
           setStatus('error');
@@ -50,7 +63,21 @@ export default function Editor({
           });
           revision.current = saved.revision;
           savedGeneration.current = version;
+          await pendingWrite.current.catch(() => {});
+          await removeDraft(current.id, token, localScope.current).catch(() => {});
         } catch (error) {
+          if (isDesktop && error instanceof RequestError && error.status === 0) {
+            try {
+              await pendingWrite.current;
+              if (persistedGeneration.current === generation.current) {
+                setStatus('local');
+                setError('');
+                return true;
+              }
+            } catch {
+              /* Keep the editor open if durable local persistence failed. */
+            }
+          }
           setError((error as Error).message);
           setStatus('error');
           return false;
@@ -70,6 +97,34 @@ export default function Editor({
   function change(patch: Partial<CloudDocument>) {
     draft.current = { ...draft.current, ...patch };
     generation.current++;
+    const version = generation.current,
+      token = crypto.randomUUID();
+    snapshotToken.current = token;
+    const snapshot = {
+      document: draft.current,
+      baseRevision: revision.current,
+      savedAt: Date.now(),
+      token,
+    };
+    if (isDesktop) {
+      pendingLocal.current = { snapshot, version };
+      if (!writingLocal.current) {
+        writingLocal.current = true;
+        pendingWrite.current = (async () => {
+          while (pendingLocal.current) {
+            const latest = pendingLocal.current;
+            pendingLocal.current = null;
+            await persistDraft(latest.snapshot, localScope.current);
+            persistedGeneration.current = latest.version;
+          }
+        })().finally(() => {
+          writingLocal.current = false;
+        });
+      }
+    }
+    void pendingWrite.current.catch(() => {
+      setError('本地草稿保存失败，请联网保存或下载备份');
+    });
     setDoc(draft.current);
     setStatus('dirty');
     if (timer.current) clearTimeout(timer.current);
@@ -77,7 +132,10 @@ export default function Editor({
   }
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (generation.current !== savedGeneration.current) {
+      if (
+        generation.current !== savedGeneration.current &&
+        (!isDesktop || generation.current !== persistedGeneration.current)
+      ) {
         event.preventDefault();
         event.returnValue = '';
       }
@@ -96,6 +154,36 @@ export default function Editor({
       if (timer.current) clearTimeout(timer.current);
     };
   }, [flush]);
+  useEffect(() => {
+    if (recovered) void flush();
+    const online = () => {
+      void flush();
+    };
+    window.addEventListener('online', online);
+    return () => window.removeEventListener('online', online);
+  }, [flush]);
+  const commands = useRef({
+    flush,
+    exportFile,
+    backup: () => downloadLocal(doc.name, draft.current.content),
+  });
+  commands.current = {
+    flush,
+    exportFile,
+    backup: () => downloadLocal(doc.name, draft.current.content),
+  };
+  useEffect(
+    () =>
+      nativeCommand((command) => {
+        if (command === 'save') void commands.current.flush();
+        if (command === 'export') void commands.current.exportFile();
+        if (command === 'backup')
+          void commands.current.backup().catch((error) => notify(error.message));
+        if (command.startsWith('new-') || command === 'open')
+          notify('请先返回工作空间，再打开或新建其他文档');
+      }),
+    [notify],
+  );
   async function close() {
     setBusy(true);
     if (await flush()) await onClose();
@@ -143,11 +231,13 @@ export default function Editor({
           <span>
             {status === 'saved'
               ? '已保存到云端'
-              : status === 'saving'
-                ? '正在保存…'
-                : status === 'error'
-                  ? '保存失败'
-                  : '等待保存…'}
+              : status === 'local'
+                ? '已保存到此设备 · 待同步'
+                : status === 'saving'
+                  ? '正在保存…'
+                  : status === 'error'
+                    ? '保存失败'
+                    : '等待保存…'}
           </span>
         </span>
         <div className="editor-header-actions">
@@ -157,7 +247,11 @@ export default function Editor({
           </button>
           <button
             className="secondary backup-button"
-            onClick={() => downloadLocal(doc.name, draft.current.content)}
+            onClick={() =>
+              void downloadLocal(doc.name, draft.current.content).catch((error) =>
+                notify(error.message),
+              )
+            }
           >
             备份
           </button>
@@ -171,13 +265,56 @@ export default function Editor({
         <div className="save-error" role="alert">
           <AlertCircle size={17} />
           <span>{error}。修改仍保留在当前页面。</span>
-          <button onClick={() => downloadLocal(doc.name, draft.current.content)}>
+          <button
+            onClick={() =>
+              void downloadLocal(doc.name, draft.current.content).catch((error) =>
+                notify(error.message),
+              )
+            }
+          >
             下载本地备份
           </button>
           <button
-            onClick={() => {
-              downloadLocal(doc.name, draft.current.content);
-              void onClose();
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                const snapshot = draft.current,
+                  token = snapshotToken.current,
+                  version = generation.current;
+                await pendingWrite.current.catch(() => {});
+                await api('/documents', {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    kind: doc.kind,
+                    name: `${snapshot.name.slice(0, 94)} 副本`,
+                    content: snapshot.content,
+                  }),
+                });
+                await removeDraft(doc.id, token, localScope.current);
+                notify('本地修改已保存为新的云端副本');
+                if (generation.current === version) await onClose();
+              } catch (error) {
+                notify((error as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            另存为云端副本
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const version = generation.current;
+                if (
+                  (await downloadLocal(doc.name, draft.current.content)) &&
+                  generation.current === version
+                )
+                  await onClose();
+              } catch (error) {
+                notify((error as Error).message);
+              }
             }}
           >
             备份并返回
@@ -194,5 +331,49 @@ export default function Editor({
         )}
       </Suspense>
     </div>
+  );
+}
+
+export default function Editor(props: {
+  localOnly?: boolean;
+  initial: CloudDocument;
+  onClose: () => Promise<void>;
+  notify: (message: string) => void;
+}) {
+  const [state, setState] = useState<{ document: CloudDocument; recovered?: LocalDraft } | null>(
+    null,
+  );
+  useEffect(() => {
+    let disposed = false;
+    void readDraft(props.initial.id)
+      .then(async (recovered) => {
+        if (
+          recovered &&
+          !props.localOnly &&
+          JSON.stringify(recovered.document.content) === JSON.stringify(props.initial.content) &&
+          recovered.document.name === props.initial.name
+        ) {
+          await removeDraft(props.initial.id, recovered.token);
+          recovered = undefined;
+        }
+        if (!disposed)
+          setState({
+            document: recovered
+              ? { ...recovered.document, revision: recovered.baseRevision }
+              : props.initial,
+            recovered,
+          });
+      })
+      .catch(() => {
+        if (!disposed) setState({ document: props.initial });
+      });
+    return () => {
+      disposed = true;
+    };
+  }, [props.initial, props.localOnly]);
+  return state ? (
+    <EditorSession {...props} initial={state.document} recovered={state.recovered} />
+  ) : (
+    <div className="boot">正在恢复文档…</div>
   );
 }

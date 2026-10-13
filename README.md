@@ -56,16 +56,33 @@ Unit/API tests use isolated in-memory databases. Browser tests create disposable
 
 The application has not been deployed to a production server. See [Operations](docs/operations.md) before hosting it. A server deployment makes accounts and storage available across browsers; the local development server stores data only on its host.
 
+## Desktop client (phase two, in progress)
+
+The Electron client bundles the editors locally and connects to the same cloud API. It includes native file open/save, menus and keyboard shortcuts, a validated service connection screen, and per-account local drafts. Cached documents remain editable offline. Drafts survive process restarts, synchronize when the library reconnects, and never overwrite a newer cloud revision; conflicts can be saved as a separate cloud copy.
+
+```sh
+npm run desktop:build
+npm run desktop:dev
+npm run desktop:pack:mac
+npm run desktop:pack:win
+npm run test:desktop
+```
+
+On first launch, connect to a running Zhuole Cloud Docs server using its HTTPS root URL. For local development, `http://127.0.0.1:3173` is accepted. The client does not invent or ship a public cloud endpoint. The server must allow its browser-facing origin through `APP_ORIGIN`.
+
+See [Desktop delivery](docs/desktop.md) for artifact locations, platform validation, signing boundaries, and offline behavior.
+
 ## Roadmap and structure
 
 - **Phase 1 / WPX-1:** 卓乐云文档 Web MVP.
 - **Phase 2 / WPX-2:** 卓乐文档 for Windows and macOS; native file integration, offline editing/sync, signed installers and updates.
 - **Phase 3 / WPX-3:** mobile clients; touch editing, system files/share integration, offline sync, store distribution.
 
-Client phases are tracked as backlog and have not been implemented. They will reuse the account, quota, and document API. See [Architecture](docs/architecture.md) for the implementation boundaries.
+Desktop delivery is in progress; the mobile phase remains in the backlog. They will reuse the account, quota, and document API. See [Architecture](docs/architecture.md) for the implementation boundaries.
 
 ```text
-src/                 React workspace and editors
+desktop/             Sandboxed Electron main process, preload and packaging assets
+src/                 React workspace, editors and local draft synchronization
 server/              Express API, sessions, SQLite persistence, Office conversion
 shared/              Version-one document models and bounded formula parser
 tests/               Unit, API and Playwright acceptance tests

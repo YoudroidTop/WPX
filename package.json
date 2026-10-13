@@ -15,7 +15,12 @@
     "test": "tsx --test tests/*.test.ts",
     "test:e2e": "playwright test",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "desktop:build": "npm run build && node scripts/build-desktop.mjs",
+    "desktop:dev": "npm run desktop:build && electron desktop-dist",
+    "desktop:pack:mac": "npm run desktop:build && electron-builder --config electron-builder.yml --mac --publish never",
+    "desktop:pack:win": "npm run desktop:build && electron-builder --config electron-builder.yml --win --publish never",
+    "test:desktop": "playwright test --config playwright.desktop.config.ts"
   },
   "dependencies": {
     "@tiptap/extension-placeholder": "^3.31.4",
@@ -30,6 +35,7 @@
     "express-rate-limit": "^8.7.1",
     "fast-xml-parser": "^5.11.2",
     "helmet": "^8.3.0",
+    "idb": "^8.0.4",
     "jszip": "^3.10.2",
     "lucide-react": "^1.55.0",
     "pptxgenjs": "^4.0.1",
@@ -46,6 +52,9 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
     "concurrently": "^10.0.6",
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",

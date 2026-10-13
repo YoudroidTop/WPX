@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowUpRight, Cloud, Check, ArrowRight } from 'lucide-react';
 import { api } from '../api';
+import { isDesktop } from '../platform';
 import type { Account } from '../../shared/documents';
 import { Logo, KindIcon } from './ui';
 export default function Auth({ onLogin }: { onLogin: (account: Account) => void }) {
@@ -88,7 +89,9 @@ export default function Auth({ onLogin }: { onLogin: (account: Account) => void 
         </div>
       </section>
       <section className="auth-form-side">
-        <span className="edition-label">卓乐文档 / WEB EDITION</span>
+        <span className="edition-label">
+          卓乐文档 / {isDesktop ? 'DESKTOP EDITION' : 'WEB EDITION'}
+        </span>
         <div className="auth-form-wrap">
           <span className="small-tag">为你的创造留一个位置</span>
           <h2>{register ? '开启你的云端工作空间' : '欢迎回来'}</h2>

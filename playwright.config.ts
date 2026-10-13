@@ -1,6 +1,7 @@
 import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
+  outputDir: 'test-results/web',
   timeout: 60_000,
   expect: { timeout: 10_000 },
   fullyParallel: false,
@@ -12,7 +13,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   webServer: {
-    command: 'PORT=4173 DATA_DIR=./test-results/e2e-db APP_ORIGIN=http://127.0.0.1:4173 npm start',
+    command: 'node scripts/test-server.mjs 4173 e2e-db',
     url: 'http://127.0.0.1:4173/api/health',
     reuseExistingServer: false,
     timeout: 30_000,

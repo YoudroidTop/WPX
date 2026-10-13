@@ -1,0 +1,39 @@
+appId: com.youdroid.zhuoledocs
+productName: 卓乐文档
+directories:
+  app: desktop-dist
+  output: releases/desktop
+  buildResources: desktop/assets
+files:
+  - app/**
+  - web/**
+  - package.json
+  - '!node_modules/**'
+asar: true
+npmRebuild: false
+artifactName: ZhuoleDocs-${version}-${os}-${arch}.${ext}
+fileAssociations:
+  - ext: zdoc
+    name: Zhuole Document
+    description: Zhuole native document backup
+    role: Editor
+mac:
+  identity: '-'
+  icon: desktop/assets/icon.png
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+    - target: zip
+      arch: [arm64, x64]
+win:
+  icon: desktop/assets/icon.png
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
