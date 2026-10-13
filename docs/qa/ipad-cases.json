@@ -40,16 +40,30 @@
       "status": "passed"
     },
     {
-      "area": "Chinese composition and native clipboard",
+      "area": "Word Chinese Pinyin candidate composition and persistence",
       "caseIds": [
         "ipad-ime"
       ],
-      "status": "not-run"
+      "status": "passed"
     },
     {
       "area": "Split View and Stage Manager",
       "caseIds": [
         "ipad-multitasking"
+      ],
+      "status": "not-run"
+    },
+    {
+      "area": "Native clipboard across editors",
+      "caseIds": [
+        "ipad-clipboard"
+      ],
+      "status": "not-run"
+    },
+    {
+      "area": "Chinese composition in sheet and slide editors",
+      "caseIds": [
+        "ipad-other-ime"
       ],
       "status": "not-run"
     }
@@ -113,7 +127,7 @@
     },
     {
       "id": "ipad-ime",
-      "title": "Chinese composition and native clipboard",
+      "title": "Word Chinese Pinyin candidate composition and persistence",
       "priority": "P1",
       "platforms": [
         "iPadOS"
@@ -122,7 +136,8 @@
         "Task-owned iPad Air 11-inch (M3), iOS 26.1; local QA service on port 3173"
       ],
       "steps": [
-        "Input automation encountered focus/composition limitations; no Chinese IME or clipboard acceptance claim."
+        "Open the existing Word fixture, add a paragraph, switch the native software keyboard from Roman keys to Pinyin, tap n/i and choose the Chinese candidate, then h/a/o and choose its candidate; add Chinese punctuation and save.",
+        "Read back the exact two paragraphs through the local API; terminate/relaunch the app and reopen the document."
       ]
     },
     {
@@ -137,6 +152,34 @@
       ],
       "steps": [
         "Full-screen simulator only; multi-window scenarios remain untested."
+      ]
+    },
+    {
+      "id": "ipad-clipboard",
+      "title": "Native clipboard across editors",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS"
+      ],
+      "preconditions": [
+        "Task-owned iPad simulator"
+      ],
+      "steps": [
+        "No native clipboard acceptance in this follow-up."
+      ]
+    },
+    {
+      "id": "ipad-other-ime",
+      "title": "Chinese composition in sheet and slide editors",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS"
+      ],
+      "preconditions": [
+        "Task-owned iPad simulator"
+      ],
+      "steps": [
+        "Sheet/slide Chinese composition and Word long-text, replacement, cancellation and mixed formatting remain untested."
       ]
     }
   ],
@@ -189,10 +232,14 @@
       },
       {
         "caseId": "ipad-ime",
-        "status": "not-run",
+        "status": "passed",
         "mode": "agent-driven native simulator",
-        "notes": "Input automation encountered focus/composition limitations; no Chinese IME or clipboard acceptance claim.",
-        "evidence": []
+        "notes": "Native Pinyin key taps and candidate selection produced 你好。 after Tablet QA in a second left-aligned paragraph. Exact server readback passed at revision 8, and the text remained visible after app termination/relaunch and reopen. The initial readback assertion incorrectly expected null alignment; the visible left-aligned toolbar and stored paragraphs agree on left. No direct text injection or clipboard paste was used for this sample. This is Word portrait basic composition only.",
+        "evidence": [
+          "releases/mobile/ipad-ime-composition.png",
+          "releases/mobile/ipad-ime-reopened.png",
+          "releases/mobile/ipad-ime-readback.json"
+        ]
       },
       {
         "caseId": "ipad-multitasking",
@@ -200,11 +247,25 @@
         "mode": "agent-driven native simulator",
         "notes": "Full-screen simulator only; multi-window scenarios remain untested.",
         "evidence": []
+      },
+      {
+        "caseId": "ipad-clipboard",
+        "status": "not-run",
+        "mode": "agent-driven native simulator",
+        "notes": "No native clipboard acceptance in this follow-up.",
+        "evidence": []
+      },
+      {
+        "caseId": "ipad-other-ime",
+        "status": "not-run",
+        "mode": "agent-driven native simulator",
+        "notes": "Sheet/slide Chinese composition and Word long-text, replacement, cancellation and mixed formatting remain untested.",
+        "evidence": []
       }
     ],
     "exclusions": [
       "Physical iPad and iPhone acceptance, production backend and store distribution.",
-      "Chinese IME, native clipboard, Split View, Stage Manager, external keyboard hardware and accessibility audit.",
+      "Native clipboard, sheet/slide Chinese IME, advanced Word composition scenarios, Split View, Stage Manager, external keyboard hardware and accessibility audit.",
       "Sheet and slide portrait/expanded software-keyboard layouts; long document caret scrolling; multi-slide navigation; Office import/export and offline restart on this iPad.",
       "These fresh iPad results do not re-certify historical iPhone or other platform runs."
     ]
