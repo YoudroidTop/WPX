@@ -34,6 +34,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     }
     setOffline(false);
     const value = response.status === 204 ? undefined : await response.json();
+    if (path === '/auth/login' || path === '/auth/register') await nativeBridge?.persistSession?.();
     await cacheResponse(path, value, method).catch(() => {
       /* Cloud success remains authoritative when a cache is unavailable. */
     });

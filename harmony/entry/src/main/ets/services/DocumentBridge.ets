@@ -80,7 +80,11 @@ export class DocumentBridge {
       await fileIo.close(file.fd);
     }
   }
+  async persistSession(): Promise<void> {
+    await webview.WebCookieManager.saveCookieAsync();
+  }
   async clearSession(): Promise<void> {
     await webview.WebCookieManager.clearAllCookies();
+    await webview.WebCookieManager.saveCookieAsync();
   }
 }

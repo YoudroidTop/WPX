@@ -158,3 +158,11 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - The app synchronized automatically after foregrounding; the test neither clicked reconnect nor dispatched an online event. Authenticated server readback contained the draft text. The existing page-show hook was sufficient, so no application lifecycle code was changed.
 - The final run cleaned up its uniquely named document, removed the page-only API interception, reloaded and logged out. Device networking and unrelated app state were not changed.
 - Evidence: `releases/harmony/device-lifecycle-smoke.log`. This proves a normal background/foreground cycle, not application-process termination or OS memory-pressure recovery.
+
+## Harmony process restart session repair — 2026-10-13
+
+- The first force-stop/new-process test lost the authenticated session despite a persistent server cookie. Added awaited ArkWeb `saveCookieAsync()` after successful login/registration, and after logout cookie removal. The optional bridge hook preserves other platforms' existing authentication flow.
+- Rebuilt, development-signed and installed the HAP. `HARMONY_RESTART_QA=1` passed: page-only API failure, persisted pending draft, force-stop before disconnecting inspection, old PID exit, distinct new PID, restored login, draft recovery and authenticated server readback after synchronization. The script exited successfully and logged out.
+- Removed the exact earlier failed-run document from the verified dedicated QA account. No other account's data was modified. Log: `releases/harmony/device-restart-smoke.log`.
+- `npm test`: 16 passed. Harmony sync/signing and desktop build passed. Web E2E: 5 passed. Desktop suite: 5 passed, one timeout locating the document after restart; that exact test passed on an isolated rerun. The initial desktop failure remains recorded as intermittent, without claiming its cause is established.
+- Review found no unresolved P0/P1 issues in this delta. This verifies process restart with networking restored, not device-wide offline cold start, OS memory pressure, or formal distribution.

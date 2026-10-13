@@ -6,6 +6,7 @@ interface HarmonyProxy {
   openFile(): Promise<string>;
   saveFile(name: string, extension: string, data: string): Promise<boolean>;
   clearSession(): Promise<void>;
+  persistSession(): Promise<void>;
 }
 declare global {
   interface Window {
@@ -50,6 +51,13 @@ export const harmonyBridge: NativeBridge = {
       return await proxy().saveFile(name, extension, btoa(binary));
     } catch {
       throw new Error('文件未保存，请重新选择保存位置');
+    }
+  },
+  async persistSession() {
+    try {
+      await proxy().persistSession();
+    } catch {
+      throw new Error('登录状态未能保存到设备，请重试');
     }
   },
   async clearSession() {

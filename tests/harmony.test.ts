@@ -5,6 +5,7 @@ const events = new EventTarget();
 let incoming = '';
 let saved: { name: string; extension: string; data: string } | undefined;
 let cleared = false;
+let persisted = false;
 const classes = new Set<string>();
 Object.assign(globalThis, {
   window: Object.assign(events, {
@@ -19,6 +20,9 @@ Object.assign(globalThis, {
       saveFile: async (name: string, extension: string, data: string) => {
         saved = { name, extension, data };
         return true;
+      },
+      persistSession: async () => {
+        persisted = true;
       },
       clearSession: async () => {
         cleared = true;
@@ -47,6 +51,8 @@ test('Harmony bridge preserves binary Office bytes and restricts its fixed servi
   assert.equal(saved!.extension, 'docx');
   incoming = '{invalid';
   await assert.rejects(harmonyBridge.openFile(), /无法读取文件/);
+  await harmonyBridge.persistSession!();
+  assert.equal(persisted, true);
   await harmonyBridge.clearSession();
   assert.equal(cleared, true);
   let command = '';

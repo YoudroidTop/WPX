@@ -8,14 +8,24 @@ if (!process.env.HDC || !process.env.HARMONY_DEVICE)
 const hdc = (...args) =>
   execFileSync(process.env.HDC, ['-t', process.env.HARMONY_DEVICE, ...args], { encoding: 'utf8' });
 const credentials = JSON.parse(readFileSync('releases/harmony/file-qa-credentials.json', 'utf8'));
-const browser = await chromium.connectOverCDP('http://127.0.0.1:9224', { noDefaults: true });
-const page = browser
+let browser = await chromium.connectOverCDP('http://127.0.0.1:9224', { noDefaults: true });
+let page = browser
   .contexts()[0]
   .pages()
   .find((value) => value.url() === 'https://wpx.youdroid.top/');
 if (!page) throw new Error('Zhuole debug page unavailable');
 const apiPattern = '**/api/**';
 const offline = (route) => route.abort('internetdisconnected');
+const restartProcess = process.env.HARMONY_RESTART_QA === '1';
+const draftText = restartProcess
+  ? 'Process restart preserved this draft.'
+  : 'Foreground lifecycle synchronized this draft.';
+const processId = () =>
+  hdc('shell', 'ps', '-ef')
+    .split(/\r?\n/)
+    .find((line) => line.trim().endsWith(' com.youdroid.zhuoledocs'))
+    ?.trim()
+    .split(/\s+/)[1] || '';
 const name = `Harmony Lifecycle ${randomUUID().slice(0, 8)}`;
 try {
   if (await page.getByRole('heading', { name: '欢迎回来' }).isVisible()) {
@@ -33,25 +43,76 @@ try {
   await page.getByRole('textbox', { name: '文档正文' }).fill('Before background');
   await expect(page.getByText('已保存到云端', { exact: true })).toBeVisible();
   await page.route(apiPattern, offline);
-  await page
-    .getByRole('textbox', { name: '文档正文' })
-    .fill('Foreground lifecycle synchronized this draft.');
+  await page.getByRole('textbox', { name: '文档正文' }).fill(draftText);
   await expect(page.getByText('已保存到此设备 · 待同步')).toBeVisible();
-  hdc('shell', 'uitest', 'uiInput', 'keyEvent', 'Home');
-  await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe('hidden');
-  await page.unroute(apiPattern, offline);
-  const output = hdc('shell', 'aa', 'start', '-a', 'EntryAbility', '-b', 'com.youdroid.zhuoledocs');
-  if (!output.includes('start ability successfully'))
-    throw new Error('Device must be unlocked to resume');
-  await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe('visible');
+  if (restartProcess) {
+    const previousPid = processId();
+    if (!previousPid) throw new Error('Application process unavailable');
+    hdc('shell', 'aa', 'force-stop', 'com.youdroid.zhuoledocs');
+    await browser.close();
+    await expect.poll(processId).toBe('');
+    const output = hdc(
+      'shell',
+      'aa',
+      'start',
+      '-a',
+      'EntryAbility',
+      '-b',
+      'com.youdroid.zhuoledocs',
+    );
+    if (!output.includes('start ability successfully'))
+      throw new Error('Device must be unlocked to restart');
+    let nextPid = '';
+    await expect
+      .poll(() => {
+        nextPid = processId();
+        return Boolean(
+          nextPid &&
+          nextPid !== previousPid &&
+          hdc('shell', 'cat', '/proc/net/unix').includes('@webview_devtools_remote_' + nextPid),
+        );
+      })
+      .toBe(true);
+    hdc('fport', 'rm', 'tcp:9224', 'localabstract:webview_devtools_remote_' + previousPid);
+    hdc('fport', 'tcp:9224', 'localabstract:webview_devtools_remote_' + nextPid);
+    browser = await chromium.connectOverCDP('http://127.0.0.1:9224', { noDefaults: true });
+    page = browser
+      .contexts()[0]
+      .pages()
+      .find((value) => value.url() === 'https://wpx.youdroid.top/');
+    if (!page) throw new Error('Restarted editor unavailable');
+    await expect(page.getByText('文件验收，开启今天的好想法。')).toBeVisible();
+    await page.getByRole('button', { name: name + ' DOCX · 文字文档', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: '文档正文' })).toContainText(draftText);
+  } else {
+    hdc('shell', 'uitest', 'uiInput', 'keyEvent', 'Home');
+    await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe('hidden');
+    await page.unroute(apiPattern, offline);
+    const output = hdc(
+      'shell',
+      'aa',
+      'start',
+      '-a',
+      'EntryAbility',
+      '-b',
+      'com.youdroid.zhuoledocs',
+    );
+    if (!output.includes('start ability successfully'))
+      throw new Error('Device must be unlocked to resume');
+    await expect.poll(() => page.evaluate(() => document.visibilityState)).toBe('visible');
+  }
   await expect(page.getByText('已保存到云端', { exact: true })).toBeVisible();
   const content = await page.evaluate(async (name) => {
     const listing = await (await fetch('/api/documents')).json();
     const doc = listing.documents.find((doc) => doc.name === name);
     return (await (await fetch(`/api/documents/${doc.id}`)).json()).content;
   }, name);
-  expect(JSON.stringify(content)).toContain('Foreground lifecycle synchronized this draft.');
-  console.log('Harmony native background/foreground automatically synchronized the offline draft.');
+  expect(JSON.stringify(content)).toContain(draftText);
+  console.log(
+    restartProcess
+      ? 'Harmony process termination, new process, session recovery and pending-draft synchronization passed.'
+      : 'Harmony native background/foreground automatically synchronized the offline draft.',
+  );
 } catch (error) {
   console.error(String(error.message).split('Call log:')[0]);
   process.exitCode = 1;

@@ -42,7 +42,7 @@ struct Index {
         .mixedMode(MixedMode.None)
         .multiWindowAccess(false)
         .javaScriptProxy({ object: this.bridge, name: 'ZhuoleHarmony', methodList: ['getConnection'],
-          asyncMethodList: ['openFile', 'saveFile', 'clearSession'], controller: this.controller })
+          asyncMethodList: ['openFile', 'saveFile', 'clearSession', 'persistSession'], controller: this.controller })
         // ArkWeb documents null as network pass-through, but its callback type omits null.
         .onInterceptRequest((event) => this.assets.resolve(event.request)!)
         .onLoadIntercept((event) => event.data.isMainFrame() && event.data.getRequestUrl().split('#')[0] !== Constants.ORIGIN + '/')

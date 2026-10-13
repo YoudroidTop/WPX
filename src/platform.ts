@@ -16,6 +16,7 @@ export interface NativeBridge {
   pendingFiles(): Promise<NativeFile | null>;
   saveFile(name: string, extension: string, bytes: Uint8Array): Promise<boolean>;
   clearSession(): Promise<void>;
+  persistSession?(): Promise<void>;
   onCommand(callback: (command: string) => void): () => void;
 }
 declare global {

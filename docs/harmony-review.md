@@ -34,3 +34,9 @@ No external signing configuration, credentials, production account data or unrel
 Reviewed `Index.ets` lifecycle changes and the two build/smoke scripts. A P0 runtime issue was found and fixed: `onPageShow` could invoke the controller before attachment and throw synchronously. Dispatch now requires readiness and catches both exception forms. Debug inspection is guarded by the generated build constant. No new ArkUI state or routing branches were introduced; logs remain operation-only. Signing material stays in a private ignored build copy, and the temporary signing configuration is removed in `finally`.
 
 The physical API 24 device passed registration, all three editors, reload persistence and logout. This resolves the prior lack of signed execution for those flows; file pickers, offline lifecycle and foldable interaction remain P2 acceptance follow-ups. Final review: no unresolved P0 or P1 findings in this change.
+
+## Session persistence follow-up — 2026-10-13
+
+Scope: two ArkTS files, shared API/platform contracts, Harmony adapter and its unit test (six TypeScript/ArkTS files), plus the lifecycle harness. All six review dimensions passed for the delta: typed service methods, no new state/render work/routing, narrow async proxy exposure and sanitized adapter errors. Cookie values never cross the bridge. Awaited persistence failures reach the caller instead of being silently swallowed. No unresolved P0/P1 findings.
+
+The physical device confirmed process termination, a new PID, restored session and pending-draft synchronization with cloud readback. Native file round trips and normal foreground recovery also have recorded acceptance. Remaining P2 gates include external file intents, keyboard/root-back and foldable interaction; this review does not imply distribution readiness.

@@ -22,8 +22,8 @@ The default build produces `entry/build/default/outputs/default/entry-default-un
 - Main-frame navigation is restricted to the editor root. File access, mixed content and multiple windows are disabled. The bundled document CSP disallows remote scripts, frames and plugins.
 - The JavaScript proxy exposes connection metadata, user-selected import/export and cookie clearing. It never exposes passwords, cookies or arbitrary filesystem paths.
 - Imports accept DOCX, XLSX, PPTX and ZDOC, at most 10 MB. Exports use the system save picker, sanitize the suggested filename and enforce the same binary limit. Failed or partial I/O rejects the operation instead of reporting success.
-- The existing per-origin/account IndexedDB cache and revision-based draft synchronization are reused. Their behavior inside ArkWeb still requires device acceptance.
-- This initial host uses the fixed production service. Custom server switching, system incoming-file intents, background lifecycle reconnection and native distribution are pending. The UI file picker supports manual import.
+- The existing per-origin/account IndexedDB cache and revision-based draft synchronization are reused. Physical-device acceptance covers page reload, foreground recovery and process restart with pending drafts.
+- This initial host uses the fixed production service. Custom server switching, system incoming-file intents and native distribution are pending. The UI file picker supports manual import.
 
 ## Verification
 
@@ -69,4 +69,14 @@ HDC=/path/to/hdc HARMONY_DEVICE=device-id node scripts/smoke-harmony-lifecycle.m
 
 The test creates one uniquely named document, aborts only its page API requests, waits for a persisted offline draft, sends the actual native Home action, and confirms that the WebView becomes hidden. It restores API requests while the app is in the background, starts the existing ability, confirms visibility, and requires cloud synchronization without clicking reconnect or injecting an online event. Server readback verifies the draft text. The finalizer removes the route, deletes only that test document after verifying the account, reloads and logs out.
 
-This scenario passed on the API 24 device using the existing `onPageShow` hook; no additional lifecycle bridge was needed. Process termination is a distinct acceptance scenario and remains unverified.
+This scenario passed on the API 24 device using the existing `onPageShow` hook; no additional lifecycle bridge was needed. Process termination is covered by the separate scenario below.
+
+## Process restart and session persistence
+
+The native bridge flushes ArkWeb cookies after successful login/registration, before the shared client caches the account. Logout clears cookies and flushes that removal. The service owns these operations; JavaScript receives no cookie values. Other platforms retain their existing behavior through an optional bridge method.
+
+```sh
+HDC=/path/to/hdc HARMONY_DEVICE=device-id HARMONY_RESTART_QA=1 node scripts/smoke-harmony-lifecycle.mjs
+```
+
+This mode force-stops the app while its page API requests are blocked, confirms the old process exits, starts a distinct process and reconnects its debug socket. It requires restored login, the persisted draft text and synchronized server content. The API 24 physical device passed after explicit cookie flushing was added. The earlier build lost its login session in this scenario. Networking is available after restart; this is not an airplane-mode cold-start or OS memory-pressure test.
