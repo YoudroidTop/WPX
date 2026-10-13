@@ -1,4 +1,5 @@
 import release from './desktop-release.json';
+import history from './desktop-release-history.json';
 
 interface DownloadObject {
   size: number;
@@ -26,7 +27,9 @@ export async function desktopDownload(
       },
       { headers: { 'Cache-Control': 'no-store' } },
     );
-  const artifact = release.artifacts.find((entry) => entry.path === path);
+  const artifact = [release, ...history]
+    .flatMap((entry) => entry.artifacts)
+    .find((entry) => entry.path === path);
   if (!artifact) return new Response(null, { status: 404 });
   if (!bucket) return new Response(null, { status: 503 });
   const headers = new Headers({

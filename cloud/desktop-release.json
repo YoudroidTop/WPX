@@ -1,45 +1,45 @@
 {
-  "version": "0.1.0",
+  "version": "0.1.1",
   "artifacts": [
     {
       "platform": "mac",
       "architecture": "arm64",
-      "filename": "ZhuoleDocs-0.1.0-mac-arm64.dmg",
-      "bytes": 127478395,
-      "sha256": "d1aa97896dbb152b4eca82a1f19503265fbe125985285e9f25c9312d729dc96a",
+      "filename": "ZhuoleDocs-0.1.1-mac-arm64.dmg",
+      "bytes": 127567949,
+      "sha256": "4fb48c0df13066cb2f428cccdef02b5fe43092126f7af8cde76660ea498a05fb",
       "signed": true,
-      "path": "/downloads/desktop/0.1.0/ZhuoleDocs-0.1.0-mac-arm64.dmg",
-      "key": "desktop/0.1.0/d1aa97896dbb152b4eca82a1f19503265fbe125985285e9f25c9312d729dc96a/ZhuoleDocs-0.1.0-mac-arm64.dmg"
+      "path": "/downloads/desktop/0.1.1/ZhuoleDocs-0.1.1-mac-arm64.dmg",
+      "key": "desktop/0.1.1/4fb48c0df13066cb2f428cccdef02b5fe43092126f7af8cde76660ea498a05fb/ZhuoleDocs-0.1.1-mac-arm64.dmg"
     },
     {
       "platform": "mac",
       "architecture": "x64",
-      "filename": "ZhuoleDocs-0.1.0-mac-x64.dmg",
-      "bytes": 134335832,
-      "sha256": "47d28b2ddb9f36e56e354d36d0ca7a190a9ab67cf7e3472a020f4398fba7d57d",
+      "filename": "ZhuoleDocs-0.1.1-mac-x64.dmg",
+      "bytes": 134471737,
+      "sha256": "daa8a213d52aeccd334ca486640fe088c8fb56bfaf2db5e8b7941fc684c35298",
       "signed": true,
-      "path": "/downloads/desktop/0.1.0/ZhuoleDocs-0.1.0-mac-x64.dmg",
-      "key": "desktop/0.1.0/47d28b2ddb9f36e56e354d36d0ca7a190a9ab67cf7e3472a020f4398fba7d57d/ZhuoleDocs-0.1.0-mac-x64.dmg"
-    },
-    {
-      "platform": "win",
-      "architecture": "arm64",
-      "filename": "ZhuoleDocs-0.1.0-win-arm64.exe",
-      "bytes": 105359352,
-      "sha256": "9867464fc2569e91c83e26434cfd674b4f440a516078186f43eaa48481497d0a",
-      "signed": false,
-      "path": "/downloads/desktop/0.1.0/ZhuoleDocs-0.1.0-win-arm64.exe",
-      "key": "desktop/0.1.0/9867464fc2569e91c83e26434cfd674b4f440a516078186f43eaa48481497d0a/ZhuoleDocs-0.1.0-win-arm64.exe"
+      "path": "/downloads/desktop/0.1.1/ZhuoleDocs-0.1.1-mac-x64.dmg",
+      "key": "desktop/0.1.1/daa8a213d52aeccd334ca486640fe088c8fb56bfaf2db5e8b7941fc684c35298/ZhuoleDocs-0.1.1-mac-x64.dmg"
     },
     {
       "platform": "win",
       "architecture": "x64",
-      "filename": "ZhuoleDocs-0.1.0-win-x64.exe",
-      "bytes": 111674224,
-      "sha256": "f37f878615653d7c4292483ce9ce1985239b9aad87914bac8f3d69df54dfd40c",
+      "filename": "ZhuoleDocs-0.1.1-win-x64.exe",
+      "bytes": 111767859,
+      "sha256": "78e3b9bf0456d7830cefa77d0ff4c17962afd8d3c06a28bc9a9aa9694324d512",
       "signed": false,
-      "path": "/downloads/desktop/0.1.0/ZhuoleDocs-0.1.0-win-x64.exe",
-      "key": "desktop/0.1.0/f37f878615653d7c4292483ce9ce1985239b9aad87914bac8f3d69df54dfd40c/ZhuoleDocs-0.1.0-win-x64.exe"
+      "path": "/downloads/desktop/0.1.1/ZhuoleDocs-0.1.1-win-x64.exe",
+      "key": "desktop/0.1.1/78e3b9bf0456d7830cefa77d0ff4c17962afd8d3c06a28bc9a9aa9694324d512/ZhuoleDocs-0.1.1-win-x64.exe"
+    },
+    {
+      "platform": "win",
+      "architecture": "arm64",
+      "filename": "ZhuoleDocs-0.1.1-win-arm64.exe",
+      "bytes": 105453017,
+      "sha256": "5f6c904f70cd1c89fbc45b039e430b0a288eea75936ce33d29f78c99cd1f37a8",
+      "signed": false,
+      "path": "/downloads/desktop/0.1.1/ZhuoleDocs-0.1.1-win-arm64.exe",
+      "key": "desktop/0.1.1/5f6c904f70cd1c89fbc45b039e430b0a288eea75936ce33d29f78c99cd1f37a8/ZhuoleDocs-0.1.1-win-arm64.exe"
     }
   ]
 }

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import { normalizeServer, isAppUrl, safeFilename } from '../../desktop/policy';
 const origin = 'http://127.0.0.1:4273';
 async function launch(directory: string, configured = true, files: string[] = []) {
@@ -185,6 +186,15 @@ test('packaged macOS application launches its bundled UI with sandboxing', async
     const page = await app.firstWindow();
     await expect(page.getByRole('heading', { name: '连接你的云端工作空间' })).toBeVisible();
     expect(await app.evaluate(({ app }) => app.isPackaged)).toBe(true);
+    const expectedVersion = JSON.parse(await readFile('package.json', 'utf8')).version;
+    expect(await app.evaluate(({ app }) => app.getVersion())).toBe(expectedVersion);
+    expect(
+      await app.evaluate(({ Menu }) =>
+        Menu.getApplicationMenu()
+          ?.items.find((item) => item.label === '帮助')
+          ?.submenu?.items.some((item) => item.label === '检查更新…'),
+      ),
+    ).toBe(true);
     expect(await app.evaluate(({ app }) => app.getPath('userData'))).toBe(profile);
     expect(await page.evaluate(() => typeof (window as any).require)).toBe('undefined');
     await page.screenshot({ path: 'test-results/desktop-packaged.png', animations: 'disabled' });
@@ -396,7 +406,7 @@ test('native update menu uses official source and requires confirmation before d
   const app = await launch(directory, false);
   try {
     await app.firstWindow();
-    const release = JSON.parse(await readFile('cloud/desktop-release.json', 'utf8'));
+    const release = JSON.parse(await readFile('cloud/desktop-release-history.json', 'utf8'))[0];
     const result = await app.evaluate(async ({ app, Menu, dialog, session, shell }, release) => {
       const messages: string[] = [];
       const opened: string[] = [];
@@ -467,6 +477,55 @@ test('native update menu uses official source and requires confirmation before d
         credentials: 'omit',
         redirect: 'error',
       });
+  } finally {
+    await app.close();
+  }
+});
+
+test('packaged upgrade preserves the previous version session and saved document', async () => {
+  test.skip(process.platform !== 'darwin', 'macOS upgrade acceptance');
+  const previousZip = resolve('releases/desktop/ZhuoleDocs-0.1.0-mac-arm64-stapled.zip');
+  const currentExecutable = resolve(
+    'releases/desktop/mac-arm64/卓乐文档.app/Contents/MacOS/卓乐文档',
+  );
+  test.skip(
+    !existsSync(previousZip) || !existsSync(currentExecutable),
+    'Both releases are required',
+  );
+  const previous = await mkdtemp(join(tmpdir(), 'zhuole-previous-'));
+  const profile = await mkdtemp(join(tmpdir(), 'zhuole-upgrade-profile-'));
+  execFileSync('ditto', ['-x', '-k', previousZip, previous]);
+  await writeFile(join(profile, 'connection.json'), JSON.stringify({ origin }));
+  let app = await electron.launch({
+    executablePath: join(previous, '卓乐文档.app/Contents/MacOS/卓乐文档'),
+    args: [`--user-data-dir=${profile}`],
+  });
+  try {
+    let page = await app.firstWindow();
+    expect(await app.evaluate(({ app }) => app.getVersion())).toBe('0.1.0');
+    await page.getByRole('button', { name: '创建免费账号' }).click();
+    await page.getByLabel('怎么称呼你').fill('升级验收');
+    await page.getByLabel('邮箱地址').fill(`upgrade-${crypto.randomUUID()}@example.com`);
+    await page.getByLabel('密码', { exact: true }).fill('upgrade-test-password');
+    await page.getByRole('button', { name: '创建账号', exact: true }).click();
+    await page.getByRole('button', { name: /新建文字文档 落笔/ }).click();
+    await page.getByRole('textbox', { name: '文档名称', exact: true }).fill('Upgrade persistence');
+    await page.getByRole('textbox', { name: '文档正文' }).fill('Saved with version 0.1.0');
+    await expect(page.getByText('已保存到云端', { exact: true })).toBeVisible();
+    await app.close();
+    app = await electron.launch({
+      executablePath: currentExecutable,
+      args: [`--user-data-dir=${profile}`],
+    });
+    page = await app.firstWindow();
+    const version = JSON.parse(await readFile('package.json', 'utf8')).version;
+    expect(await app.evaluate(({ app }) => app.getVersion())).toBe(version);
+    await expect(page.getByText('升级验收，开启今天的好想法。')).toBeVisible();
+    await page.locator('button.recent-card').filter({ hasText: 'Upgrade persistence' }).click();
+    await expect(page.getByRole('textbox', { name: '文档正文' })).toContainText(
+      'Saved with version 0.1.0',
+    );
+    await page.screenshot({ path: 'test-results/desktop-upgrade.png' });
   } finally {
     await app.close();
   }

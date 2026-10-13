@@ -2,10 +2,27 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { desktopDownload } from '../cloud/desktop-downloads';
 import release from '../cloud/desktop-release.json';
+import history from '../cloud/desktop-release-history.json';
 
 const artifact = release.artifacts[0];
 const request = (headers = {}, method = 'GET', path = artifact.path) =>
   new Request(`https://wpx.youdroid.top${path}`, { headers, method });
+
+test('previously published desktop download paths remain available', async () => {
+  for (const previous of history.flatMap((entry) => entry.artifacts)) {
+    const response = await desktopDownload(request({}, 'HEAD', previous.path), {
+      head: async (key) => {
+        assert.equal(key, previous.key);
+        return { size: previous.bytes };
+      },
+      get: async () => {
+        throw new Error('HEAD must not read a body');
+      },
+    });
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('x-checksum-sha256'), previous.sha256);
+  }
+});
 
 test('desktop manifest exposes public metadata without storage keys', async () => {
   const response = await desktopDownload(request({}, 'GET', '/api/releases/desktop'));

@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import release from '../cloud/desktop-release.json';
+import history from '../cloud/desktop-release-history.json';
 import { newerVersion, readUpdateManifest, selectUpdate } from '../desktop/updates';
+const release = history[0];
 
 test('update comparison orders numeric release components and never downgrades', () => {
   assert.equal(newerVersion('0.10.0', '0.9.9'), true);
