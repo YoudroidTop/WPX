@@ -74,6 +74,23 @@ for (const kind of ['word', 'sheet', 'slide']) {
   ]);
   assert.deepEqual(updates.map((item) => item.status).sort(), [200, 409]);
   doc = await (await a(`/api/documents/${doc.id}`)).json();
+  if (kind === 'sheet') {
+    doc.content.sheets[0].cells = {
+      A1: '00123',
+      A2: '9007199254740993',
+      A3: '1.00',
+      A4: ' 120 ',
+      B1: '120',
+      B2: '80',
+      C1: '=SUM(B1:B2)',
+    };
+    response = await a(`/api/documents/${doc.id}`, 'PATCH', {
+      revision: doc.revision,
+      content: doc.content,
+    });
+    assert.equal(response.status, 200, await response.clone().text());
+    doc = await response.json();
+  }
   response = await a(`/api/documents/${doc.id}/export`);
   assert.equal(response.status, 200, await response.clone().text());
   const bytes = new Uint8Array(await response.arrayBuffer());
@@ -85,7 +102,10 @@ for (const kind of ['word', 'sheet', 'slide']) {
     headers: { 'Content-Type': 'application/octet-stream', 'x-filename': `roundtrip.${extension}` },
   });
   assert.equal(response.status, 201, await response.clone().text());
-  assert.equal((await response.json()).kind, kind);
+  const imported = await response.json();
+  assert.equal(imported.kind, kind);
+  if (kind === 'sheet')
+    assert.deepEqual(imported.content.sheets[0].cells, doc.content.sheets[0].cells);
   const before = await (await a('/api/me')).json();
   response = await a(`/api/documents/${doc.id}`, 'PATCH', {
     revision: doc.revision,

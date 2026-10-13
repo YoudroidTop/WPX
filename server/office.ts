@@ -99,6 +99,19 @@ function wordBlocks(nodes: RichNode[]): (Paragraph | Table)[] {
     ];
   });
 }
+// Preserve identifiers and spelling that a numeric XLSX cell cannot round-trip.
+// Excel stores at most 15 significant decimal digits.
+function spreadsheetValue(raw: string): string | number {
+  const value = Number(raw);
+  const digits = raw.replace(/[-.]/g, '').replace(/^0+/, '');
+  return /^-?\d+(?:\.\d+)?$/.test(raw) &&
+    Number.isFinite(value) &&
+    String(value) === raw &&
+    digits.length <= 15
+    ? value
+    : raw;
+}
+
 export async function exportOffice(content: DocumentContent): Promise<Buffer> {
   let buffer: Buffer;
   if (content.type === 'word') {
@@ -117,9 +130,7 @@ export async function exportOffice(content: DocumentContent): Promise<Buffer> {
             formula: raw.slice(1),
             result: typeof result === 'number' ? result : undefined,
           };
-        } else
-          ws.getCell(address).value =
-            raw.trim() && Number.isFinite(Number(raw)) ? Number(raw) : raw;
+        } else ws.getCell(address).value = spreadsheetValue(raw);
       }
       ws.columns?.forEach((column) => {
         column.width = 18;
