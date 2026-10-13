@@ -291,3 +291,9 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - Evidence: `releases/mobile/ios-current-sheet-reopened.png` and `ios-current-sheet-readback.json`. The local fixture and native session remain available for inspection; the host readback session was logged out. The task-specific browser mirror was closed and disconnected. No other simulator was operated.
 - Native clipboard acceptance remains unverified because mirror bulk input/paste forwarding was unreliable. Other iOS case results remain historical, and physical iPhone/iPad acceptance is still open.
 - The user will perform Windows installation/runtime acceptance on their own computer. Handed off the current unsigned `ZhuoleDocs-0.1.0-win-x64.exe` and `ZhuoleDocs-0.1.0-win-arm64.exe` under `releases/desktop/`; this is a pending user check, not a passed runtime result.
+
+## Small-screen account controls — 2026-10-13
+
+- Added browser regression coverage at 360x780 and 780x360 with the native-mobile CSS class. Both cases register isolated local accounts, check dialog viewport bounds and horizontal overflow, save a display-name change, scroll to logout, then sign in again and verify the persisted name.
+- The two focused Playwright cases passed. Inspected the landscape screenshot: the scrolled account dialog keeps the logout control inside the viewport. Evidence: `test-results/account-360x780.png` and `test-results/account-780x360.png`.
+- This is Chromium layout and account workflow evidence. It does not inject a native bridge, exercise native-only cache controls, emulate a software keyboard, or establish iOS/Harmony touch scrolling acceptance. No product code or release artifact changed.

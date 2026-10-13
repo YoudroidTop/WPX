@@ -43,3 +43,43 @@ test('native mobile chrome keeps three editors usable across phone and tablet si
     await page.getByRole('button', { name: '返回工作空间' }).click();
   }
 });
+
+for (const size of [
+  { width: 360, height: 780 },
+  { width: 780, height: 360 },
+]) {
+  test(`account settings remain operable at ${size.width}x${size.height}`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.goto('/');
+    await page.evaluate(() => document.documentElement.classList.add('native-mobile'));
+    const email = `account-layout-${crypto.randomUUID()}@example.com`;
+    const password = 'account-layout-test-password';
+    await page.getByRole('button', { name: '创建免费账号' }).click();
+    await page.getByLabel('怎么称呼你').fill('Account Layout QA');
+    await page.getByLabel('邮箱地址').fill(email);
+    await page.getByLabel('密码', { exact: true }).fill(password);
+    await page.getByRole('button', { name: '创建账号', exact: true }).click();
+    await page.getByRole('button', { name: '账号设置' }).click();
+    const dialog = page.getByRole('dialog', { name: '账号与云空间' });
+    await expect(dialog).toBeVisible();
+    expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(
+      true,
+    );
+    const bounds = await dialog.boundingBox();
+    expect(bounds!.y).toBeGreaterThanOrEqual(0);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(size.height);
+    await dialog.getByLabel('显示名称').fill('Updated Layout QA');
+    await dialog.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(page.getByRole('status')).toContainText('个人资料已更新');
+    const logout = dialog.getByRole('button', { name: '退出登录' });
+    await logout.scrollIntoViewIfNeeded();
+    await expect(logout).toBeInViewport();
+    await page.screenshot({ path: `test-results/account-${size.width}x${size.height}.png` });
+    await logout.click();
+    await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible();
+    await page.getByLabel('邮箱地址').fill(email);
+    await page.getByLabel('密码', { exact: true }).fill(password);
+    await page.getByRole('button', { name: '登录', exact: true }).click();
+    await expect(page.getByRole('heading', { name: /Updated Layout QA/ })).toBeVisible();
+  });
+}
