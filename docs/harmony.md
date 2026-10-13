@@ -14,7 +14,7 @@ ohpm install
 hvigorw assembleHap
 ```
 
-The default build produces `entry/build/default/outputs/default/entry-default-unsigned.hap`. No signing credentials or provisioning profiles are included. Configure a development signing profile for `com.youdroid.zhuoledocs` and the intended device before installation. An unsigned build is not a distributable release.
+The default build produces `entry/build/default/outputs/default/entry-default-unsigned.hap`. No signing credentials or provisioning profiles are included in Git. A matching development profile is now available locally and has been used for physical-device installation. An unsigned build is not a distributable release.
 
 ## Boundaries
 
@@ -29,4 +29,18 @@ The default build produces `entry/build/default/outputs/default/entry-default-un
 
 `npm test` covers the JavaScript adapter's binary round-trip, invalid payload, fixed-origin policy, cookie-clear invocation and command listener removal. It does not emulate ArkWeb or the native picker.
 
-On 2026-10-13, `npm run harmony:sync` and `hvigorw assembleHap` succeeded with the local API 24 toolchain. A connected API 24 device was detected read-only. No application was installed: a matching signing configuration is not present. Native cookies, local resource loading, file picker behavior, offline editing, keyboard, safe areas and tablet/foldable layouts remain explicit runtime gates.
+On 2026-10-13, `npm run harmony:sync` and `hvigorw assembleHap` succeeded with the local API 24 toolchain. A connected API 24 device was detected read-only. Subsequent signed-device acceptance passed local assets, native bridge availability, production registration/login, Word persistence/reload, SUM calculation, slide editing/presentation and logout. Native file pickers, offline editing, keyboard, safe areas and tablet/foldable layouts remain explicit runtime gates.
+
+## Local development signing and device smoke
+
+After `npm run harmony:sync`, the signing helper accepts a JSON-compatible reference build profile with a `debug` signing configuration, the application's development profile, and the local Hvigor executable:
+
+```sh
+node scripts/build-harmony-debug.mjs /path/to/reference/build-profile.json5 /path/to/zhuoledocs_debugDebug.p7b /path/to/hvigorw
+```
+
+It validates the bundle, profile type/validity and matching certificate within the full PEM chain, builds in a private ignored workspace and removes the material-bearing configuration afterward. It never prints passwords. Native package installation additionally verifies the actual signature and device authorization. Output: `releases/harmony/ZhuoleDocs-0.1.0-harmony-debug.hap`.
+
+Debug builds expose ArkWeb inspection; release builds disable it through the generated `DEBUG` constant. Forward only this application's debug socket to localhost port 9224, then run `node scripts/smoke-harmony.mjs`. The test creates a random account on the production service, exercises the three editors and removes only that account's generated documents before logout. The empty test account remains. No real user account is used.
+
+The first device launch uncovered synchronous controller access before attachment. `Index.ets` now gates dispatch on controller readiness and handles both synchronous errors and Promise rejection. Build success alone had not detected this lifecycle failure.

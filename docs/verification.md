@@ -126,3 +126,11 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - Installed the new Android debug APK with data preserved. Seeded an expired generated cache fixture and a recent fixture; after a real export, readback confirmed the expired directory was absent and the recent file remained. Removed only the test-owned recent fixture afterward.
 - `ANDROID_SHARE_QA=1 node scripts/smoke-android.mjs`: passed on the updated APK, including all three native exports, offline recovery and account isolation. Log: `releases/mobile/android-cache-retention.log`.
 - Refreshed the ignored Android debug APK and iOS simulator ZIP plus `releases/mobile/SHA256SUMS`. iOS native cleanup execution remains unverified; shared policy tests and its simulator build passed.
+
+## Harmony signed physical-device acceptance — 2026-10-13
+
+- Located the user-provided development profile, verified bundle `com.youdroid.zhuoledocs`, validity, device authorization and matching certificate in the reference PEM chain. Signed in an ignored private build copy; no signing passwords/profile contents enter Git.
+- Signed HAP installation succeeded. Initial launch was blocked by the locked screen; the user unlocked it. The first real launch then exposed a synchronous WebView controller exception in `onPageShow`. Added an attachment guard and synchronous/async error handling, rebuilt, signed and installed successfully.
+- `node scripts/smoke-harmony.mjs`: passed against the actual API 24 device ArkWeb. Production account registration, Word editing/save/reload, spreadsheet SUM=200, slide edit/presentation and logout all passed without page errors. Three generated test documents were removed; the empty QA account remains.
+- Visually inspected login and workspace screenshots under `releases/harmony/`. The native bridge was present and mobile CSS active. No file-picker or offline-device acceptance is claimed yet.
+- Artifact: `releases/harmony/ZhuoleDocs-0.1.0-harmony-debug.hap`. Log: `releases/harmony/device-smoke.log`. This is development signing, not a store release.

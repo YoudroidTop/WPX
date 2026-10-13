@@ -28,3 +28,9 @@ Date: 2026-10-13. Scope: six ArkTS application files, two Hvigor entrypoints, `s
 | `Index.ets`                          | P2       | Page-show/back hooks are present, but background-to-foreground lifecycle and root back behavior need device validation. | Exercise app backgrounding, editor return, root navigation, keyboard and foldable layouts before release; add lifecycle notification if page-show does not fire.     |
 
 No external signing configuration, credentials, production account data or unrelated app settings were copied or modified.
+
+## Signed-device follow-up — 2026-10-13
+
+Reviewed `Index.ets` lifecycle changes and the two build/smoke scripts. A P0 runtime issue was found and fixed: `onPageShow` could invoke the controller before attachment and throw synchronously. Dispatch now requires readiness and catches both exception forms. Debug inspection is guarded by the generated build constant. No new ArkUI state or routing branches were introduced; logs remain operation-only. Signing material stays in a private ignored build copy, and the temporary signing configuration is removed in `finally`.
+
+The physical API 24 device passed registration, all three editors, reload persistence and logout. This resolves the prior lack of signed execution for those flows; file pickers, offline lifecycle and foldable interaction remain P2 acceptance follow-ups. Final review: no unresolved P0 or P1 findings in this change.
