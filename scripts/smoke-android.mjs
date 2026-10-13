@@ -143,6 +143,26 @@ try {
   await verifyNativeExport('docx', 'word/document.xml', 'Saved through Android native HTTP.');
   await back();
   await page.getByRole('button', { name: /新建电子表格 用数据/ }).click();
+  const imeCell = page.getByRole('textbox', { name: 'D2', exact: true });
+  await imeCell.fill('ni');
+  // Synthetic WebView events cover interception, not native keyboard candidates.
+  for (const key of ['Enter', 'ArrowDown', 'ArrowUp', 'Tab']) {
+    const intercepted = await imeCell.evaluate((input, key) => {
+      const event = new KeyboardEvent('keydown', {
+        key,
+        isComposing: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+      return event.defaultPrevented;
+    }, key);
+    expect(intercepted).toBe(false);
+    await expect(imeCell).toBeFocused();
+  }
+  await imeCell.fill('你好');
+  await imeCell.press('Enter');
+  await expect(page.getByRole('textbox', { name: 'D3', exact: true })).toBeFocused();
   await page.getByRole('textbox', { name: 'A1', exact: true }).fill('120');
   await page.getByRole('textbox', { name: 'A2', exact: true }).fill('80');
   await page.getByRole('textbox', { name: 'B1', exact: true }).fill('=SUM(A1:A2)');
@@ -214,6 +234,7 @@ try {
     'Saved through Android native HTTP.',
   );
   expect(models.find((doc) => doc.kind === 'sheet').content.sheets[0].cells.B1).toBe('=SUM(A1:A2)');
+  expect(models.find((doc) => doc.kind === 'sheet').content.sheets[0].cells.D2).toBe('你好');
   expect(models.find((doc) => doc.kind === 'slide').content.slides[0].title).toBe(
     'Android presentation QA',
   );
