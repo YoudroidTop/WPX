@@ -229,3 +229,10 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - Before mutation: 3 documents, 1 trashed, 1,200,430 quota bytes, including multi-chunk Unicode Word text and a spreadsheet formula. After mutation: 2 documents, 0 trashed, 174 bytes. Restore reproduced the complete original document/metadata SHA-256 and counters; undo reproduced the changed SHA-256 and counters. This was Cloudflare PITR, not a local mock or an export/import approximation.
 - Evidence: `releases/cloudflare/recovery-result.json` and `recovery-node-run.log`. Generated isolated objects remain for diagnosis, with no scheduled trigger. Preview processes exited after teardown. Production data and deployed application were unchanged.
 - `node --check scripts/rehearse-cloud-recovery.mjs`, formatting, TypeScript cloud checking and diff checks passed. Production maintenance/write isolation, operator authorization, independent backups and customer recovery acceptance remain separate unfinished work.
+
+## Android current-build regression completed — 2026-10-13
+
+- Re-ran the unmodified `scripts/smoke-android.mjs` against the installed `ce151b7` Debug APK on the task-owned Zhuole_Docs_API35 emulator, after returning the previous registration screen to login.
+- The process exited 0. Three-editor save/reopen, formula evaluation, visible slideshow exit, independent server readback, real offline process restart, cache cleanup/draft protection, spreadsheet re-download, second-account cache isolation, offline logout, and original-account recovery all passed.
+- The previous registration button stability timeout did not reproduce. No product or test behavior was changed to bypass actionability checks. Retain the earlier failure log as historical evidence rather than treating this run as a root-cause diagnosis.
+- Evidence: `releases/mobile/android-current-regression.log`. The finalizer restored `tcp:3173` reverse mapping; the test finished logged out. Generated local QA accounts/documents remain for inspection. Native sharing was not enabled in this run; prior sharing evidence and physical-device/store acceptance remain separate.
