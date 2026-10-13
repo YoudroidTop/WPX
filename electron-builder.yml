@@ -29,8 +29,7 @@ mac:
 win:
   icon: desktop/assets/icon.png
   target:
-    - target: nsis
-      arch: [x64, arm64]
+    - nsis
 nsis:
   oneClick: false
   perMachine: false

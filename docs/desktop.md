@@ -51,10 +51,30 @@ The 3 GB limit continues to apply to persisted cloud document content, not to lo
 
 `npm run test:desktop` launches actual Electron processes against an isolated API. It tests the native window, registration/login, cloud saves, local backup writes, offline edits, process restart recovery, synchronization, conflict copy, OS file-open handling, unsafe connection rejection, and persistent server selection. The automated native save dialog is substituted with a deterministic test path; the real IPC handler writes and the test reads the actual backup file.
 
-macOS test packages use ad-hoc signing (`identity: '-'`) deliberately. A Developer ID certificate, notarization, and a release update service are separate distribution tasks. Windows installers likewise require a production code-signing certificate before a trusted public distribution claim. No updater is enabled against an unconfigured endpoint.
+macOS test packages use ad-hoc signing (`identity: '-'`) deliberately. A Developer ID certificate, notarization, and a release update service are separate distribution tasks. The user explicitly accepted unsigned Windows installers for this delivery; Windows code signing is deferred. Unsigned installation does not establish trusted-publisher status. No updater is enabled against an unconfigured endpoint.
 
-Current platform artifacts and runtime evidence are recorded in `docs/verification.md`. Building a Windows artifact on macOS is not Windows installation or runtime acceptance. Public hosting, signing credentials, notarization, and an update distribution endpoint are still external delivery gates.
+Current platform artifacts and runtime evidence are recorded in `docs/verification.md`. Building a Windows artifact on macOS is not Windows installation or runtime acceptance. The cloud service is deployed at https://wpx.youdroid.top. macOS Developer ID signing/notarization and an update distribution endpoint remain open delivery work.
 
 ## Production connection default
 
-The shared native connection form now pre-fills `https://wpx.youdroid.top`. First launch still validates the selected service before storing it. Existing connection settings, account partitions and local drafts remain unchanged; custom HTTPS services remain supported. A real Electron run connected through the production default and reached the login screen. The six desktop regression scenarios passed, including the default-field assertion and custom-service persistence. Previously packaged installers are not automatically updated by a source build.
+The shared native connection form now pre-fills `https://wpx.youdroid.top`. First launch still validates the selected service before storing it. Existing connection settings, account partitions and local drafts remain unchanged; custom HTTPS services remain supported. A real Electron run connected through the production default and reached the login screen. The seven desktop regression scenarios passed, including the default-field assertion and custom-service persistence. Previously packaged installers are not automatically updated by a source build.
+
+## Reproducible artifact inventory
+
+`desktop:pack:win` runs x64 and ARM64 packaging separately. The Windows target configuration leaves architecture selection to those explicit commands. Historical combined installers may remain in the ignored output directory; do not select artifacts by directory glob. The release manifest identifies the six intended files: macOS arm64/x64 DMG and ZIP, Windows x64/arm64 EXE.
+
+After both packaging commands finish, run on macOS:
+
+```sh
+SEVEN_ZIP=/path/to/trusted/7zz npm run desktop:verify-release
+```
+
+Use the 7zz binary already provided by the installed Electron builder toolchain, or an independently trusted installation. The verifier compares every ASAR file against the current staged build, checks Mach-O/PE CPU architectures and macOS signature integrity, extracts ZIP/NSIS payloads for comparison, and hashes all six artifacts. It fails on stale/missing/extra packaged content. It writes `releases/desktop/release-manifest.json` and `SHA256SUMS`; the manifest records Git HEAD and dirty state without claiming that HEAD alone identifies the build.
+
+The DMG bytes are hashed, but the script does not mount/install the DMG. Payload comparison is recorded per artifact. Windows installer execution, macOS Developer ID signing/notarization and update delivery are separate gates. Windows signing is deferred by user decision. `publicReleaseReady` remains false until those gates are independently satisfied.
+
+## Latest artifact verification (2026-10-13)
+
+All four CPU targets match the 13 current staged files. Both macOS ZIP and both Windows NSIS payloads match their unpacked applications; all six intended files have SHA-256 entries. The verifier also rejected an extra staged sentinel file in a negative test. The refreshed Apple Silicon packaged application passed its runtime smoke test (1/1). Windows installers have not been executed on Windows.
+
+Developer ID creation was requested through the authenticated in-app browser. The certificate page opened, but repeated page-binding attempts timed out before any certificate application was submitted. Existing macOS artifacts remain ad-hoc signed and are not notarized.

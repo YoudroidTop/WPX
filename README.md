@@ -54,7 +54,7 @@ Unit/API tests use isolated in-memory databases. Browser tests create disposable
 
 ## Hosting
 
-The application has not been deployed to a production server. See [Operations](docs/operations.md) before hosting it. A server deployment makes accounts and storage available across browsers; the local development server stores data only on its host.
+The web application is deployed on Cloudflare at [卓乐云文档](https://wpx.youdroid.top). See [Operations](docs/operations.md) and the recorded checks in [Verification](docs/verification.md) for deployment and recovery boundaries. A local development server stores data only on its host.
 
 ## Desktop client (phase two, in progress)
 
@@ -68,7 +68,7 @@ npm run desktop:pack:win
 npm run test:desktop
 ```
 
-On first launch, connect to a running Zhuole Cloud Docs server using its HTTPS root URL. For local development, `http://127.0.0.1:3173` is accepted. The client does not invent or ship a public cloud endpoint. The server must allow its browser-facing origin through `APP_ORIGIN`.
+On first launch, the service form pre-fills `https://wpx.youdroid.top` and validates it before connecting. A custom HTTPS root or the loopback development service `http://127.0.0.1:3173` is also accepted. Custom servers must allow their browser-facing origin through `APP_ORIGIN`.
 
 See [Desktop delivery](docs/desktop.md) for artifact locations, platform validation, signing boundaries, and offline behavior.
 
