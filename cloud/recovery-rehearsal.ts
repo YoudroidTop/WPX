@@ -1,11 +1,12 @@
 import { DurableObject } from 'cloudflare:workers';
-import { AccountDocuments } from './documents';
+import { AccountDocuments, type SqlDatabase } from './documents';
 import { blankContent } from '../shared/documents';
 import { ApiError } from '../server/errors';
 import { AccountWriteAdmission, type WritePermit } from './write-admission';
 import { AccountMutationExecutor } from './mutation-executor';
 import { rehearseCoordination } from './recovery-coordination-rehearsal';
 import { RecoveryJournal, type RecoveryIntent } from './recovery-journal';
+import { completeVerifiedRecovery } from './recovery-completion';
 
 interface RecoveryEnv {
   REHEARSAL: DurableObjectNamespace<RecoveryRehearsal>;
@@ -89,8 +90,19 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   journalVerified(id: string, actual: RecoveryIntent['expected'], revision: number) {
     return this.journal().recordVerified(id, actual, revision);
   }
-  journalComplete(id: string) {
-    return this.journal().complete(id);
+  finishRecovery(id: string, failCompletion = false) {
+    const sql: SqlDatabase = {
+      exec: (query, ...bindings) => {
+        if (
+          failCompletion &&
+          query.startsWith('UPDATE recovery_journal') &&
+          bindings[0] === 'complete'
+        )
+          throw new Error('Injected journal completion failure');
+        return this.ctx.storage.sql.exec(query, ...bindings);
+      },
+    };
+    return completeVerifiedRecovery(sql, (fn) => this.ctx.storage.transactionSync(fn), id);
   }
   admitMutation() {
     return this.admission().admit();
@@ -106,9 +118,6 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   }
   drainedRevision(operation: string) {
     return this.admission().requireDrained(operation);
-  }
-  resumeMutations(operation: string, revision: number) {
-    this.admission().resumeAfterVerification(operation, revision);
   }
   fixtureMutation(permit: WritePermit, kind: 'word' | 'sheet', loseResponse = false) {
     const executor = new AccountMutationExecutor(this.ctx.storage.sql, (fn) =>

@@ -66,6 +66,8 @@ try {
     finalHighWaterMark: 5,
     journalSurvivedRestart: true,
     originalUndoPreserved: true,
+    completionFailureKeptSuspended: true,
+    completionRetryPreservedPending: true,
   });
   await mkdir('releases/cloudflare', { recursive: true });
   await writeFile('releases/cloudflare/recovery-result.json', JSON.stringify(result, null, 2));

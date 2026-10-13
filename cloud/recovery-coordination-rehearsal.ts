@@ -64,10 +64,18 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
   const restoredFence = await data().verifyRevisionFence(ceiling);
   await assert.rejects(() => data().fixtureMutation(second, 'sheet'), /obsolete/);
   await control().journalVerified('restore', before, restoredFence.nextRevision!);
-  await control().resumeMutations('restore', restoredFence.nextRevision!);
-  await control().journalComplete('restore');
+  await assert.rejects(
+    () => control().finishRecovery('restore', true),
+    /Injected journal completion failure/,
+  );
+  assert.equal((await control().admissionStatus()).phase, 'suspended');
+  assert.equal((await control().journalGet('restore')).phase, 'verified');
+  await assert.rejects(() => control().admitMutation());
+  await control().finishRecovery('restore');
   const fresh = await control().admitMutation();
   assert.equal(fresh.revision, 4);
+  await control().finishRecovery('restore');
+  assert.equal((await control().admissionStatus()).pending, fresh.token);
   await control().completeMutation(await data().fixtureMutation(fresh, 'sheet'));
   assert.equal((await data().snapshot()).count, 2);
 
@@ -97,8 +105,7 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
   const undoneFence = await data().verifyRevisionFence(undoCeiling);
   await assert.rejects(() => data().fixtureMutation(fresh, 'sheet'), /obsolete/);
   await control().journalVerified('undo', changed, undoneFence.nextRevision!);
-  await control().resumeMutations('undo', undoneFence.nextRevision!);
-  await control().journalComplete('undo');
+  await control().finishRecovery('undo');
   await restart(controlId);
   const final = await control().admissionStatus();
   assert.equal(final.phase, 'active');
@@ -120,5 +127,7 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
     finalHighWaterMark: final.highWaterMark,
     journalSurvivedRestart: true,
     originalUndoPreserved: true,
+    completionFailureKeptSuspended: true,
+    completionRetryPreservedPending: true,
   };
 }
