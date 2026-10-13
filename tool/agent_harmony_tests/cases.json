@@ -1,0 +1,204 @@
+{
+  "runner": {
+    "appName": "Zhuole Docs",
+    "platformName": "HarmonyOS physical device",
+    "bundleId": "com.youdroid.zhuoledocs",
+    "projectPath": "harmony"
+  },
+  "coverageAreas": [
+    {
+      "title": "Current artifact installation",
+      "status": "passed",
+      "caseIds": ["harmony-install"],
+      "notes": "Fresh hdc install success."
+    },
+    {
+      "title": "Startup",
+      "status": "blocked",
+      "caseIds": ["harmony-startup"],
+      "notes": "System explicitly rejected launch while locked."
+    },
+    {
+      "title": "Files and editor regression",
+      "status": "not-run",
+      "caseIds": [
+        "harmony-zdoc-open",
+        "harmony-office-roundtrip",
+        "harmony-paste-boundaries",
+        "harmony-inbox-capacity"
+      ],
+      "notes": "Awaiting an unlocked available device. Historical runs are recorded separately."
+    }
+  ],
+  "cases": [
+    {
+      "id": "harmony-install",
+      "title": "Install the current development HAP",
+      "priority": "p0",
+      "platforms": ["HarmonyOS"],
+      "tags": ["install"],
+      "preconditions": ["Matching registered device and signed artifact"],
+      "steps": ["Verify SHA-256", "Install the named HAP preserving application data"],
+      "assertions": ["hdc reports installation success"],
+      "failureSignals": ["Signature rejection", "Installation failure"]
+    },
+    {
+      "id": "harmony-startup",
+      "title": "Launch the current build visibly",
+      "priority": "p0",
+      "platforms": ["HarmonyOS"],
+      "tags": ["startup"],
+      "preconditions": ["Unlocked device available for testing"],
+      "steps": ["Start EntryAbility", "Capture the first visible application frame"],
+      "assertions": ["Workspace or login is visible"],
+      "failureSignals": ["Locked-screen rejection", "Blank frame", "Crash"]
+    },
+    {
+      "id": "harmony-zdoc-open",
+      "title": "Open and restore a ZDOC backup from the system file manager",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["zdoc"],
+      "preconditions": ["Unlocked device", "Dedicated saved backup fixture"],
+      "steps": [
+        "Find the backup in Download",
+        "Open with Zhuole Docs",
+        "Confirm import",
+        "Compare all restored content"
+      ],
+      "assertions": [
+        "App is offered for .zdoc",
+        "Confirmation precedes cloud upload",
+        "Restored content matches"
+      ],
+      "failureSignals": ["App missing from chooser", "Content mismatch", "Silent upload"]
+    },
+    {
+      "id": "harmony-office-roundtrip",
+      "title": "Native Office picker round trip on the current build",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["office"],
+      "preconditions": ["Unlocked device", "Dedicated cloud QA account"],
+      "steps": [
+        "Create Word table, spreadsheet and presentation notes",
+        "Export each through native picker",
+        "Import the saved files",
+        "Compare content and remove only generated cloud fixtures"
+      ],
+      "assertions": [
+        "Table text and breaks preserved",
+        "SUM result 200",
+        "Presentation notes retained"
+      ],
+      "failureSignals": ["Picker failure", "Content loss"]
+    },
+    {
+      "id": "harmony-paste-boundaries",
+      "title": "Reject oversized paste without partial edits",
+      "priority": "p1",
+      "platforms": ["HarmonyOS"],
+      "tags": ["paste"],
+      "preconditions": ["Unlocked device", "Dedicated spreadsheet fixture"],
+      "steps": ["Enter sentinel cells", "Paste beyond each supported bound", "Save and reopen"],
+      "assertions": ["Visible error", "Original cells unchanged"],
+      "failureSignals": ["Partial mutation", "Silent truncation"]
+    },
+    {
+      "id": "harmony-inbox-capacity",
+      "title": "Surface a full incoming-file queue safely",
+      "priority": "p2",
+      "platforms": ["HarmonyOS"],
+      "tags": ["inbox"],
+      "preconditions": ["Unlocked device", "Eight isolated queued fixtures"],
+      "steps": [
+        "Open a ninth fixture via system file manager",
+        "Inspect feedback",
+        "Drain only dedicated test fixtures"
+      ],
+      "assertions": ["Clear error", "Previously queued files and sources remain intact"],
+      "failureSignals": ["Silent discard", "Unexpected overwrite"]
+    }
+  ],
+  "lastRun": {
+    "date": "2026-10-13",
+    "target": {
+      "name": "TLR-AL00",
+      "runtime": "HarmonyOS API 24",
+      "id": "4UQ9K25530058677"
+    },
+    "appBuild": {
+      "version": "0.1.0 (1)",
+      "hapPath": "releases/harmony/ZhuoleDocs-0.1.0-harmony-debug.hap",
+      "sha256": "74128965bc102873919e4766e86a0af0cb756dbaad429b8df5c5d42332cb77f1"
+    },
+    "authSource": "No account used during this run. Existing isolated fixture credentials remain outside Git.",
+    "results": [
+      {
+        "caseId": "harmony-install",
+        "status": "passed",
+        "notes": "Installed the existing signed artifact containing ZDOC UTD and a443485 editor assets; no rebuild or reinstall loop.",
+        "evidence": [
+          {
+            "type": "hdc command result",
+            "summary": "install bundle successfully. AppMod finish; local SHA-256 matched the current artifact record."
+          }
+        ]
+      },
+      {
+        "caseId": "harmony-startup",
+        "status": "blocked",
+        "notes": "Do not disable developer mode or bypass the lock. User unlock is pending.",
+        "evidence": [
+          {
+            "type": "launch output",
+            "path": "releases/harmony/current-launch.log",
+            "summary": "Error 10106102: device screen locked; developer mode cannot unlock automatically."
+          }
+        ]
+      },
+      {
+        "caseId": "harmony-zdoc-open",
+        "status": "not-run",
+        "notes": "Not executed on the latest installed HAP in this run.",
+        "evidence": []
+      },
+      {
+        "caseId": "harmony-office-roundtrip",
+        "status": "not-run",
+        "notes": "Not executed on the latest installed HAP in this run.",
+        "evidence": []
+      },
+      {
+        "caseId": "harmony-paste-boundaries",
+        "status": "not-run",
+        "notes": "Not executed on the latest installed HAP in this run.",
+        "evidence": []
+      },
+      {
+        "caseId": "harmony-inbox-capacity",
+        "status": "not-run",
+        "notes": "Not executed on the latest installed HAP in this run.",
+        "evidence": []
+      }
+    ],
+    "validation": [
+      {
+        "command": "hdc list targets",
+        "status": "passed",
+        "summary": "Exact registered device is connected."
+      },
+      {
+        "command": "hdc install releases/harmony/ZhuoleDocs-0.1.0-harmony-debug.hap",
+        "status": "passed",
+        "summary": "Installation succeeded without uninstalling or clearing data."
+      },
+      {
+        "command": "hdc shell aa start -b com.youdroid.zhuoledocs -a EntryAbility",
+        "status": "blocked",
+        "summary": "System error 10106102."
+      }
+    ],
+    "notes": "This report describes only the fresh run. Prior Office open/picker, lifecycle and cache evidence remains in docs/verification.md; it is not relabeled as current-build acceptance. iPhone devices remain unavailable; Windows runtime acceptance is assigned to the user. Store publication is not established."
+  }
+}

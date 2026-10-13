@@ -111,6 +111,16 @@ Review under `harmony-develop`/`harmony-review`: two implementation files; no P0
 
 The entry HAP now includes `resources/rawfile/arkdata/utd/utd.json5`, registering `.zdoc` and the existing `application/x-zhuole-document` MIME type under `com.youdroid.zhuoledocs.document`. The type inherits the system JSON type because native backups contain JSON. This supplies the extension-to-type mapping missing from the MIME-only ability declaration; it does not register all JSON files for opening in Zhuole Docs. Configuration follows the [OpenHarmony custom UTD guide](https://github.com/openharmony/docs/blob/master/en/application-dev/database/uniform-data-type-descriptors.md).
 
-The signed HAP builds successfully and contains the exact declaration bytes; the MIME matches the existing FileOpen entry. The updated HAP has not been installed or accepted on the physical device. Device interaction stopped when an unrelated application became foreground, before the ZDOC open-with check. A generated `Harmony ZDOC Backup QA` cloud document remains as a dedicated acceptance fixture. Its native save confirmation was selected, but the resulting file has not been independently read back. Do not treat successful packaging as system registration or restore acceptance.
+The signed HAP builds successfully and contains the exact declaration bytes; the MIME matches the existing FileOpen entry. The updated HAP was subsequently installed on the physical device (see the current-build acceptance section below); external ZDOC acceptance is still pending. Device interaction stopped when an unrelated application became foreground, before the ZDOC open-with check. A generated `Harmony ZDOC Backup QA` cloud document remains as a dedicated acceptance fixture. Its native save confirmation was selected, but the resulting file has not been independently read back. Do not treat successful packaging as system registration or restore acceptance.
 
 Review: one resource configuration file, no ArkTS/TypeScript changes; no P0/P1/P2 findings. No permission, storage model, UI state or logging changes. The OS type description is English metadata, not an application UI string.
+
+## Current-build acceptance catalog
+
+The current signed HAP (SHA-256 `74128965bc102873919e4766e86a0af0cb756dbaad429b8df5c5d42332cb77f1`) was installed successfully on device `4UQ9K25530058677` on 2026-10-13, preserving application data. Launch returned system error 10106102 because the screen was locked. No UI pass is claimed from installation.
+
+`tool/agent_harmony_tests/cases.json` records this fresh result and the pending ZDOC, Office round-trip, paste-boundary and inbox-capacity scenarios. `report.html` is generated from that manifest. Historical device passes remain in `docs/verification.md` with their original build boundaries.
+
+```sh
+node /Users/liang/.agents/skills/pre-release-harmony-agent-qa/scripts/generate_report.js tool/agent_harmony_tests/cases.json tool/agent_harmony_tests/report.html
+```

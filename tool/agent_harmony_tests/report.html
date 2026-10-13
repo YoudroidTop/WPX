@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zhuole Docs HarmonyOS physical device Report</title>
+  <style>
+    :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.45; }
+    body { margin: 0; padding: 32px; background: Canvas; color: CanvasText; }
+    main { max-width: 1120px; margin: 0 auto; }
+    h1, h2, h3 { line-height: 1.2; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 28px; }
+    th, td { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); padding: 10px 12px; text-align: left; vertical-align: top; }
+    th { background: color-mix(in srgb, CanvasText 8%, transparent); }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.94em; }
+    .status-passed { color: #027a48; font-weight: 700; }
+    .status-failed { color: #b42318; font-weight: 700; }
+    .status-blocked, .status-partial { color: #b54708; font-weight: 700; }
+    .status-not-run, .status-pending { color: #667085; font-weight: 700; }
+    .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 12px; margin: 20px 0 28px; }
+    .metric { border: 1px solid color-mix(in srgb, CanvasText 18%, transparent); border-radius: 8px; padding: 14px 16px; }
+    .metric strong { display: block; font-size: 1.6rem; }
+    .case-result { border-top: 1px solid color-mix(in srgb, CanvasText 14%, transparent); padding-top: 12px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Zhuole Docs HarmonyOS physical device Report</h1>
+  <p>
+    Date: 2026-10-13<br>
+    Target: TLR-AL00, HarmonyOS API 24, <code>4UQ9K25530058677</code><br>
+    App: Zhuole Docs <code>0.1.0 (1)</code>, bundle <code>com.youdroid.zhuoledocs</code><br>
+    HAP: <code>releases/harmony/ZhuoleDocs-0.1.0-harmony-debug.hap</code><br>
+    Auth source: No account used during this run. Existing isolated fixture credentials remain outside Git.
+  </p>
+
+  <section class="summary" aria-label="Run summary">
+    <div class="metric"><strong>6</strong>Total cases</div>
+    <div class="metric"><strong>2</strong>Executed</div>
+    <div class="metric"><strong>1</strong>Passed</div>
+    <div class="metric"><strong>0</strong>Failed</div>
+    <div class="metric"><strong>1</strong>Blocked</div>
+    <div class="metric"><strong>4</strong>Not run</div>
+  </section>
+
+  <h2>Executive Summary</h2>
+  <p>
+    The agent QA suite contains 6 Harmony scenarios. This run executed 2 cases with fresh evidence.
+    Omitted cases are explicitly marked not-run and are not counted as verified release coverage.
+  </p>
+
+  <h2>Coverage Matrix</h2>
+  <table>
+    <thead><tr><th>Area</th><th>Status</th><th>Cases</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Current artifact installation</td>
+        <td class="status-passed">passed</td>
+        <td><code>harmony-install</code></td>
+        <td>Fresh hdc install success.</td>
+      </tr>
+      <tr>
+        <td>Startup</td>
+        <td class="status-blocked">blocked</td>
+        <td><code>harmony-startup</code></td>
+        <td>System explicitly rejected launch while locked.</td>
+      </tr>
+      <tr>
+        <td>Files and editor regression</td>
+        <td class="status-not-run">not-run</td>
+        <td><code>harmony-zdoc-open</code><br><code>harmony-office-roundtrip</code><br><code>harmony-paste-boundaries</code><br><code>harmony-inbox-capacity</code></td>
+        <td>Awaiting an unlocked available device. Historical runs are recorded separately.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Case Catalog</h2>
+  <table>
+    <thead><tr><th>Case</th><th>Priority</th><th>Title</th><th>Latest Status</th><th>Tags</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>harmony-install</code></td>
+        <td>p0</td>
+        <td>Install the current development HAP</td>
+        <td class="status-passed">passed</td>
+        <td>install</td>
+      </tr>
+      <tr>
+        <td><code>harmony-startup</code></td>
+        <td>p0</td>
+        <td>Launch the current build visibly</td>
+        <td class="status-blocked">blocked</td>
+        <td>startup</td>
+      </tr>
+      <tr>
+        <td><code>harmony-zdoc-open</code></td>
+        <td>p1</td>
+        <td>Open and restore a ZDOC backup from the system file manager</td>
+        <td class="status-not-run">not-run</td>
+        <td>zdoc</td>
+      </tr>
+      <tr>
+        <td><code>harmony-office-roundtrip</code></td>
+        <td>p1</td>
+        <td>Native Office picker round trip on the current build</td>
+        <td class="status-not-run">not-run</td>
+        <td>office</td>
+      </tr>
+      <tr>
+        <td><code>harmony-paste-boundaries</code></td>
+        <td>p1</td>
+        <td>Reject oversized paste without partial edits</td>
+        <td class="status-not-run">not-run</td>
+        <td>paste</td>
+      </tr>
+      <tr>
+        <td><code>harmony-inbox-capacity</code></td>
+        <td>p2</td>
+        <td>Surface a full incoming-file queue safely</td>
+        <td class="status-not-run">not-run</td>
+        <td>inbox</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Latest Run Evidence</h2>
+  
+      <section class="case-result">
+        <h3><code>harmony-install</code> <span class="status-passed">passed</span></h3>
+        <p>Installed the existing signed artifact containing ZDOC UTD and a443485 editor assets; no rebuild or reinstall loop.</p>
+        <ul><li><strong>hdc command result</strong><br>install bundle successfully. AppMod finish; local SHA-256 matched the current artifact record.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>harmony-startup</code> <span class="status-blocked">blocked</span></h3>
+        <p>Do not disable developer mode or bypass the lock. User unlock is pending.</p>
+        <ul><li><strong>launch output</strong>: <code>releases/harmony/current-launch.log</code><br>Error 10106102: device screen locked; developer mode cannot unlock automatically.</li></ul>
+      </section>
+      <section class="case-result">
+        <h3><code>harmony-zdoc-open</code> <span class="status-not-run">not-run</span></h3>
+        <p>Not executed on the latest installed HAP in this run.</p>
+        <p>No fresh HarmonyOS physical device evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>harmony-office-roundtrip</code> <span class="status-not-run">not-run</span></h3>
+        <p>Not executed on the latest installed HAP in this run.</p>
+        <p>No fresh HarmonyOS physical device evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>harmony-paste-boundaries</code> <span class="status-not-run">not-run</span></h3>
+        <p>Not executed on the latest installed HAP in this run.</p>
+        <p>No fresh HarmonyOS physical device evidence recorded for this case.</p>
+      </section>
+      <section class="case-result">
+        <h3><code>harmony-inbox-capacity</code> <span class="status-not-run">not-run</span></h3>
+        <p>Not executed on the latest installed HAP in this run.</p>
+        <p>No fresh HarmonyOS physical device evidence recorded for this case.</p>
+      </section>
+
+  <h2>Validation</h2>
+  <table>
+    <thead><tr><th>Command</th><th>Status</th><th>Summary</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>hdc list targets</code></td>
+        <td class="status-passed">passed</td>
+        <td>Exact registered device is connected.</td>
+      </tr>
+      <tr>
+        <td><code>hdc install releases/harmony/ZhuoleDocs-0.1.0-harmony-debug.hap</code></td>
+        <td class="status-passed">passed</td>
+        <td>Installation succeeded without uninstalling or clearing data.</td>
+      </tr>
+      <tr>
+        <td><code>hdc shell aa start -b com.youdroid.zhuoledocs -a EntryAbility</code></td>
+        <td class="status-blocked">blocked</td>
+        <td>System error 10106102.</td>
+      </tr></tbody>
+  </table>
+
+  <h2>Known Exclusions</h2>
+  <p>This report describes only the fresh run. Prior Office open/picker, lifecycle and cache evidence remains in docs/verification.md; it is not relabeled as current-build acceptance. iPhone devices remain unavailable; Windows runtime acceptance is assigned to the user. Store publication is not established.</p>
+</main>
+</body>
+</html>
