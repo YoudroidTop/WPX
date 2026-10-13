@@ -74,6 +74,43 @@ for (const kind of ['word', 'sheet', 'slide']) {
   ]);
   assert.deepEqual(updates.map((item) => item.status).sort(), [200, 409]);
   doc = await (await a(`/api/documents/${doc.id}`)).json();
+  if (kind === 'word') {
+    const paragraph = (text) => ({ type: 'paragraph', content: [{ type: 'text', text }] });
+    doc.content.doc.content = [
+      paragraph(' Before '),
+      {
+        type: 'table',
+        content: [
+          {
+            type: 'tableRow',
+            content: [
+              { type: 'tableCell', content: [paragraph(' Cell & text ')] },
+              {
+                type: 'tableCell',
+                content: [
+                  {
+                    type: 'paragraph',
+                    content: [
+                      { type: 'text', text: 'First' },
+                      { type: 'hardBreak' },
+                      { type: 'text', text: 'Second' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      paragraph(' After '),
+    ];
+    response = await a(`/api/documents/${doc.id}`, 'PATCH', {
+      revision: doc.revision,
+      content: doc.content,
+    });
+    assert.equal(response.status, 200, await response.clone().text());
+    doc = await response.json();
+  }
   if (kind === 'sheet') {
     doc.content.sheets[0].cells = {
       A1: '00123',
@@ -104,6 +141,7 @@ for (const kind of ['word', 'sheet', 'slide']) {
   assert.equal(response.status, 201, await response.clone().text());
   const imported = await response.json();
   assert.equal(imported.kind, kind);
+  if (kind === 'word') assert.deepEqual(imported.content, doc.content);
   if (kind === 'sheet')
     assert.deepEqual(imported.content.sheets[0].cells, doc.content.sheets[0].cells);
   const before = await (await a('/api/me')).json();

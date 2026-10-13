@@ -23,6 +23,7 @@ import {
 } from '../shared/documents';
 import { createCalculator } from '../shared/formulas';
 import { ApiError } from './errors';
+import { importWordXml } from './word-import';
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -227,34 +228,7 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
   if (extension === 'docx') {
     const source = await zip.file('word/document.xml')?.async('string');
     if (!source) throw new ApiError(400, '不是有效的 Word 文件');
-    const xml = parseXml(source);
-    const paragraphs: RichNode[] = array<any>(xml['w:document']?.['w:body']?.['w:p']).map((p) => {
-      const style = p['w:pPr']?.['w:pStyle']?.['@_w:val'];
-      const heading = /Heading([1-6])/i.exec(String(style));
-      return {
-        type: heading ? 'heading' : 'paragraph',
-        ...(heading ? { attrs: { level: Number(heading[1]) } } : {}),
-        content: array<any>(p['w:r']).flatMap((r) => {
-          const text = stringText(r['w:t']);
-          return text
-            ? [
-                {
-                  type: 'text',
-                  text,
-                  marks: [
-                    ...(r['w:rPr']?.['w:b'] !== undefined ? [{ type: 'bold' }] : []),
-                    ...(r['w:rPr']?.['w:i'] !== undefined ? [{ type: 'italic' }] : []),
-                  ],
-                },
-              ]
-            : [];
-        }),
-      };
-    });
-    return contentSchema.parse({
-      type: 'word',
-      doc: { type: 'doc', content: paragraphs.length ? paragraphs : [{ type: 'paragraph' }] },
-    });
+    return contentSchema.parse({ type: 'word', doc: importWordXml(source) });
   }
   if (extension === 'xlsx') {
     const workbook = new ExcelJS.Workbook();

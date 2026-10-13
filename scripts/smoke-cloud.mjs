@@ -5,15 +5,17 @@ import ExcelJS from 'exceljs';
 
 const origin = 'https://wpx.youdroid.top';
 let cookie = '';
-async function request(path, method = 'GET', data, authenticated = true) {
+async function request(path, method = 'GET', data, authenticated = true, extraHeaders = {}) {
+  const binary = data instanceof Uint8Array;
   const response = await fetch(origin + path, {
     method,
     headers: {
       Origin: origin,
       ...(authenticated && cookie ? { Cookie: cookie } : {}),
-      ...(data ? { 'Content-Type': 'application/json' } : {}),
+      ...(data ? { 'Content-Type': binary ? 'application/octet-stream' : 'application/json' } : {}),
+      ...extraHeaders,
     },
-    body: data === undefined ? undefined : JSON.stringify(data),
+    body: data === undefined ? undefined : binary ? data : JSON.stringify(data),
   });
   if (response.headers.has('set-cookie')) {
     const value = response.headers.get('set-cookie');
@@ -40,6 +42,43 @@ for (const kind of ['word', 'sheet', 'slide']) {
   const created = await request('/api/documents', 'POST', { kind, name: `Deployment ${kind}` });
   assert.equal(created.status, 201, await created.clone().text());
   let doc = await created.json();
+  if (kind === 'word') {
+    const paragraph = (text) => ({ type: 'paragraph', content: [{ type: 'text', text }] });
+    doc.content.doc.content = [
+      paragraph(' Before '),
+      {
+        type: 'table',
+        content: [
+          {
+            type: 'tableRow',
+            content: [
+              { type: 'tableCell', content: [paragraph(' Cell & text ')] },
+              {
+                type: 'tableCell',
+                content: [
+                  {
+                    type: 'paragraph',
+                    content: [
+                      { type: 'text', text: 'First' },
+                      { type: 'hardBreak' },
+                      { type: 'text', text: 'Second' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      paragraph(' After '),
+    ];
+    const saved = await request(`/api/documents/${doc.id}`, 'PATCH', {
+      revision: doc.revision,
+      content: doc.content,
+    });
+    assert.equal(saved.status, 200, await saved.clone().text());
+    doc = await saved.json();
+  }
   if (kind === 'sheet') {
     doc.content.sheets[0].cells = {
       A1: '00123',
@@ -71,6 +110,28 @@ for (const kind of ['word', 'sheet', 'slide']) {
     assert.equal(sheet.getCell('B1').value, 120);
     assert.equal(sheet.getCell('C1').formula, 'SUM(B1:B2)');
     assert.equal(sheet.getCell('C1').result, 200);
+  }
+  if (kind === 'word') {
+    const response = await request('/api/documents/import', 'POST', bytes, true, {
+      'x-filename': 'word-roundtrip.docx',
+    });
+    assert.equal(response.status, 201, await response.clone().text());
+    const imported = await response.json();
+    assert.deepEqual(imported.content, doc.content);
+    const trash = await request(`/api/documents/${imported.id}`, 'PATCH', {
+      revision: imported.revision,
+      deleted: true,
+    });
+    assert.equal(trash.status, 200);
+    const trashed = await trash.json();
+    assert.equal(
+      (
+        await request(`/api/documents/${imported.id}`, 'DELETE', {
+          revision: trashed.revision,
+        })
+      ).status,
+      204,
+    );
   }
   const update = await request(`/api/documents/${doc.id}`, 'PATCH', {
     revision: doc.revision,

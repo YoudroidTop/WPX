@@ -248,3 +248,36 @@ test('native import, rich-text tables, profile changes and sign-out work end to 
   await page.reload();
   await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible();
 });
+
+test('Word table text survives DOCX download and browser import', async ({ page }) => {
+  await register(page);
+  await page.getByRole('button', { name: /新建文字文档 落笔/ }).click();
+  await page.getByRole('textbox', { name: '文档名称', exact: true }).fill('Table roundtrip');
+  await page.getByRole('textbox', { name: '文档正文' }).fill('Before table');
+  await page.getByRole('button', { name: '插入表格', exact: true }).click();
+  const firstCell = page.locator('.tiptap table tr').first().locator('th, td').first();
+  await firstCell.click();
+  await page.keyboard.type('First line');
+  await page.keyboard.press('Shift+Enter');
+  await page.keyboard.type('Second line');
+  await saved(page);
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: '导出 DOCX' }).click();
+  const download = await downloadPromise;
+  const path = await download.path();
+  expect(path).toBeTruthy();
+  const { readFile } = await import('node:fs/promises');
+  await back(page);
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'Imported table.docx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    buffer: await readFile(path!),
+  });
+  await page.getByRole('button', { name: '导入基础内容' }).click();
+  await expect(page.locator('.tiptap table')).toBeVisible();
+  await expect(firstCell).toContainText('First line');
+  await expect(firstCell).toContainText('Second line');
+  await expect(firstCell.locator('br')).toHaveCount(1);
+  await expect(page.locator('.tiptap')).toContainText('Before table');
+  await page.screenshot({ path: 'test-results/word-table-roundtrip.png' });
+});
