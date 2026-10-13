@@ -16,6 +16,43 @@ async function back(page: Page) {
   await expect(page.getByText('YOUR SPACE TO CREATE')).toBeVisible();
 }
 
+test('spreadsheet preserves IME composition focus and saves committed text', async ({ page }) => {
+  await register(page);
+  await page.getByRole('button', { name: /新建电子表格 用数据/ }).click();
+  await page.getByRole('textbox', { name: '文档名称', exact: true }).fill('IME regression');
+  const cell = (address: string) => page.getByRole('textbox', { name: address, exact: true });
+  await cell('B2').fill('ni');
+  // Synthetic events isolate application interception; native IME acceptance is separate.
+  for (const key of ['Enter', 'ArrowDown', 'ArrowUp', 'Tab']) {
+    const intercepted = await cell('B2').evaluate((input, key) => {
+      const event = new KeyboardEvent('keydown', {
+        key,
+        isComposing: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+      return event.defaultPrevented;
+    }, key);
+    expect(intercepted).toBe(false);
+    await expect(cell('B2')).toBeFocused();
+    await expect(cell('B2')).toHaveValue('ni');
+  }
+  await cell('B2').fill('你好');
+  await cell('B2').press('Enter');
+  await expect(cell('B3')).toBeFocused();
+  await cell('B3').press('ArrowUp');
+  await expect(cell('B2')).toBeFocused();
+  await cell('B2').press('Tab');
+  await expect(cell('C2')).toBeFocused();
+  await saved(page);
+  await back(page);
+  await page.reload();
+  await page.getByRole('button', { name: 'IME regression XLSX · 电子表格' }).click();
+  await expect(cell('B2')).toHaveValue('你好');
+  await expect(cell('B3')).toHaveValue('');
+});
+
 test('spreadsheet rejects oversized clipboard rectangles and preserves saved contents', async ({
   page,
 }) => {

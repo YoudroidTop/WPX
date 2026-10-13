@@ -47,6 +47,7 @@ export default function SheetEditor({
     });
   }
   function keyboard(event: KeyboardEvent<HTMLInputElement>, row: number, col: number) {
+    if (event.nativeEvent.isComposing) return;
     if (
       event.key === 'Enter' ||
       event.key === 'ArrowDown' ||
