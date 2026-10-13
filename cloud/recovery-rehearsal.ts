@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { AccountDocuments } from './documents';
 import { blankContent } from '../shared/documents';
+import { ApiError } from '../server/errors';
 
 interface RecoveryEnv {
   REHEARSAL: DurableObjectNamespace<RecoveryRehearsal>;
@@ -58,6 +59,25 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   checkpoint() {
     return this.ctx.storage.getCurrentBookmark();
   }
+  verifyRevisionFence(highWaterMark: number) {
+    const before = this.documents.list().map((doc) => this.documents.get(doc.id));
+    this.documents.advanceRevisionsPast(highWaterMark);
+    let rejected = 0;
+    for (const original of before) {
+      const current = this.documents.get(original.id);
+      if (current.revision <= highWaterMark) throw new Error('Recovery revision did not advance');
+      if (JSON.stringify({ ...current, revision: original.revision }) !== JSON.stringify(original))
+        throw new Error('Revision fence changed document data');
+      try {
+        this.documents.update(original.id, highWaterMark, { starred: !original.starred });
+        throw new Error('Stale recovery write was accepted');
+      } catch (error) {
+        if (!(error instanceof ApiError) || error.status !== 409) throw error;
+        rejected++;
+      }
+    }
+    return { rejected, highWaterMark, nextRevision: this.documents.list()[0]?.revision };
+  }
   scheduleRestore(bookmark: string) {
     return this.ctx.storage.onNextSessionRestoreBookmark(bookmark);
   }
@@ -93,10 +113,14 @@ export default {
     await restart();
     const restored = await env.REHEARSAL.get(id).snapshot();
     if (JSON.stringify(restored) !== JSON.stringify(before)) throw new Error('Recovery mismatch');
+    // This fixture has no concurrent writers and issued only revisions 1 and 2.
+    // Production needs a coordinator outside the restored storage, not this constant.
+    const restoredFence = await env.REHEARSAL.get(id).verifyRevisionFence(2);
     await env.REHEARSAL.get(id).scheduleRestore(undo);
     await restart();
     const undone = await env.REHEARSAL.get(id).snapshot();
     if (JSON.stringify(undone) !== JSON.stringify(changed)) throw new Error('Undo mismatch');
+    const undoFence = await env.REHEARSAL.get(id).verifyRevisionFence(restoredFence.nextRevision!);
     return Response.json({
       passed: true,
       objectId: id.toString(),
@@ -104,6 +128,7 @@ export default {
       changed,
       restored,
       undone,
+      revisionFencing: { restored: restoredFence, undone: undoFence },
     });
   },
 } satisfies ExportedHandler<RecoveryEnv>;

@@ -42,6 +42,10 @@ try {
   assert.equal(result.passed, true);
   assert.deepEqual(result.restored, result.before);
   assert.deepEqual(result.undone, result.changed);
+  assert.deepEqual(result.revisionFencing, {
+    restored: { rejected: 3, highWaterMark: 2, nextRevision: 3 },
+    undone: { rejected: 2, highWaterMark: 3, nextRevision: 4 },
+  });
   await mkdir('releases/cloudflare', { recursive: true });
   await writeFile('releases/cloudflare/recovery-result.json', JSON.stringify(result, null, 2));
   console.log('Remote recovery and undo passed; evidence saved without preview credentials.');

@@ -127,3 +127,48 @@ test('cloud chunk write failure rolls back metadata, quota and previous content'
     db.close();
   }
 });
+
+test('recovery revision fencing rejects pre-restore edits and trash deletion without changing data', () => {
+  const { store, db } = fixture();
+  try {
+    const active = store.create('Restored', word('Recovered body'));
+    const trash = store.create('Trash', blankContent('sheet'));
+    store.update(trash.id, trash.revision, { deleted: true });
+    const before = store.list().map((doc) => store.get(doc.id));
+    const used = store.used();
+    // The external coordinator retained 17 even though its document was deleted.
+    store.advanceRevisionsPast(17);
+    for (const original of before) {
+      const restored = store.get(original.id);
+      assert.equal(restored.revision, 18);
+      assert.deepEqual({ ...restored, revision: original.revision }, original);
+      for (const stale of [original.revision, 17]) {
+        assert.throws(() => store.update(original.id, stale, { starred: true }), { status: 409 });
+      }
+    }
+    assert.throws(() => store.remove(trash.id, 17), { status: 409 });
+    assert.equal(store.used(), used);
+    const edited = store.update(active.id, 18, { name: 'New edit' });
+    assert.equal(edited.revision, 19);
+    store.advanceRevisionsPast(18);
+    assert.equal(store.get(active.id).revision, 20);
+    assert.throws(() => store.update(active.id, edited.revision, { name: 'Before undo' }), {
+      status: 409,
+    });
+  } finally {
+    db.close();
+  }
+});
+
+test('invalid or exhausted recovery revisions fail without changing documents', () => {
+  const { store, db } = fixture();
+  try {
+    const doc = store.create('Original', word('Unchanged'));
+    for (const value of [-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER]) {
+      assert.throws(() => store.advanceRevisionsPast(value));
+      assert.deepEqual(store.get(doc.id), doc);
+    }
+  } finally {
+    db.close();
+  }
+});

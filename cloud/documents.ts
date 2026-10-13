@@ -61,6 +61,22 @@ export class AccountDocuments {
       summary,
     );
   }
+  // Recovery callers must hold an external write fence and supply a durable high-water
+  // mark covering every issued revision, including deleted documents and prior restores.
+  // This method alone is not a production recovery protocol.
+  advanceRevisionsPast(highWaterMark: number): void {
+    if (!Number.isSafeInteger(highWaterMark) || highWaterMark < 0)
+      throw new Error('Invalid recovery revision high-water mark');
+    this.atomic(() => {
+      const currentMaximum = Number(
+        [...this.sql.exec('SELECT COALESCE(MAX(revision), 0) AS maximum FROM documents')][0]
+          .maximum,
+      );
+      const next = Math.max(currentMaximum, highWaterMark) + 1;
+      if (!Number.isSafeInteger(next)) throw new Error('Recovery revision range exhausted');
+      this.sql.exec('UPDATE documents SET revision=?', next);
+    });
+  }
   private metadata(id: string): Metadata {
     const row = [...this.sql.exec<Metadata>('SELECT * FROM documents WHERE id=?', id)][0];
     if (!row) throw new ApiError(404, '文档不存在或无权访问');
