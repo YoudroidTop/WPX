@@ -37,7 +37,11 @@ try {
     redirect: 'error',
     signal: AbortSignal.timeout(60_000),
   });
-  assert.equal(response.status, 200, 'Recovery rehearsal did not return success');
+  assert.equal(
+    response.status,
+    200,
+    `Recovery rehearsal did not return success: ${response.status === 200 ? '' : (await response.text()).slice(0, 2000)}`,
+  );
   const result = await response.json();
   assert.equal(result.passed, true);
   assert.deepEqual(result.restored, result.before);
@@ -45,6 +49,21 @@ try {
   assert.deepEqual(result.revisionFencing, {
     restored: { rejected: 3, highWaterMark: 2, nextRevision: 3 },
     undone: { rejected: 2, highWaterMark: 3, nextRevision: 4 },
+  });
+  const { dataObjectId, coordinatorObjectId, ...coordination } = result.coordination;
+  assert.match(dataObjectId, /^[a-f0-9]{64}$/);
+  assert.match(coordinatorObjectId, /^[a-f0-9]{64}$/);
+  assert.notEqual(dataObjectId, coordinatorObjectId);
+  assert.deepEqual(coordination, {
+    passed: true,
+    responseLossReconciled: true,
+    duplicateCreatePrevented: true,
+    coordinatorRestartPreservedPending: true,
+    coordinatorUnaffectedByRestore: true,
+    staleAfterRestoreRejected: true,
+    freshWriteRevision: 4,
+    staleAfterUndoRejected: true,
+    finalHighWaterMark: 5,
   });
   await mkdir('releases/cloudflare', { recursive: true });
   await writeFile('releases/cloudflare/recovery-result.json', JSON.stringify(result, null, 2));

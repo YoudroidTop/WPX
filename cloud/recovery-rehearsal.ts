@@ -2,6 +2,9 @@ import { DurableObject } from 'cloudflare:workers';
 import { AccountDocuments } from './documents';
 import { blankContent } from '../shared/documents';
 import { ApiError } from '../server/errors';
+import { AccountWriteAdmission, type WritePermit } from './write-admission';
+import { AccountMutationExecutor } from './mutation-executor';
+import { rehearseCoordination } from './recovery-coordination-rehearsal';
 
 interface RecoveryEnv {
   REHEARSAL: DurableObjectNamespace<RecoveryRehearsal>;
@@ -58,6 +61,44 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   }
   checkpoint() {
     return this.ctx.storage.getCurrentBookmark();
+  }
+  private admission() {
+    return new AccountWriteAdmission(this.ctx.storage.sql, (fn) =>
+      this.ctx.storage.transactionSync(fn),
+    );
+  }
+  admitMutation() {
+    return this.admission().admit();
+  }
+  completeMutation(permit: WritePermit) {
+    this.admission().complete(permit);
+  }
+  suspendMutations(operation: string) {
+    this.admission().suspend(operation);
+  }
+  admissionStatus() {
+    return this.admission().status();
+  }
+  drainedRevision(operation: string) {
+    return this.admission().requireDrained(operation);
+  }
+  resumeMutations(operation: string, revision: number) {
+    this.admission().resumeAfterVerification(operation, revision);
+  }
+  fixtureMutation(permit: WritePermit, kind: 'word' | 'sheet', loseResponse = false) {
+    const executor = new AccountMutationExecutor(this.ctx.storage.sql, (fn) =>
+      this.ctx.storage.transactionSync(fn),
+    );
+    const content = blankContent(kind);
+    // A retry must reuse the same command, including generated worksheet IDs.
+    if (content.type === 'sheet') content.sheets[0].id = 'coordinated-sheet';
+    const receipt = executor.execute(permit, {
+      kind: 'create',
+      name: `Coordinated ${kind}`,
+      content,
+    });
+    if (loseResponse) throw new Error('Simulated response loss after commit');
+    return receipt;
   }
   verifyRevisionFence(highWaterMark: number) {
     const before = this.documents.list().map((doc) => this.documents.get(doc.id));
@@ -129,6 +170,7 @@ export default {
       restored,
       undone,
       revisionFencing: { restored: restoredFence, undone: undoFence },
+      coordination: await rehearseCoordination(env.REHEARSAL),
     });
   },
 } satisfies ExportedHandler<RecoveryEnv>;
