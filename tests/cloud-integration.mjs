@@ -128,6 +128,20 @@ for (const kind of ['word', 'sheet', 'slide']) {
     assert.equal(response.status, 200, await response.clone().text());
     doc = await response.json();
   }
+  if (kind === 'slide') {
+    Object.assign(doc.content.slides[0], {
+      title: '',
+      body: ' First\nSecond ',
+      notes: ' Note one\nNote two ',
+      theme: 'midnight',
+    });
+    response = await a(`/api/documents/${doc.id}`, 'PATCH', {
+      revision: doc.revision,
+      content: doc.content,
+    });
+    assert.equal(response.status, 200, await response.clone().text());
+    doc = await response.json();
+  }
   response = await a(`/api/documents/${doc.id}/export`);
   assert.equal(response.status, 200, await response.clone().text());
   const bytes = new Uint8Array(await response.arrayBuffer());
@@ -142,6 +156,11 @@ for (const kind of ['word', 'sheet', 'slide']) {
   const imported = await response.json();
   assert.equal(imported.kind, kind);
   if (kind === 'word') assert.deepEqual(imported.content, doc.content);
+  if (kind === 'slide')
+    assert.deepEqual(
+      imported.content.slides.map(({ id, ...slide }) => slide),
+      doc.content.slides.map(({ id, ...slide }) => slide),
+    );
   if (kind === 'sheet')
     assert.deepEqual(imported.content.sheets[0].cells, doc.content.sheets[0].cells);
   const before = await (await a('/api/me')).json();

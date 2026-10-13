@@ -281,3 +281,39 @@ test('Word table text survives DOCX download and browser import', async ({ page 
   await expect(page.locator('.tiptap')).toContainText('Before table');
   await page.screenshot({ path: 'test-results/word-table-roundtrip.png' });
 });
+
+test('PPTX download and import preserve blank title, notes and selected theme', async ({
+  page,
+}) => {
+  await register(page);
+  await page.getByRole('button', { name: /新建演示文稿 把好/ }).click();
+  await page.getByRole('textbox', { name: '幻灯片标题', exact: true }).fill('');
+  await page.getByRole('textbox', { name: '幻灯片正文', exact: true }).fill(' First\nSecond ');
+  await page.getByRole('textbox', { name: '演讲者备注', exact: true }).fill(' Note one\nNote two ');
+  await page.getByRole('button', { name: '午夜主题' }).click();
+  await saved(page);
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: '导出 PPTX' }).click();
+  const path = await (await downloadPromise).path();
+  expect(path).toBeTruthy();
+  const { readFile } = await import('node:fs/promises');
+  await back(page);
+  await page.locator('input[type=file]').setInputFiles({
+    name: 'Imported presentation.pptx',
+    mimeType: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    buffer: await readFile(path!),
+  });
+  await page.getByRole('button', { name: '导入基础内容' }).click();
+  await expect(page.getByRole('textbox', { name: '幻灯片标题', exact: true })).toHaveValue('');
+  await expect(page.getByRole('textbox', { name: '幻灯片正文', exact: true })).toHaveValue(
+    ' First\nSecond ',
+  );
+  await expect(page.getByRole('textbox', { name: '演讲者备注', exact: true })).toHaveValue(
+    ' Note one\nNote two ',
+  );
+  await expect(page.getByRole('button', { name: '午夜主题' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.screenshot({ path: 'test-results/presentation-roundtrip.png' });
+});

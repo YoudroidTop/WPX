@@ -12,7 +12,6 @@ import {
   HeadingLevel,
   AlignmentType,
 } from 'docx';
-import { XMLParser } from 'fast-xml-parser';
 import { randomUUID } from 'node:crypto';
 import {
   contentSchema,
@@ -24,27 +23,8 @@ import {
 import { createCalculator } from '../shared/formulas';
 import { ApiError } from './errors';
 import { importWordXml } from './word-import';
+import { importPresentation } from './presentation-import';
 
-const parser = new XMLParser({
-  ignoreAttributes: false,
-  parseTagValue: false,
-  processEntities: true,
-});
-function parseXml(source: string) {
-  if (/<!DOCTYPE|<!ENTITY/i.test(source)) throw new ApiError(400, '不支持包含实体声明的 XML 文件');
-  return parser.parse(source);
-}
-const array = <T>(value: T | T[] | undefined): T[] =>
-  value === undefined ? [] : Array.isArray(value) ? value : [value];
-const stringText = (value: unknown): string =>
-  typeof value === 'string'
-    ? value
-    : value && typeof value === 'object'
-      ? Object.entries(value)
-          .filter(([key]) => !key.startsWith('@_'))
-          .map(([, entry]) => stringText(entry))
-          .join('')
-      : '';
 const textOf = (node: RichNode): string =>
   node.text ?? (node.content ?? []).map(textOf).join(node.type === 'paragraph' ? '' : '\n');
 
@@ -247,45 +227,5 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
     });
     return contentSchema.parse({ type: 'sheet', sheets });
   }
-  const presentationSource = await zip.file('ppt/presentation.xml')?.async('string');
-  const relationshipsSource = await zip.file('ppt/_rels/presentation.xml.rels')?.async('string');
-  if (!presentationSource || !relationshipsSource) throw new ApiError(400, '不是有效的 PPT 文件');
-  const relationships = array<any>(parseXml(relationshipsSource).Relationships?.Relationship);
-  const ids = array<any>(
-    parseXml(presentationSource)['p:presentation']?.['p:sldIdLst']?.['p:sldId'],
-  );
-  if (ids.length > 100) throw new ApiError(400, '最多支持 100 页幻灯片');
-  const slides = [];
-  for (const id of ids) {
-    const target = relationships.find((r) => r['@_Id'] === id['@_r:id'])?.['@_Target'];
-    const path =
-      typeof target === 'string'
-        ? target.startsWith('/')
-          ? target.slice(1)
-          : `ppt/${target}`
-        : '';
-    const source = await zip.file(path)?.async('string');
-    if (!source) throw new ApiError(400, '幻灯片内容缺失');
-    const xml = parseXml(source);
-    const shapes = array<any>(xml['p:sld']?.['p:cSld']?.['p:spTree']?.['p:sp']);
-    const blocks = shapes
-      .map((shape) =>
-        array<any>(shape['p:txBody']?.['a:p'])
-          .map((p) =>
-            array<any>(p['a:r'])
-              .map((r) => stringText(r['a:t']))
-              .join(''),
-          )
-          .join('\n'),
-      )
-      .filter(Boolean);
-    slides.push({
-      id: randomUUID(),
-      title: blocks[0] || '未命名幻灯片',
-      body: blocks.slice(1).join('\n'),
-      notes: '',
-      theme: 'paper' as const,
-    });
-  }
-  return contentSchema.parse({ type: 'slide', slides });
+  return contentSchema.parse(await importPresentation(zip));
 }

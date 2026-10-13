@@ -96,6 +96,20 @@ for (const kind of ['word', 'sheet', 'slide']) {
     assert.equal(saved.status, 200, await saved.clone().text());
     doc = await saved.json();
   }
+  if (kind === 'slide') {
+    Object.assign(doc.content.slides[0], {
+      title: '',
+      body: ' First\nSecond ',
+      notes: ' Note one\nNote two ',
+      theme: 'midnight',
+    });
+    const saved = await request(`/api/documents/${doc.id}`, 'PATCH', {
+      revision: doc.revision,
+      content: doc.content,
+    });
+    assert.equal(saved.status, 200, await saved.clone().text());
+    doc = await saved.json();
+  }
   assert.equal((await request(`/api/documents/${doc.id}`, 'GET', undefined, false)).status, 401);
   const exported = await request(`/api/documents/${doc.id}/export`);
   assert.equal(exported.status, 200, await exported.clone().text());
@@ -111,13 +125,18 @@ for (const kind of ['word', 'sheet', 'slide']) {
     assert.equal(sheet.getCell('C1').formula, 'SUM(B1:B2)');
     assert.equal(sheet.getCell('C1').result, 200);
   }
-  if (kind === 'word') {
+  if (kind === 'word' || kind === 'slide') {
     const response = await request('/api/documents/import', 'POST', bytes, true, {
-      'x-filename': 'word-roundtrip.docx',
+      'x-filename': kind === 'word' ? 'word-roundtrip.docx' : 'slide-roundtrip.pptx',
     });
     assert.equal(response.status, 201, await response.clone().text());
     const imported = await response.json();
-    assert.deepEqual(imported.content, doc.content);
+    if (kind === 'word') assert.deepEqual(imported.content, doc.content);
+    else
+      assert.deepEqual(
+        imported.content.slides.map(({ id, ...slide }) => slide),
+        doc.content.slides.map(({ id, ...slide }) => slide),
+      );
     const trash = await request(`/api/documents/${imported.id}`, 'PATCH', {
       revision: imported.revision,
       deleted: true,
