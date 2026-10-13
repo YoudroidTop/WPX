@@ -143,3 +143,11 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - The first attempt timed out after the default five seconds during second-account registration, while the form was still pending. The final run used a 30-second assertion timeout and passed. Failure logging now omits Playwright registration snapshots to avoid recording generated passwords.
 - The successful run removed its three generated documents and logged out. The earlier interrupted run left three test documents in its generated QA account; no real user data was involved. These fixtures are not represented as cleaned up.
 - Log: `releases/harmony/device-offline-smoke.log`. This verifies page reload persistence and API failure recovery on the actual device, not application-process termination, airplane mode or background lifecycle behavior.
+
+## Harmony native Office file round trip — 2026-10-13
+
+- On the physical API 24 device, saved DOCX through the native system save picker into Download, reopened it through the native document picker, confirmed cloud import and verified the original body text. Declined the system password-vault prompt for the generated QA credentials.
+- Added and executed `scripts/smoke-harmony-files.mjs`, then completed one full run covering DOCX, XLSX and PPTX with unique output filenames. It asserts the dedicated QA account before mutations and derives picker targets from fresh native accessibility layouts.
+- Verified reimported Word text, spreadsheet formula result 200, and presentation title. The native save callback completed and editing remained available. All six cloud documents from the final run were deleted and the app logged out; the earlier manual Word and first sheet/slide run's six cloud documents were also cleaned up.
+- Evidence: `releases/harmony/native-docx-roundtrip.png`, `native-xlsx-roundtrip.png`, `native-pptx-roundtrip.png`, `file-qa-result.json`, and `native-file-smoke.log`.
+- Exported test files remain in device Download for inspection. This proves persistence through the system picker and later native readback; receiving file-open intents from other apps remains separate work.

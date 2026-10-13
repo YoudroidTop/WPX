@@ -46,3 +46,15 @@ Debug builds expose ArkWeb inspection; release builds disable it through the gen
 The first device launch uncovered synchronous controller access before attachment. `Index.ets` now gates dispatch on controller readiness and handles both synchronous errors and Promise rejection. Build success alone had not detected this lifecycle failure.
 
 The physical-device smoke now also aborts only the inspected page's API traffic, edits a cached draft, reloads it, reconnects and verifies the server content. A second account checks offline library isolation and logout persistence before the first account is restored. The finalizer removes the test route without changing device networking. This covers page reloads; process termination and foreground/background transitions still require separate acceptance. Assertions allow 30 seconds for native-device/cloud latency. Failure output excludes registration snapshots containing random QA passwords.
+
+## Native file picker acceptance
+
+`scripts/smoke-harmony-files.mjs` combines the actual debug ArkWeb with device `uitest` layout inspection. It saves DOCX/XLSX/PPTX through the system picker, selects the saved file again, confirms cloud import, and checks text, SUM=200 and slide title. Filenames include a fresh run suffix to avoid overwriting existing files. The harness locates native controls from the current accessibility tree; it rejects unexpected save-sheet layouts instead of guessing a confirmation target.
+
+Prerequisites: an unlocked connected device, this app's debug socket forwarded to port 9224, and a dedicated generated QA account named `文件验收`. Store that account's `email` and `password` in the ignored, mode-0600 `releases/harmony/file-qa-credentials.json`; never use a real user's account. The harness checks the authenticated email before creating or deleting documents. It removes the dedicated account's cloud documents on success, logs out and retains exported Download files for inspection.
+
+```sh
+HDC=/path/to/hdc HARMONY_DEVICE=device-id node scripts/smoke-harmony-files.mjs
+```
+
+A password-vault prompt, if shown, should be declined for these generated test credentials. Layout and screenshot artifacts remain local under `releases/harmony/`. Native picker acceptance is separate from receiving external application file-open intents.
