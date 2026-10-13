@@ -35,7 +35,7 @@ Open <http://127.0.0.1:3001>. `npm start` serves both the built web app and its 
 
 ## Explicit MVP boundaries
 
-This is a functioning basic editor suite, not full WPS/Office parity. Office import is a **conversion**, and the original upload is not retained. The import dialog discloses loss of complex layout, images, charts, and animations. Keep original Office files. Word import currently extracts top-level paragraphs, headings, and basic bold/italic runs; Word list semantics and hyperlinks are simplified during export. PPT editing uses title/body layouts; text beyond the visible layout should be shortened before presentation/export. Spreadsheet formulas are limited to the listed functions and same-sheet references. Spreadsheet formatting, charts, cross-sheet references, file sharing, real-time collaboration, and version history are not included.
+This is a functioning basic editor suite, not full WPS/Office parity. Office import is a **conversion**, and the original upload is not retained. The import dialog discloses loss of complex layout, images, charts, and animations. Keep original Office files. Word import preserves basic paragraphs, headings, rectangular tables, whitespace, breaks and explicit bold/italic/underline/strike formatting; nested tables are rejected. Word list semantics and hyperlinks are simplified during export. PPT import preserves basic title/body text, speaker notes and the three built-in themes. PPT editing uses title/body layouts; text beyond the visible layout should be shortened before presentation/export. Spreadsheet formulas are limited to the listed functions and same-sheet references. Spreadsheet formatting, charts, cross-sheet references, file sharing, real-time collaboration, and version history are not included.
 
 Files are limited to 10 MB on import, 4 MB of normalized content, 20 worksheets with 500 rows × 52 columns each, and 100 slides. ZIP expansion is bounded. Unsupported spreadsheet dimensions fail explicitly rather than being silently truncated.
 
@@ -72,7 +72,7 @@ npm run test:desktop
 
 On first launch, the service form pre-fills `https://wpx.youdroid.top` and validates it before connecting. A custom HTTPS root or the loopback development service `http://127.0.0.1:3173` is also accepted. Custom servers must allow their browser-facing origin through `APP_ORIGIN`.
 
-See [Desktop delivery](docs/desktop.md) for artifact locations, platform validation, signing boundaries, and offline behavior.
+See [Delivery status](docs/delivery-status.md) for the requirement-by-requirement acceptance boundary. See [Desktop delivery](docs/desktop.md) for artifact locations, platform validation, signing boundaries, and offline behavior.
 
 ## Roadmap and structure
 
@@ -80,7 +80,7 @@ See [Desktop delivery](docs/desktop.md) for artifact locations, platform validat
 - **Phase 2 / WPX-2:** 卓乐文档 for Windows and macOS; native file integration, offline editing/sync, signed installers and updates.
 - **Phase 3 / WPX-3:** mobile clients; touch editing, system files/share integration, offline sync, store distribution.
 
-Desktop distribution and mobile delivery are in progress. iOS and Android client projects now bundle the editors and native cloud/file adapters; see [Mobile clients](docs/mobile.md). They will reuse the account, quota, and document API. See [Architecture](docs/architecture.md) for the implementation boundaries.
+Desktop distribution and mobile delivery are in progress. iOS, Android and HarmonyOS projects bundle the editors and native cloud/file adapters; see [Mobile clients](docs/mobile.md). They reuse the account, quota, and document API. See [Architecture](docs/architecture.md) for the implementation boundaries.
 
 ```text
 desktop/             Sandboxed Electron main process, preload and packaging assets
