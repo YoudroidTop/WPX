@@ -1,4 +1,5 @@
 import { isMobile } from '../mobile';
+import { isHarmony } from '../harmony';
 import { DEFAULT_CLOUD_ORIGIN } from '../../shared/service';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Cloud, Link2 } from 'lucide-react';
@@ -64,7 +65,7 @@ export default function DesktopHost({ children }: { children: ReactNode }) {
         </div>
       )}
       {children}
-      {isMobile && (
+      {(isMobile || isHarmony) && (
         <button
           className="mobile-connection-button"
           aria-label="云服务连接"

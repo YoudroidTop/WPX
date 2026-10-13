@@ -90,3 +90,15 @@ On the task-owned Android 35 emulator with WebView 124.0.6367.219 and the instal
 The first full native smoke passed before offline coverage was added. During offline test development, a GUI emulator exited with status 134; a headless restart preserved its data and completed boot. Early retries exposed test harness timing assumptions (missing PID immediately after launch and a 5-second assertion shorter than the native offline timeout); the final run uses bounded startup polling and a 45-second assertion budget and passed end to end. No app authentication or document model changes were required.
 
 Still open: Android native share/export acceptance, account-switch isolation under native storage, physical keyboard/touch/accessibility coverage, iOS equivalent full offline acceptance, and HarmonyOS implementation.
+
+## HarmonyOS host foundation — 2026-10-13
+
+- Added an ArkUI/ArkWeb host with manifest-limited local editor assets at the production HTTPS origin, native document pickers, bounded binary import/export and cookie clearing.
+- `npm run harmony:sync`: passed (TypeScript and production bundle).
+- `hvigorw assembleHap`: passed using Huawei Command Line Tools 6.24.4 and SDK API 24. Output is unsigned; no distribution or installation claim.
+- `npm test`: 14 passed, including a Harmony adapter contract test with 20,000 binary bytes, origin rejection, malformed input and listener cleanup.
+- `npm run test:e2e`: 5 passed, covering all three editors and responsive mobile layouts.
+- Review: `docs/harmony-review.md`; native API may-throw advisories remain, with rejected file operations surfaced by the shared adapter.
+- `npm run desktop:build` and `npm run test:desktop`: passed, including all 6 desktop checks.
+- A connected HarmonyOS API 24 device was detected read-only. No matching application signing configuration is available; native runtime acceptance remains pending.
+- Artifact: `releases/harmony/ZhuoleDocs-0.1.0-harmony-unsigned.hap` (ignored build output).

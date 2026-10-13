@@ -1,4 +1,5 @@
 import { isMobile, mobileBridge } from './mobile';
+import { isHarmony, harmonyBridge } from './harmony';
 export interface NativeFile {
   name: string;
   bytes: Uint8Array;
@@ -23,7 +24,8 @@ declare global {
   }
 }
 export const isDesktop = Boolean(window.zhuoleDesktop);
-export const nativeBridge = window.zhuoleDesktop ?? (isMobile ? mobileBridge : undefined);
+export const nativeBridge =
+  window.zhuoleDesktop ?? (isHarmony ? harmonyBridge : isMobile ? mobileBridge : undefined);
 export const isNative = Boolean(nativeBridge);
 export function nativeCommand(callback: (command: string) => void) {
   return nativeBridge?.onCommand(callback) ?? (() => {});

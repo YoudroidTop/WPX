@@ -12,3 +12,14 @@ desktop-dist/
 releases/
 
 .wrangler/
+
+harmony/.hvigor/
+harmony/oh_modules/
+harmony/entry/oh_modules/
+harmony/build/
+harmony/entry/build/
+harmony/local.properties
+harmony/entry/src/main/resources/rawfile/web/
+harmony/entry/src/main/resources/rawfile/web-manifest.json
+
+.hvigor/
