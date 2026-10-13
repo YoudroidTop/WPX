@@ -128,3 +128,13 @@ node /Users/liang/.agents/skills/pre-release-harmony-agent-qa/scripts/generate_r
 ### Current ZDOC device acceptance
 
 On 2026-10-13, the user unlocked TLR-AL00 and the current HAP (SHA-256 `74128965bc102873919e4766e86a0af0cb756dbaad429b8df5c5d42332cb77f1`) launched successfully. The dedicated `Harmony ZDOC Backup QA` fixture was saved to Download. File manager search and Other applications offered Zhuole Docs for the `.zdoc` file. With an editor open, confirmation waited until returning to the workspace. Before confirmation the account still contained one document; after import, authenticated API readback of the new document deeply matched the original content. The original and restored QA documents remain available. Evidence: `releases/harmony/zdoc-open-chooser.json`, `zdoc-confirmation.png`, `zdoc-restored.png`, and `zdoc-restore-result.json`. This closes external ZDOC acceptance, but does not establish the remaining current-build Office, native paste or inbox-capacity cases.
+
+## Spreadsheet composition build (2026-10-14)
+
+Refreshed the bundled editors with the `d73726a` composition guard. The signing helper validated the existing application debug profile and matching certificate, then ran `hvigorw assembleHap` in its isolated build directory. All 10 packaged web files match `dist` byte-for-byte; the ZDOC UTD declaration also matches source. No native permissions or signing configuration were changed in Git.
+
+Artifact: `releases/harmony/ZhuoleDocs-0.1.0-harmony-debug-d73726a.hap`, SHA-256 `568820110f8512829489027d0b12584a7d90306b2486427530b3e3c7ca03af2f`. The helper's standard HAP path contains the same new build. The previous HAP is preserved as `ZhuoleDocs-0.1.0-harmony-debug-74128965bc10.hap`; its prior acceptance evidence remains historical. Native version remains 0.1.0.
+
+Installation on registered device `4UQ9K25530058677` succeeded without clearing data. Launch returned error 10106102 because the screen was locked. This establishes packaging, device signature acceptance and installation only. The existing case catalog describes the preceding `74128965...` HAP, not a fresh UI pass for this artifact. Current-build IME, Office picker and ZDOC regression require an unlocked device.
+
+Evidence: `releases/harmony/ime-web-sync.log`, `ime-build.log`, `ime-artifact.json`, `ime-install.log`, and `ime-launch.log`. The material-bearing temporary signing configuration was removed by the helper; signing details were not copied into the repository.
