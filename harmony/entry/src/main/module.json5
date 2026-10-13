@@ -40,18 +40,22 @@
             "uris": [
               {
                 "scheme": "file",
+                "linkFeature": "FileOpen",
                 "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
               },
               {
                 "scheme": "file",
+                "linkFeature": "FileOpen",
                 "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               },
               {
                 "scheme": "file",
+                "linkFeature": "FileOpen",
                 "type": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
               },
               {
                 "scheme": "file",
+                "linkFeature": "FileOpen",
                 "type": "application/x-zhuole-document"
               }
             ]
