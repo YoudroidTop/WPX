@@ -47,3 +47,11 @@ An interrupted or ambiguous operation remains suspended until its durable receip
 - Run against isolated namespaces first. Customer restoration still requires approval of the exact account/object and target; generated fixtures do not authorize customer data changes.
 
 Current prerequisite evidence: `tests/cloud-documents.test.ts`, `cloud/recovery-rehearsal.ts`, and `releases/cloudflare/recovery-result.json`. None of those establishes the coordinator or its crash-safety guarantees.
+
+## Implemented admission bookkeeping (2026-10-14)
+
+`cloud/write-admission.ts` now provides the SQLite-backed admission component for a future per-account coordinator. It reserves monotonically increasing revisions, permits one in-flight write, records suspension ownership, drains that write before recovery, and retains the revision ceiling when verification allows admission to reopen. A permit has no timeout-based expiry. Completion requires the exact pending token and reserved revision; it must be called only after a durable terminal document outcome is known, not unconditionally from a request's `finally` block.
+
+`tests/write-admission.test.ts` covers draining, stale receipts, repeated suspension, conflicting recovery ownership, undo revision floors, account isolation, safe integer exhaustion, database close/reopen and an operation delayed across suspension. These are real SQLite component tests, not Worker route or remote process-crash acceptance. The caller still supplies the trusted receipt and verification decision; this component does not verify document-side receipts, approvals, bookmarks or recovered content itself.
+
+The component is not bound to production or the remote rehearsal. Production routing, document mutation receipts/idempotency, use of reserved revisions by every mutation, existing-account initialization, operator authentication and recovery-phase journaling remain required. Simultaneous admissions currently receive a retryable rejection; a future coordinator must integrate client retry/backpressure without claiming that rejected edits were saved. No schema or binding was changed in production.

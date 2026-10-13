@@ -1,0 +1,164 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
+import { AccountWriteAdmission } from '../cloud/write-admission';
+import type { SqlDatabase, SqlValue } from '../cloud/documents';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+function fixture(path = ':memory:') {
+  const db = new DatabaseSync(path);
+  const sql: SqlDatabase = {
+    exec<T extends Record<string, SqlValue>>(query: string, ...bindings: SqlValue[]): T[] {
+      return db
+        .prepare(query)
+        .all(
+          ...bindings.map((value) =>
+            value instanceof ArrayBuffer ? new Uint8Array(value) : value,
+          ),
+        ) as T[];
+    },
+  };
+  const atomic = <T>(fn: () => T): T => {
+    db.exec('BEGIN');
+    try {
+      const result = fn();
+      db.exec('COMMIT');
+      return result;
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  };
+  return { db, open: () => new AccountWriteAdmission(sql, atomic) };
+}
+
+test('suspension drains an admitted write and survives coordinator reconstruction', () => {
+  const f = fixture();
+  try {
+    let gate = f.open();
+    const permit = gate.admit();
+    gate.suspend('restore-1');
+    gate = f.open();
+    assert.equal(gate.status().phase, 'draining');
+    assert.throws(() => gate.admit(), { status: 503 });
+    assert.throws(() => gate.requireDrained('restore-1'));
+    assert.throws(() => gate.resumeAfterVerification('restore-1', 2));
+    gate.complete(permit);
+    gate = f.open();
+    assert.equal(gate.status().phase, 'suspended');
+    assert.equal(gate.requireDrained('restore-1'), 1);
+    assert.throws(() => gate.admit(), { status: 503 });
+    gate.resumeAfterVerification('restore-1', 2);
+    assert.equal(f.open().admit().revision, 3);
+  } finally {
+    f.db.close();
+  }
+});
+
+test('uncertain writes cannot expire, overlap, or be completed by a stale receipt', () => {
+  const f = fixture();
+  try {
+    const gate = f.open();
+    const first = gate.admit();
+    assert.throws(() => f.open().admit(), { status: 503 });
+    assert.throws(() => gate.complete({ ...first, revision: first.revision + 1 }));
+    gate.complete(first);
+    const second = gate.admit();
+    assert.throws(() => gate.complete(first));
+    assert.equal(gate.status().pending, second.token);
+    assert.equal(second.revision, first.revision + 1);
+  } finally {
+    f.db.close();
+  }
+});
+
+test('recovery ownership and revision floor survive repeated suspension and undo', () => {
+  const f = fixture();
+  try {
+    const gate = f.open();
+    gate.suspend('restore');
+    gate.suspend('restore');
+    assert.throws(() => gate.suspend('other'));
+    assert.throws(() => gate.resumeAfterVerification('other', 10));
+    gate.resumeAfterVerification('restore', 10);
+    const write = gate.admit();
+    gate.complete(write);
+    gate.suspend('undo');
+    for (const value of [0, 10, 11, NaN, Infinity, Number.MAX_SAFE_INTEGER])
+      assert.throws(() => gate.resumeAfterVerification('undo', value));
+    assert.equal(f.open().status().phase, 'suspended');
+    gate.resumeAfterVerification('undo', 12);
+    assert.equal(gate.admit().revision, 13);
+  } finally {
+    f.db.close();
+  }
+});
+
+test('suspending one account does not block another and exhausted revisions fail closed', () => {
+  const a = fixture(),
+    b = fixture();
+  try {
+    a.open().suspend('restore');
+    assert.equal(b.open().admit().revision, 1);
+    a.open().resumeAfterVerification('restore', Number.MAX_SAFE_INTEGER - 1);
+    assert.throws(() => a.open().admit(), /exhausted/);
+    assert.equal(a.open().status().pending, null);
+    assert.equal(a.open().status().highWaterMark, Number.MAX_SAFE_INTEGER - 1);
+  } finally {
+    a.db.close();
+    b.db.close();
+  }
+});
+
+test('closing and reopening persistent storage preserves uncertain admission and suspension', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'zhuole-admission-'));
+  const path = join(directory, 'coordinator.sqlite');
+  let f = fixture(path);
+  try {
+    const permit = f.open().admit();
+    f.open().suspend('restore-persistent');
+    f.db.close();
+    f = fixture(path);
+    assert.equal(f.open().status().phase, 'draining');
+    assert.equal(f.open().status().pending, permit.token);
+    assert.throws(() => f.open().admit(), { status: 503 });
+    f.open().complete(permit);
+    f.db.close();
+    f = fixture(path);
+    assert.equal(f.open().requireDrained('restore-persistent'), permit.revision);
+    assert.equal(f.open().status().phase, 'suspended');
+  } finally {
+    f.db.close();
+    rmSync(directory, { recursive: true });
+  }
+});
+
+test('a delayed admitted operation keeps recovery draining until its durable outcome is known', async () => {
+  const f = fixture();
+  try {
+    const gate = f.open();
+    const permit = gate.admit();
+    let resolve!: () => void;
+    const parsing = new Promise<void>((done) => {
+      resolve = done;
+    });
+    let committed = false;
+    const operation = (async () => {
+      await parsing;
+      committed = true;
+      gate.complete(permit);
+    })();
+    gate.suspend('during-import');
+    assert.equal(committed, false);
+    assert.throws(() => gate.requireDrained('during-import'));
+    assert.throws(() => gate.admit(), { status: 503 });
+    resolve();
+    await operation;
+    assert.equal(committed, true);
+    assert.equal(gate.requireDrained('during-import'), permit.revision);
+  } finally {
+    f.db.close();
+  }
+});
