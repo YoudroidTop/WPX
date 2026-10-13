@@ -5,6 +5,7 @@ import { ApiError } from '../server/errors';
 import { AccountWriteAdmission, type WritePermit } from './write-admission';
 import { AccountMutationExecutor } from './mutation-executor';
 import { rehearseCoordination } from './recovery-coordination-rehearsal';
+import { RecoveryJournal, type RecoveryIntent } from './recovery-journal';
 
 interface RecoveryEnv {
   REHEARSAL: DurableObjectNamespace<RecoveryRehearsal>;
@@ -66,6 +67,30 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
     return new AccountWriteAdmission(this.ctx.storage.sql, (fn) =>
       this.ctx.storage.transactionSync(fn),
     );
+  }
+  private journal() {
+    return new RecoveryJournal(this.ctx.storage.sql, (fn) => this.ctx.storage.transactionSync(fn));
+  }
+  journalBegin(intent: RecoveryIntent) {
+    return this.journal().begin(intent);
+  }
+  journalGet(id: string) {
+    return this.journal().get(id);
+  }
+  journalStart(id: string) {
+    return this.journal().startScheduling(id);
+  }
+  journalScheduled(id: string, undo: string) {
+    return this.journal().recordScheduled(id, undo);
+  }
+  journalRestored(id: string) {
+    return this.journal().recordRestored(id);
+  }
+  journalVerified(id: string, actual: RecoveryIntent['expected'], revision: number) {
+    return this.journal().recordVerified(id, actual, revision);
+  }
+  journalComplete(id: string) {
+    return this.journal().complete(id);
   }
   admitMutation() {
     return this.admission().admit();

@@ -64,6 +64,8 @@ try {
     freshWriteRevision: 4,
     staleAfterUndoRejected: true,
     finalHighWaterMark: 5,
+    journalSurvivedRestart: true,
+    originalUndoPreserved: true,
   });
   await mkdir('releases/cloudflare', { recursive: true });
   await writeFile('releases/cloudflare/recovery-result.json', JSON.stringify(result, null, 2));
