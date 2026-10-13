@@ -12,12 +12,14 @@ import { ApiError } from '../server/errors';
 import { exportOffice, importOffice } from '../server/office';
 import { blankContent, contentSchema, extensions, STORAGE_LIMIT } from '../shared/documents';
 import { AccountDocuments } from './documents';
+import { desktopDownload } from './desktop-downloads';
 
 interface Env {
   ACCOUNTS: DurableObjectNamespace;
   DOCUMENTS: DurableObjectNamespace;
   ASSETS: Fetcher;
   APP_ORIGIN: string;
+  RELEASES?: R2Bucket;
 }
 const name = z.string().trim().min(1).max(100);
 const email = z.string().trim().toLowerCase().email().max(254);
@@ -316,6 +318,11 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     const response = await guarded(async () => {
+      if (
+        url.pathname === '/api/releases/desktop' ||
+        url.pathname.startsWith('/downloads/desktop/')
+      )
+        return desktopDownload(request, env.RELEASES);
       if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
       if (
         !['GET', 'HEAD', 'OPTIONS'].includes(request.method) &&

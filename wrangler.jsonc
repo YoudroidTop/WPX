@@ -15,6 +15,7 @@
     "run_worker_first": true,
   },
   "vars": { "APP_ORIGIN": "https://wpx.youdroid.top" },
+  "r2_buckets": [{ "binding": "RELEASES", "bucket_name": "zhuole-desktop-releases" }],
   "durable_objects": {
     "bindings": [
       { "name": "ACCOUNTS", "class_name": "Accounts" },
