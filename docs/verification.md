@@ -57,3 +57,13 @@ Remaining mobile gates: Android supported-engine interaction, native spreadsheet
 - A broad Gradle test invocation initially overlapped Capacitor sync and failed on a regenerated Cordova metadata path; the final app-scoped run was executed after sync and passed.
 
 The platform requirement now includes HarmonyOS. Cloudflare hosting at `wpx.youdroid.top` is selected and tracked separately; no public deployment is claimed by these native checks.
+
+## Cloudflare runtime checkpoint
+
+- `npm run cloud:build` passed TypeScript checks, the web build, and Wrangler dry-run bundling (approximately 784 KiB gzip). No remote deployment occurred.
+- `npm run test:cloud` passed against local workerd with actual SQLite Durable Objects: account registration and login, owner isolation, CSRF rejection, concurrent revisions, all three Office export/import round trips, trash usage, stale deletion rejection, profile update, password rotation, prior-session invalidation, logout, and >2 MB Unicode content.
+- `npm run test:cloud:browser`: all five workspace/editor/browser scenarios passed against a separate local workerd instance. The conflict fixture now uses the active origin and asserts that its simulated competing update actually succeeded.
+- `npm test`: all 13 unit/API/model/storage tests passed. Formatting and diff checks passed.
+- Runtime testing exposed and fixed the Node-only JSZip stream dependency and blank-sheet ExcelJS columns handling. These shared fixes preserve the bounded decompression checks on both server runtimes.
+
+Production plan capacity, domain attachment, public deployment, live acceptance, and recovery checks remain open under WPX-4.

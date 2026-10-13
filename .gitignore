@@ -10,3 +10,5 @@ playwright-report/
 
 desktop-dist/
 releases/
+
+.wrangler/

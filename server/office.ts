@@ -1,5 +1,4 @@
 import JSZip from 'jszip';
-import type { Readable } from 'node:stream';
 import ExcelJS from 'exceljs';
 import PptxGenJS from 'pptxgenjs';
 import {
@@ -122,7 +121,7 @@ export async function exportOffice(content: DocumentContent): Promise<Buffer> {
           ws.getCell(address).value =
             raw.trim() && Number.isFinite(Number(raw)) ? Number(raw) : raw;
       }
-      ws.columns.forEach((column) => {
+      ws.columns?.forEach((column) => {
         column.width = 18;
       });
     }
@@ -184,19 +183,26 @@ async function boundedZip(bytes: Buffer): Promise<JSZip> {
   }
   for (const entry of entries) {
     await new Promise<void>((resolve, reject) => {
-      const stream = entry.nodeStream() as Readable;
+      const stream = (
+        entry as JSZip.JSZipObject & {
+          internalStream(type: 'uint8array'): JSZip.JSZipStreamHelper<Uint8Array>;
+        }
+      ).internalStream('uint8array');
       const declared = (entry as unknown as { _data: { uncompressedSize: number } })._data
         .uncompressedSize;
       let size = 0;
       stream.on('data', (chunk) => {
         size += chunk.length;
-        if (size > declared || size > 20_000_000)
-          stream.destroy(new ApiError(400, '文件解压后过大'));
+        if (size > declared || size > 20_000_000) {
+          stream.pause();
+          reject(new ApiError(400, '文件解压后过大'));
+        }
       });
       stream.on('error', reject);
       stream.on('end', () =>
         size === declared ? resolve() : reject(new ApiError(400, '文件结构无效')),
       );
+      stream.resume();
     });
   }
   return zip;

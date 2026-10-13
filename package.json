@@ -21,7 +21,11 @@
     "desktop:pack:mac": "npm run desktop:build && electron-builder --config electron-builder.yml --mac --publish never",
     "desktop:pack:win": "npm run desktop:build && electron-builder --config electron-builder.yml --win --publish never",
     "test:desktop": "playwright test --config playwright.desktop.config.ts",
-    "mobile:sync": "npm run build && cap sync"
+    "mobile:sync": "npm run build && cap sync",
+    "cloud:dev": "wrangler dev --port 8787 --var APP_ORIGIN:http://127.0.0.1:8787",
+    "cloud:build": "tsc -p tsconfig.cloud.json && npm run build && wrangler deploy --dry-run --outdir releases/cloudflare",
+    "test:cloud": "node tests/cloud-integration.mjs",
+    "test:cloud:browser": "playwright test --config playwright.cloud.config.ts"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
@@ -54,6 +58,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.3",
+    "@cloudflare/workers-types": "^5.20261013.1",
     "@playwright/test": "^1.64.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.6",
@@ -68,7 +73,8 @@
     "prettier": "^3.9.10",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2",
-    "vite": "^8.3.4"
+    "vite": "^8.3.4",
+    "wrangler": "^4.149.0"
   },
   "overrides": {
     "pptxgenjs": {

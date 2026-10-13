@@ -121,10 +121,11 @@ test('conflict keeps local draft and exposes a downloadable backup', async ({ pa
   const response = await page.request.get('/api/documents');
   const data = await response.json();
   const doc = data.documents[0];
-  await page.request.patch(`/api/documents/${doc.id}`, {
-    headers: { Origin: 'http://127.0.0.1:4173' },
+  const remoteUpdate = await page.request.patch(`/api/documents/${doc.id}`, {
+    headers: { Origin: new URL(page.url()).origin },
     data: { revision: doc.revision, name: 'Other window' },
   });
+  expect(remoteUpdate.status()).toBe(200);
   await page.getByRole('textbox', { name: '文档正文' }).fill('Local unsaved idea');
   await expect(page.getByRole('alert')).toContainText('文档已在其他窗口更新');
   await expect(page.getByRole('textbox', { name: '文档正文' })).toContainText('Local unsaved idea');

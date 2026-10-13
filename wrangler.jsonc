@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "zhuole-cloud-docs",
+  "main": "cloud/worker.ts",
+  "compatibility_date": "2026-10-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": true,
+  },
+  "vars": { "APP_ORIGIN": "https://wpx.youdroid.top" },
+  "durable_objects": {
+    "bindings": [
+      { "name": "ACCOUNTS", "class_name": "Accounts" },
+      { "name": "DOCUMENTS", "class_name": "Documents" },
+    ],
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Accounts", "Documents"] }],
+  "observability": { "enabled": true },
+}
