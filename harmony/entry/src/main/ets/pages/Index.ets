@@ -14,8 +14,15 @@ struct Index {
   private bridge: DocumentBridge = new DocumentBridge(this.context);
   private assets: EditorAssets = new EditorAssets(this.context);
   private isControllerReady: boolean = false;
+  private incoming = (): void => {
+    this.dispatch("window.dispatchEvent(new CustomEvent('zhuole-harmony-command',{detail:'pending-files'}))");
+  };
   aboutToAppear(): void {
     webview.WebviewController.setWebDebuggingAccess(DEBUG);
+    this.context.eventHub.on(Constants.INBOX_EVENT, this.incoming);
+  }
+  aboutToDisappear(): void {
+    this.context.eventHub.off(Constants.INBOX_EVENT, this.incoming);
   }
   private dispatch(script: string): void {
     if (!this.isControllerReady) { return; }
@@ -42,7 +49,7 @@ struct Index {
         .mixedMode(MixedMode.None)
         .multiWindowAccess(false)
         .javaScriptProxy({ object: this.bridge, name: 'ZhuoleHarmony', methodList: ['getConnection'],
-          asyncMethodList: ['openFile', 'saveFile', 'clearSession', 'persistSession'], controller: this.controller })
+          asyncMethodList: ['openFile', 'pendingFiles', 'saveFile', 'clearSession', 'persistSession'], controller: this.controller })
         // ArkWeb documents null as network pass-through, but its callback type omits null.
         .onInterceptRequest((event) => this.assets.resolve(event.request)!)
         .onLoadIntercept((event) => event.data.isMainFrame() && event.data.getRequestUrl().split('#')[0] !== Constants.ORIGIN + '/')

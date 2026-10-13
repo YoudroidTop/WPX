@@ -182,3 +182,10 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - Evidence: `releases/mobile/android-cache-controls.log` and `android-cache-cleanup.png`. No Android native-share scenario was requested in this run; prior export evidence remains separate.
 - Installed and launched the current iOS simulator app preserving data. Screenshot `releases/mobile/ios-cache-build-workspace.png` confirms the existing Mobile QA session and previous test documents. CUA returned no application accessibility nodes and `windowNotFoundAtPosition` for content clicks even after selecting/raising/centering the dedicated window. No new iOS documents were created.
 - Added a stable iOS case manifest and validated HTML report generation: one passed install/session case, three blocked interaction cases. Physical devices, iOS formulas/slides/cache and broader layouts are not claimed complete.
+
+## Harmony system file inbox implementation — 2026-10-13
+
+- Added singleton cold/warm `viewData` handling, Office MIME associations, a persistent eight-item/10 MB private inbox, event notification and bridge consumption into the existing login-gated confirmation flow. Picker imports now share the same bounded reader. No automatic cloud upload or source deletion occurs.
+- Actual ArkTS service tests use a filesystem adapter and verify all supported extension byte round trips, fresh-instance recovery, consume-once, capacity, exact size boundary and rejected input, directory rejection, partial-copy cleanup and preservation of unrelated/source files. JS adapter tests cover pending-byte delivery, empty queue and native error translation. `npm test`: 17 passed.
+- Harmony sync and signed build passed after fixing an ArkTS restriction on rethrowing an untyped caught value. Desktop build and all seven desktop integration tests passed.
+- Updated development HAP installed successfully and checksum refreshed. Device launch remains blocked by the OS locked-screen condition. System file-manager matching, URI grants and live incoming confirmation are not claimed verified; existing native-picker evidence predates this shared-reader refactor.

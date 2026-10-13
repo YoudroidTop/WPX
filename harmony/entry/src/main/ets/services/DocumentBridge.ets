@@ -3,11 +3,9 @@ import { fileIo, picker } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 import { webview } from '@kit.ArkWeb';
 import { Constants } from './Constants';
+import { DocumentFiles } from './DocumentFiles';
+import { DocumentInbox } from './DocumentInbox';
 
-interface IncomingFile {
-  name: string;
-  data: string;
-}
 export class DocumentBridge {
   private context: common.UIAbilityContext;
   constructor(context: common.UIAbilityContext) {
@@ -24,30 +22,10 @@ export class DocumentBridge {
     if (!selected.length) {
       return '';
     }
-    const uri: string = selected[0];
-    const name: string = decodeURIComponent(uri.split('/').pop() ?? 'document');
-    if (!/\.(docx|xlsx|pptx|zdoc)$/i.test(name)) {
-      throw new Error('Unsupported document format');
-    }
-    const file: fileIo.File = await fileIo.open(uri, fileIo.OpenMode.READ_ONLY);
-    try {
-      const stat: fileIo.Stat = await fileIo.stat(file.fd);
-      if (stat.size <= 0 || stat.size > Constants.MAX_FILE_BYTES) {
-        throw new Error('Invalid document size');
-      }
-      const data: ArrayBuffer = new ArrayBuffer(stat.size);
-      const count: number = await fileIo.read(file.fd, data);
-      if (count !== stat.size) {
-        throw new Error('Incomplete file read');
-      }
-      const result: IncomingFile = {
-        name: name,
-        data: new util.Base64Helper().encodeToStringSync(new Uint8Array(data)),
-      };
-      return JSON.stringify(result);
-    } finally {
-      await fileIo.close(file.fd);
-    }
+    return DocumentFiles.encode(await DocumentFiles.read(selected[0]));
+  }
+  async pendingFiles(): Promise<string> {
+    return DocumentInbox.take(this.context);
   }
   async saveFile(name: string, extension: string, encoded: string): Promise<boolean> {
     if (!/^(docx|xlsx|pptx|zdoc)$/.test(extension) || encoded.length > 14000000) {

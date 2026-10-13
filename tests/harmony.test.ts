@@ -3,6 +3,8 @@ import test from 'node:test';
 
 const events = new EventTarget();
 let incoming = '';
+let pending = '';
+let pendingFailure = false;
 let saved: { name: string; extension: string; data: string } | undefined;
 let cleared = false;
 let persisted = false;
@@ -17,6 +19,12 @@ Object.assign(globalThis, {
           version: '0.1.0',
         }),
       openFile: async () => incoming,
+      pendingFiles: async () => {
+        if (pendingFailure) throw new Error('Native inbox rejected input');
+        const value = pending;
+        pending = '';
+        return value;
+      },
       saveFile: async (name: string, extension: string, data: string) => {
         saved = { name, extension, data };
         return true;
@@ -43,9 +51,16 @@ test('Harmony bridge preserves binary Office bytes and restricts its fixed servi
     'https://wpx.youdroid.top',
   );
   assert.equal(await harmonyBridge.openFile(), null);
+  assert.equal(await harmonyBridge.pendingFiles(), null);
   const bytes = Uint8Array.from({ length: 20000 }, (_, index) => index % 256);
   incoming = JSON.stringify({ name: '季度计划.docx', data: Buffer.from(bytes).toString('base64') });
   assert.deepEqual(await harmonyBridge.openFile(), { name: '季度计划.docx', bytes });
+  pending = incoming;
+  assert.deepEqual(await harmonyBridge.pendingFiles(), { name: '季度计划.docx', bytes });
+  assert.equal(await harmonyBridge.pendingFiles(), null);
+  pendingFailure = true;
+  await assert.rejects(harmonyBridge.pendingFiles(), /无法接收文件/);
+  pendingFailure = false;
   assert.equal(await harmonyBridge.saveFile('Quarterly plan', 'docx', bytes), true);
   assert.deepEqual(Buffer.from(saved!.data, 'base64'), Buffer.from(bytes));
   assert.equal(saved!.extension, 'docx');

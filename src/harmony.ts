@@ -4,6 +4,7 @@ import { normalizeServer } from '../desktop/policy';
 interface HarmonyProxy {
   getConnection(): string;
   openFile(): Promise<string>;
+  pendingFiles(): Promise<string>;
   saveFile(name: string, extension: string, data: string): Promise<boolean>;
   clearSession(): Promise<void>;
   persistSession(): Promise<void>;
@@ -41,7 +42,17 @@ export const harmonyBridge: NativeBridge = {
     }
   },
   async pendingFiles() {
-    return null;
+    try {
+      const encoded = await proxy().pendingFiles();
+      if (!encoded) return null;
+      const file = JSON.parse(encoded) as { name: string; data: string };
+      return {
+        name: file.name,
+        bytes: Uint8Array.from(atob(file.data), (value) => value.charCodeAt(0)),
+      };
+    } catch {
+      throw new Error('无法接收文件，请确认文件不超过 10 MB，收件箱最多暂存 8 份文件');
+    }
   },
   async saveFile(name, extension, bytes) {
     let binary = '';

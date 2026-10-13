@@ -40,3 +40,9 @@ The physical API 24 device passed registration, all three editors, reload persis
 Scope: two ArkTS files, shared API/platform contracts, Harmony adapter and its unit test (six TypeScript/ArkTS files), plus the lifecycle harness. All six review dimensions passed for the delta: typed service methods, no new state/render work/routing, narrow async proxy exposure and sanitized adapter errors. Cookie values never cross the bridge. Awaited persistence failures reach the caller instead of being silently swallowed. No unresolved P0/P1 findings.
 
 The physical device confirmed process termination, a new PID, restored session and pending-draft synchronization with cloud readback. Native file round trips and normal foreground recovery also have recorded acceptance. Remaining P2 gates include external file intents, keyboard/root-back and foldable interaction; this review does not imply distribution readiness.
+
+## Incoming file integration review — 2026-10-13
+
+Scope: ability lifecycle, page event subscription/proxy, constants, document bridge, two new file services, manifest, JS adapter and two tests. P0: 0 unresolved; P1: 0 unresolved. Six-dimension review passed: explicit native types; lifecycle dispatch is separate from filesystem work; no new ArkUI state/render work; fixed editor origin unchanged; event subscription removed on disappearance; file handles close in finally and exceptions propagate or become a pending error with operation-only logs.
+
+The inbox owns a bounded private copy and removes only its own generated complete/partial paths. Sources are opened read-only. A serialized queue guards capacity and consume/write races. Unit coverage exercises the actual service with an adapter; native compilation/signing passed. P2 remains actual system MIME matching/URI authorization, cold/warm app delivery and cancellation/queue-full behavior on the device. No broad storage permission was added.

@@ -1,14 +1,64 @@
 {
   "module": {
-    "name": "entry", "type": "entry", "mainElement": "EntryAbility",
-    "deviceTypes": ["phone", "tablet"], "deliveryWithInstall": true, "installationFree": false,
+    "name": "entry",
+    "type": "entry",
+    "mainElement": "EntryAbility",
+    "deviceTypes": [
+      "phone",
+      "tablet"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false,
     "pages": "$profile:main_pages",
-    "requestPermissions": [{ "name": "ohos.permission.INTERNET" }],
-    "abilities": [{
-      "name": "EntryAbility", "srcEntry": "./ets/entryability/EntryAbility.ets",
-      "label": "$string:app_name", "icon": "$media:app_icon", "startWindowIcon": "$media:app_icon",
-      "startWindowBackground": "$color:launch_background", "exported": true,
-      "skills": [{ "entities": ["entity.system.home"], "actions": ["ohos.want.action.home"] }]
-    }]
+    "requestPermissions": [
+      {
+        "name": "ohos.permission.INTERNET"
+      }
+    ],
+    "abilities": [
+      {
+        "name": "EntryAbility",
+        "srcEntry": "./ets/entryability/EntryAbility.ets",
+        "label": "$string:app_name",
+        "icon": "$media:app_icon",
+        "startWindowIcon": "$media:app_icon",
+        "startWindowBackground": "$color:launch_background",
+        "exported": true,
+        "skills": [
+          {
+            "entities": [
+              "entity.system.home"
+            ],
+            "actions": [
+              "ohos.want.action.home"
+            ]
+          },
+          {
+            "actions": [
+              "ohos.want.action.viewData"
+            ],
+            "uris": [
+              {
+                "scheme": "file",
+                "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              },
+              {
+                "scheme": "file",
+                "type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              },
+              {
+                "scheme": "file",
+                "type": "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+              },
+              {
+                "scheme": "file",
+                "type": "application/x-zhuole-document"
+              }
+            ]
+          }
+        ],
+        "launchType": "singleton"
+      }
+    ]
   }
 }

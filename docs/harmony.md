@@ -23,7 +23,7 @@ The default build produces `entry/build/default/outputs/default/entry-default-un
 - The JavaScript proxy exposes connection metadata, user-selected import/export and cookie clearing. It never exposes passwords, cookies or arbitrary filesystem paths.
 - Imports accept DOCX, XLSX, PPTX and ZDOC, at most 10 MB. Exports use the system save picker, sanitize the suggested filename and enforce the same binary limit. Failed or partial I/O rejects the operation instead of reporting success.
 - The existing per-origin/account IndexedDB cache and revision-based draft synchronization are reused. Physical-device acceptance covers page reload, foreground recovery and process restart with pending drafts.
-- This initial host uses the fixed production service. Custom server switching, system incoming-file intents and native distribution are pending. The UI file picker supports manual import.
+- This initial host uses the fixed production service. Custom server switching and native distribution are pending. System incoming-file support is implemented with a separate runtime acceptance gate below. The UI file picker supports manual import.
 
 ## Verification
 
@@ -86,3 +86,13 @@ This mode force-stops the app while its page API requests are blocked, confirms 
 `node scripts/smoke-harmony-cache.mjs` uses the same dedicated account fixture and debug forwarding as the file-picker harness. It creates two uniquely named Word documents, leaves one pending under page-only API failure, clears synced bodies from account settings, reloads the pending draft offline, and checks that the removed body requires the cloud and can be downloaded again. The finalizer restores API access, verifies the pending text reaches the cloud, deletes only this run's documents and logs out.
 
 The initial attempt after packaging the feature could not establish debug inspection while the device was locked; no test documents were created. The signed build is installed, but this new scenario is not yet claimed as physically verified.
+
+## System incoming documents
+
+The singleton ability handles `ohos.want.action.viewData` on both creation and new Wants. The manifest advertises file URIs for DOCX/XLSX/PPTX MIME types and `application/x-zhuole-document`. Configuration follows the [official URI matching guide](https://developer.huawei.com/consumer/en/doc/harmonyos-guides/app-uri-config). Receiving another app's file still depends on that caller granting read access to the URI.
+
+`DocumentInbox` serializes reads/writes and copies supported files into the application's private `filesDir/document-inbox`. Each file must contain 1–10,000,000 bytes; at most eight complete copies are queued. A partial write is never exposed: bytes are flushed and the temporary file renamed before notification. Interrupted partial copies matching the service's generated naming scheme are removed on the next operation. Unrelated entries and original source files are untouched. Filenames are sanitized; names longer than 120 characters are rejected.
+
+The JavaScript bridge consumes one queued copy at a time and reuses the existing login-gated import confirmation. Nothing is automatically uploaded. Returning from an editor/dialog drains the next pending item. Once consumed into confirmation, cancellation or process termination requires reopening the original source, matching the other mobile clients. Errors use generic user-facing text and operation-only native logs.
+
+`tests/harmony-inbox.test.ts` bundles the actual ArkTS service with a filesystem-backed test adapter. It verifies persistence across a fresh service instance, exact bytes for all four formats, one-time consumption, the eight-file cap, exact 10 MB acceptance, oversized/empty/unsupported/directory rejection, stale partial cleanup and source preservation. This does not emulate OS URI grants, ability matching or ArkWeb delivery. The signed build compiles; cold/warm system opens, login deferral, cancellation and queue-full feedback remain physical-device acceptance gates while the connected device is locked.
