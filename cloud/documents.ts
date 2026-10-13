@@ -142,6 +142,8 @@ export class AccountDocuments {
       const current = this.metadata(id);
       if (current.revision !== revision)
         throw new ApiError(409, '文档已在其他窗口更新，请先保留本地副本，再重新打开');
+      if (!Number.isSafeInteger(current.revision) || current.revision >= Number.MAX_SAFE_INTEGER)
+        throw new ApiError(409, '文档版本已达到上限，当前修改尚未保存，请导出备份后联系管理员');
       if (current.deleted_at !== null && (patch.content || patch.name))
         throw new ApiError(409, '请先从回收站恢复此文档');
       if (patch.content && patch.content.type !== current.kind)

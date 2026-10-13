@@ -172,3 +172,21 @@ test('invalid or exhausted recovery revisions fail without changing documents', 
     db.close();
   }
 });
+
+test('a recovered document at the safe revision limit cannot accept an imprecise update', () => {
+  const { store, db } = fixture();
+  try {
+    const doc = store.create('Recovered', word('Keep this body'));
+    store.advanceRevisionsPast(Number.MAX_SAFE_INTEGER - 1);
+    const recovered = store.get(doc.id);
+    assert.equal(recovered.revision, Number.MAX_SAFE_INTEGER);
+    assert.throws(
+      () => store.update(doc.id, recovered.revision, { content: word('Must not overwrite') }),
+      { status: 409 },
+    );
+    assert.deepEqual(store.get(doc.id), recovered);
+    assert.equal(store.used(), doc.size);
+  } finally {
+    db.close();
+  }
+});
