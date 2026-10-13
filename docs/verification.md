@@ -189,3 +189,10 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - Actual ArkTS service tests use a filesystem adapter and verify all supported extension byte round trips, fresh-instance recovery, consume-once, capacity, exact size boundary and rejected input, directory rejection, partial-copy cleanup and preservation of unrelated/source files. JS adapter tests cover pending-byte delivery, empty queue and native error translation. `npm test`: 17 passed.
 - Harmony sync and signed build passed after fixing an ArkTS restriction on rethrowing an untyped caught value. Desktop build and all seven desktop integration tests passed.
 - Updated development HAP installed successfully and checksum refreshed. Device launch remains blocked by the OS locked-screen condition. System file-manager matching, URI grants and live incoming confirmation are not claimed verified; existing native-picker evidence predates this shared-reader refactor.
+
+## Harmony cache controls on the inbox build — 2026-10-13
+
+- The physical API 24 device became available and launched the currently installed signed inbox build. The task-owned CDP forward was updated to its current process.
+- `node scripts/smoke-harmony-cache.mjs` exited 0: two generated QA documents, one pending draft, synchronized-body cleanup, offline page reload, retained pending text, a cleared body requiring connectivity, cloud re-download, final pending-draft synchronization readback, generated-document cleanup and logout all passed. This run uses page-scoped API failure, not device-wide offline networking or process termination.
+- Evidence: releases/harmony/device-cache-smoke.log and cache-cleanup.png. The dedicated QA account was verified before mutations.
+- A subsequent native Office-picker regression attempt timed out before observing the expected save filename. The native layout showed the system control center, not the file picker; no new picker acceptance is claimed. Evidence: releases/harmony/device-inbox-build-picker-smoke.log and file-qa-layout.json. Generated picker QA data remains for follow-up; device interaction was stopped to avoid interference.
