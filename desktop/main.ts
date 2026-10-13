@@ -13,6 +13,7 @@ import { readFile, writeFile, mkdir, stat } from 'node:fs/promises';
 import { basename, dirname, extname, resolve, sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileExtensions, isAppUrl, LOCAL_URL, normalizeServer, safeFilename } from './policy';
+import { readUpdateManifest, selectUpdate, UPDATE_ORIGIN } from './updates';
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -189,6 +190,57 @@ function createWindow() {
   });
   void window.loadURL(LOCAL_URL);
 }
+let checkingUpdate = false;
+async function checkForUpdates() {
+  if (checkingUpdate || !window) return;
+  checkingUpdate = true;
+  const owner = window;
+  try {
+    const response = await session
+      .fromPartition('desktop-updates')
+      .fetch(`${UPDATE_ORIGIN}/api/releases/desktop`, {
+        credentials: 'omit',
+        redirect: 'error',
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15_000),
+      });
+    const update = selectUpdate(
+      await readUpdateManifest(response),
+      app.getVersion(),
+      process.platform,
+      process.arch,
+    );
+    if (owner.isDestroyed()) return;
+    if (!update.available) {
+      await dialog.showMessageBox(owner, {
+        type: 'info',
+        message: '当前已是最新版本',
+        detail: `卓乐文档 ${app.getVersion()}`,
+        buttons: ['好'],
+      });
+      return;
+    }
+    const result = await dialog.showMessageBox(owner, {
+      type: 'info',
+      message: `发现新版本 ${update.version}`,
+      detail: `当前版本 ${app.getVersion()}。下载后请保存文档并退出卓乐文档，再打开安装包完成更新。${update.signed ? '' : '\nWindows 安装包尚未签名。'}`,
+      buttons: ['稍后', '下载安装包'],
+      defaultId: 1,
+      cancelId: 0,
+    });
+    if (result.response === 1) await shell.openExternal(update.url);
+  } catch {
+    if (!owner.isDestroyed())
+      await dialog.showMessageBox(owner, {
+        type: 'error',
+        message: '暂时无法检查更新',
+        detail: '请检查网络连接，稍后重试。',
+        buttons: ['好'],
+      });
+  } finally {
+    checkingUpdate = false;
+  }
+}
 function installMenu() {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
@@ -250,6 +302,7 @@ function installMenu() {
         ],
       },
       { label: '窗口', submenu: [{ role: 'minimize' }, { role: 'zoom' }] },
+      { label: '帮助', submenu: [{ label: '检查更新…', click: () => void checkForUpdates() }] },
     ]),
   );
 }

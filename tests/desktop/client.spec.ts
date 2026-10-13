@@ -390,3 +390,84 @@ test('spreadsheet rejects oversized clipboard rectangles in the desktop renderer
     await app.close();
   }
 });
+
+test('native update menu uses official source and requires confirmation before download', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zhuole-updates-'));
+  const app = await launch(directory, false);
+  try {
+    await app.firstWindow();
+    const release = JSON.parse(await readFile('cloud/desktop-release.json', 'utf8'));
+    const result = await app.evaluate(async ({ app, Menu, dialog, session, shell }, release) => {
+      const messages: string[] = [];
+      const opened: string[] = [];
+      const requests: { url: string; credentials: unknown; redirect: unknown }[] = [];
+      let answer = 0;
+      let failure = false;
+      app.getVersion = () => '0.0.9';
+      session.fromPartition('desktop-updates').fetch = async (input, options) => {
+        requests.push({
+          url: String(input),
+          credentials: options?.credentials,
+          redirect: options?.redirect,
+        });
+        if (failure) throw new Error('Offline');
+        return Response.json(release);
+      };
+      dialog.showMessageBox = (async (_owner: unknown, options: { message: string }) => {
+        messages.push(options.message);
+        return { response: answer, checkboxChecked: false };
+      }) as typeof dialog.showMessageBox;
+      shell.openExternal = async (url) => {
+        opened.push(url);
+      };
+      const menu = Menu.getApplicationMenu()!.items.find((item) => item.label === '帮助')!.submenu!
+        .items[0];
+      async function check() {
+        const count = messages.length;
+        menu.click();
+        for (let i = 0; i < 100 && messages.length === count; i++)
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        if (messages.length !== count + 1) throw new Error('Update dialog missing');
+      }
+      await check();
+      const canceled = opened.length;
+      answer = 1;
+      await check();
+      app.getVersion = () => release.version;
+      await check();
+      failure = true;
+      await check();
+      return {
+        messages,
+        opened,
+        requests,
+        canceled,
+        platform: process.platform,
+        arch: process.arch,
+      };
+    }, release);
+    expect(result.canceled).toBe(0);
+    expect(result.messages).toEqual([
+      '发现新版本 0.1.0',
+      '发现新版本 0.1.0',
+      '当前已是最新版本',
+      '暂时无法检查更新',
+    ]);
+    expect(result.opened).toHaveLength(1);
+    const artifact = release.artifacts.find(
+      (a: any) =>
+        a.platform === (result.platform === 'darwin' ? 'mac' : 'win') &&
+        a.architecture === result.arch,
+    );
+    expect(result.opened[0]).toBe(`https://wpx.youdroid.top${artifact.path}`);
+    for (const request of result.requests)
+      expect(request).toEqual({
+        url: 'https://wpx.youdroid.top/api/releases/desktop',
+        credentials: 'omit',
+        redirect: 'error',
+      });
+  } finally {
+    await app.close();
+  }
+});
