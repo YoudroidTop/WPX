@@ -35,6 +35,22 @@ try {
   await page.getByRole('textbox', { name: 'C1', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'B1', exact: true })).toHaveValue('200');
   await saved();
+  for (const [value, reason] of [
+    [Array(501).fill('replace').join('\n'), '500 行'],
+    [Array(53).fill('replace').join('\t'), '52 列'],
+    [`replace\t${'x'.repeat(10001)}`, '10000 字符'],
+  ]) {
+    await page.getByRole('textbox', { name: 'A1', exact: true }).evaluate((input, text) => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData('text/plain', text);
+      input.dispatchEvent(
+        new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }),
+      );
+    }, value);
+    await expect(page.getByRole('alert')).toContainText(reason);
+    await expect(page.getByRole('textbox', { name: 'A1', exact: true })).toHaveValue('120');
+    await expect(page.getByRole('textbox', { name: 'B1', exact: true })).toHaveValue('200');
+  }
   await back();
   await page.getByRole('button', { name: /新建演示文稿 把好/ }).click();
   await page.getByRole('textbox', { name: '幻灯片标题', exact: true }).fill('Live presentation QA');

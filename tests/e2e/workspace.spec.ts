@@ -16,6 +16,50 @@ async function back(page: Page) {
   await expect(page.getByText('YOUR SPACE TO CREATE')).toBeVisible();
 }
 
+test('spreadsheet rejects oversized clipboard rectangles and preserves saved contents', async ({
+  page,
+}) => {
+  await register(page);
+  await page.getByRole('button', { name: /新建电子表格 用数据/ }).click();
+  await page.getByRole('textbox', { name: '文档名称', exact: true }).fill('Paste boundaries');
+  const cell = (address: string) => page.getByRole('textbox', { name: address, exact: true });
+  await cell('A1').fill('keep');
+  await cell('B1').fill('original');
+  await saved(page);
+  async function paste(text: string) {
+    await cell('A1').focus();
+    await cell('A1').evaluate((input, value) => {
+      const clipboardData = new DataTransfer();
+      clipboardData.setData('text/plain', value);
+      input.dispatchEvent(
+        new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }),
+      );
+    }, text);
+  }
+  for (const [text, reason] of [
+    [Array(501).fill('replace').join('\n'), '500 行'],
+    [Array(53).fill('replace').join('\t'), '52 列'],
+    [`replace\t${'x'.repeat(10001)}`, '10000 字符'],
+  ]) {
+    await paste(text);
+    await expect(page.getByRole('alert')).toContainText(reason);
+    await expect(cell('A1')).toHaveValue('keep');
+    await expect(cell('B1')).toHaveValue('original');
+  }
+  await back(page);
+  await page.reload();
+  await page.getByRole('button', { name: 'Paste boundaries XLSX · 电子表格' }).click();
+  await expect(cell('A1')).toHaveValue('keep');
+  await expect(cell('B1')).toHaveValue('original');
+  await paste('120\t\r\n80\t=SUM(A1:A2)\r\n');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  await cell('C1').click();
+  await expect(cell('A1')).toHaveValue('120');
+  await expect(cell('B1')).toHaveValue('');
+  await expect(cell('B2')).toHaveValue('200');
+  await saved(page);
+});
+
 test('three editors persist content, export Office files, and manage the cloud library', async ({
   page,
 }) => {

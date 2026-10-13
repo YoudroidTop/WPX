@@ -39,6 +39,8 @@ This is a functioning basic editor suite, not full WPS/Office parity. Office imp
 
 Files are limited to 10 MB on import, 4 MB of normalized content, 20 worksheets with 500 rows × 52 columns each, and 100 slides. ZIP expansion is bounded. Unsupported spreadsheet dimensions fail explicitly rather than being silently truncated.
 
+Multi-cell spreadsheet paste is atomic: exceeding worksheet bounds or the 10,000-character cell limit rejects the entire paste with an explanation, leaving existing cells unchanged.
+
 The quota is **3,000,000,000 bytes**, measured as UTF-8 bytes of the persisted native document content, including trash. Metadata, SQLite indexes, and transient exported files do not count. Original Office files are converted rather than charged by their upload size. Permanent deletion releases the document's quota; SQLite may reuse freed database pages without shrinking its file immediately.
 
 ## Verification

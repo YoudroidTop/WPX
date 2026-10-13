@@ -1,7 +1,14 @@
 import { useMemo, useState, type KeyboardEvent } from 'react';
 import { Plus, FunctionSquare, Trash2 } from 'lucide-react';
-import { columnName, MAX_COLUMNS, MAX_ROWS, type SheetContent } from '../../shared/documents';
+import {
+  columnName,
+  MAX_CELL_LENGTH,
+  MAX_COLUMNS,
+  MAX_ROWS,
+  type SheetContent,
+} from '../../shared/documents';
 import { createCalculator } from '../../shared/formulas';
+import { pasteSheetCells } from '../../shared/sheet-paste';
 export default function SheetEditor({
   content,
   onChange,
@@ -14,6 +21,7 @@ export default function SheetEditor({
     [editing, setEditing] = useState<string | null>(null);
   const [rowCount, setRowCount] = useState(50),
     [colCount, setColCount] = useState(12);
+  const [pasteError, setPasteError] = useState('');
   const sheet = content.sheets.find((s) => s.id === sheetId) ?? content.sheets[0];
   const calculate = useMemo(() => createCalculator(sheet.cells), [sheet.cells]);
   const usedRows = Math.max(
@@ -29,6 +37,7 @@ export default function SheetEditor({
   const rows = Math.max(rowCount, usedRows),
     columns = Math.max(colCount, usedCols);
   function setCell(address: string, value: string) {
+    setPasteError('');
     const cells = { ...sheet.cells };
     if (value) cells[address] = value;
     else delete cells[address];
@@ -69,27 +78,22 @@ export default function SheetEditor({
   }
   function paste(event: React.ClipboardEvent<HTMLInputElement>, row: number, col: number) {
     const text = event.clipboardData.getData('text/plain');
-    if (!text.includes('\t') && !text.includes('\n')) return;
+    if (!/[\t\r\n]/.test(text)) return;
     event.preventDefault();
-    const cells = { ...sheet.cells };
-    text
-      .replace(/\r/g, '')
-      .replace(/\n$/, '')
-      .split('\n')
-      .slice(0, MAX_ROWS - row + 1)
-      .forEach((line, r) =>
-        line
-          .split('\t')
-          .slice(0, MAX_COLUMNS - col)
-          .forEach((value, c) => {
-            const address = `${columnName(col + c)}${row + r}`;
-            if (value) cells[address] = value.slice(0, 10_000);
-            else delete cells[address];
-          }),
-      );
+    const result = pasteSheetCells(sheet.cells, text, row, col);
+    if (!result.ok) {
+      const messages = {
+        rows: '粘贴内容超出 500 行上限，请减少行数或选择更靠上的单元格。原表格未修改。',
+        columns: '粘贴内容超出 52 列上限，请减少列数或选择更靠左的单元格。原表格未修改。',
+        'cell-length': '粘贴内容中有单元格超过 10000 字符，请缩短后重试。原表格未修改。',
+      };
+      setPasteError(messages[result.reason]);
+      return;
+    }
+    setPasteError('');
     onChange({
       ...content,
-      sheets: content.sheets.map((s) => (s.id === sheet.id ? { ...s, cells } : s)),
+      sheets: content.sheets.map((s) => (s.id === sheet.id ? { ...s, cells: result.cells } : s)),
     });
   }
   function addSheet() {
@@ -99,6 +103,7 @@ export default function SheetEditor({
     onChange({ ...content, sheets: [...content.sheets, { id, name: `工作表 ${n}`, cells: {} }] });
     setSheetId(id);
     setSelected('A1');
+    setPasteError('');
   }
   return (
     <div className="sheet-editor">
@@ -127,10 +132,15 @@ export default function SheetEditor({
           aria-label="公式栏"
           value={sheet.cells[selected] ?? ''}
           placeholder="输入文字、数字或公式，如 =SUM(A1:A10)"
-          maxLength={10_000}
+          maxLength={MAX_CELL_LENGTH}
           onChange={(event) => setCell(selected, event.target.value)}
         />
       </div>
+      {pasteError && (
+        <div className="save-error" role="alert">
+          {pasteError}
+        </div>
+      )}
       <div className="sheet-scroll">
         <table className="spreadsheet">
           <thead>
@@ -158,7 +168,7 @@ export default function SheetEditor({
                         <input
                           id={`cell-${address}`}
                           aria-label={address}
-                          maxLength={10_000}
+                          maxLength={MAX_CELL_LENGTH}
                           value={editing === address ? (sheet.cells[address] ?? '') : value}
                           onFocus={() => {
                             setSelected(address);
@@ -195,6 +205,7 @@ export default function SheetEditor({
               setSheetId(s.id);
               setSelected('A1');
               setEditing(null);
+              setPasteError('');
             }}
           >
             {s.name}

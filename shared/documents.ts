@@ -5,6 +5,7 @@ export const MAX_IMPORT_BYTES = 10_000_000;
 export const MAX_CONTENT_BYTES = 4_000_000;
 export const MAX_ROWS = 500;
 export const MAX_COLUMNS = 52;
+export const MAX_CELL_LENGTH = 10_000;
 export type DocumentKind = 'word' | 'sheet' | 'slide';
 export interface RichNode {
   type: string;
@@ -132,7 +133,7 @@ const nativeContentSchema = z.discriminatedUnion('type', [
         z.object({
           id: z.string().max(100),
           name: z.string().min(1).max(31),
-          cells: z.record(z.string().regex(cellAddress), z.string().max(10_000)),
+          cells: z.record(z.string().regex(cellAddress), z.string().max(MAX_CELL_LENGTH)),
         }),
       )
       .min(1)
