@@ -1,5 +1,8 @@
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
-const manifest = JSON.parse(await readFile('docs/qa/ios-cases.json', 'utf8'));
+import { dirname } from 'node:path';
+const manifestPath = process.argv[2] ?? 'docs/qa/ios-cases.json';
+const outputPath = process.argv[3] ?? 'releases/mobile/ios-qa-report.html';
+const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 const statuses = ['passed', 'failed', 'blocked', 'not-run'];
 const cases = new Map(manifest.cases.map((item) => [item.id, item]));
 if (cases.size !== manifest.cases.length) throw new Error('Duplicate QA case IDs');
@@ -31,6 +34,6 @@ const counts = statuses
   )
   .join(' · ');
 const html = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Zhuole Docs iOS QA</title><style>body{font:16px/1.6 system-ui;margin:32px;color:#18382b}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ccd8d0;padding:12px;text-align:left}h1{font-size:28px}</style><h1>${escape(manifest.app)} — iOS QA</h1><p>${escape(manifest.lastRun.date)} · ${escape(manifest.lastRun.device)} · ${escape(manifest.lastRun.build)}</p><p>${escape(manifest.lastRun.authSource)}</p><p>${escape(counts)}</p><table><tr><th>Case</th><th>Coverage</th><th>Result</th><th>Evidence and limits</th></tr>${rows}</table><h2>Exclusions</h2><ul>${manifest.lastRun.exclusions.map((value) => `<li>${escape(value)}</li>`).join('')}</ul></html>`;
-await mkdir('releases/mobile', { recursive: true });
-await writeFile('releases/mobile/ios-qa-report.html', html);
-console.log(`Validated ${cases.size} cases; wrote releases/mobile/ios-qa-report.html (${counts}).`);
+await mkdir(dirname(outputPath), { recursive: true });
+await writeFile(outputPath, html);
+console.log(`Validated ${cases.size} cases; wrote ${outputPath} (${counts}).`);

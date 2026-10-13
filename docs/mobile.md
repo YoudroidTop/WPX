@@ -93,3 +93,9 @@ xcodebuild -exportArchive -archivePath releases/mobile/ZhuoleDocs-device.xcarchi
 The generated local export plist uses `method=debugging`, `signingStyle=automatic`, `teamID=Y4MB2B6UD3`, and `manageAppVersionAndBuildNumber=false`. Do not force a manual provisioning profile for this Xcode-managed profile. The archive/export commands do not enable provisioning updates. Export metadata and provisioning material remain under ignored `releases/mobile/`.
 
 `ios-development-verification.json` records SHA-256, arm64/iPhoneOS identity, development entitlement, profile expiry, registered-device count, and byte equality for all 12 staged web files. The extracted IPA passed `codesign --verify --deep --strict`. `SHA256SUMS` includes this package alongside the Android debug APK and iOS simulator ZIP.
+
+## iPad simulator acceptance (2026-10-14)
+
+The independent `docs/qa/ipad-cases.json` catalog records four passed cases and two unrun cases on the task-owned iPad Air 11-inch (M3), iOS 26.1 simulator. The installed 0.1.0 simulator ZIP has SHA-256 `fb2c77d84e37e6b93996b232bb0eee4b20be7c8b7db327cca6ae6e56258a1ac0` and a443485 editor assets. Fresh native UI evidence covers login and the portrait workspace, Word with the software keyboard in both orientations, a landscape spreadsheet formula (=120+80, rendered as 200), and landscape slide title editing, presentation and dismissal. Independent local API readback confirms all three saved values. No application code change was required.
+
+Generate its separate report with `node scripts/report-ios-qa.mjs docs/qa/ipad-cases.json releases/mobile/ipad-qa-report.html`. The default command still produces the historical iPhone report. Evidence and synthetic account fixtures remain under ignored `releases/mobile/`; no production data was changed. Physical devices, Chinese composition/clipboard, multitasking, long-document caret scrolling and sheet/slide software-keyboard layouts remain separate gates.

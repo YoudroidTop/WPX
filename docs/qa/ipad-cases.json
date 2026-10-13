@@ -1,0 +1,212 @@
+{
+  "app": "Zhuole Docs",
+  "runner": {
+    "platform": "iPadOS Simulator",
+    "bundleId": "com.youdroid.zhuoledocs",
+    "udid": "6E217ADC-EDFD-498B-85D3-A69475D3382F",
+    "evidenceTypes": [
+      "native screenshot",
+      "visible content",
+      "server readback"
+    ]
+  },
+  "coverageAreas": [
+    {
+      "area": "Login and portrait workspace",
+      "caseIds": [
+        "ipad-workspace"
+      ],
+      "status": "passed"
+    },
+    {
+      "area": "Word portrait and landscape keyboard layout",
+      "caseIds": [
+        "ipad-word-keyboard"
+      ],
+      "status": "passed"
+    },
+    {
+      "area": "Landscape spreadsheet formula and save",
+      "caseIds": [
+        "ipad-sheet-landscape"
+      ],
+      "status": "passed"
+    },
+    {
+      "area": "Landscape slide editing and presentation exit",
+      "caseIds": [
+        "ipad-slide-landscape"
+      ],
+      "status": "passed"
+    },
+    {
+      "area": "Chinese composition and native clipboard",
+      "caseIds": [
+        "ipad-ime"
+      ],
+      "status": "not-run"
+    },
+    {
+      "area": "Split View and Stage Manager",
+      "caseIds": [
+        "ipad-multitasking"
+      ],
+      "status": "not-run"
+    }
+  ],
+  "cases": [
+    {
+      "id": "ipad-workspace",
+      "title": "Login and portrait workspace",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS"
+      ],
+      "preconditions": [
+        "Task-owned iPad Air 11-inch (M3), iOS 26.1; local QA service on port 3173"
+      ],
+      "steps": [
+        "Configure the loopback service and sign in to the isolated QA account; verify three document kinds and the 3 GB indicator."
+      ]
+    },
+    {
+      "id": "ipad-word-keyboard",
+      "title": "Word portrait and landscape keyboard layout",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS"
+      ],
+      "preconditions": [
+        "Task-owned iPad Air 11-inch (M3), iOS 26.1; local QA service on port 3173"
+      ],
+      "steps": [
+        "Enter Tablet QA. Show the software keyboard and rotate to landscape; caret, document and toolbar remain visible. Server readback confirms exact text."
+      ]
+    },
+    {
+      "id": "ipad-sheet-landscape",
+      "title": "Landscape spreadsheet formula and save",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS"
+      ],
+      "preconditions": [
+        "Task-owned iPad Air 11-inch (M3), iOS 26.1; local QA service on port 3173"
+      ],
+      "steps": [
+        "Enter =120+80 through the formula bar, observe A1=200 and save. Server readback preserves the formula. Software keyboard geometry for sheets was not tested."
+      ]
+    },
+    {
+      "id": "ipad-slide-landscape",
+      "title": "Landscape slide editing and presentation exit",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS"
+      ],
+      "preconditions": [
+        "Task-owned iPad Air 11-inch (M3), iOS 26.1; local QA service on port 3173"
+      ],
+      "steps": [
+        "Replace the title with iPad QA, save, start presentation and close using the visible close control. Server readback confirms the title."
+      ]
+    },
+    {
+      "id": "ipad-ime",
+      "title": "Chinese composition and native clipboard",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS"
+      ],
+      "preconditions": [
+        "Task-owned iPad Air 11-inch (M3), iOS 26.1; local QA service on port 3173"
+      ],
+      "steps": [
+        "Input automation encountered focus/composition limitations; no Chinese IME or clipboard acceptance claim."
+      ]
+    },
+    {
+      "id": "ipad-multitasking",
+      "title": "Split View and Stage Manager",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS"
+      ],
+      "preconditions": [
+        "Task-owned iPad Air 11-inch (M3), iOS 26.1; local QA service on port 3173"
+      ],
+      "steps": [
+        "Full-screen simulator only; multi-window scenarios remain untested."
+      ]
+    }
+  ],
+  "lastRun": {
+    "date": "2026-10-14",
+    "device": "iPad Air 11-inch (M3), iOS 26.1 (23B86), simulator",
+    "build": "0.1.0; a443485 editor assets; simulator ZIP SHA-256 fb2c77d84e37e6b93996b232bb0eee4b20be7c8b7db327cca6ae6e56258a1ac0",
+    "authSource": "Dedicated synthetic local QA account; credentials excluded from tracked files. Native UI login; independent API readback session logged out.",
+    "results": [
+      {
+        "caseId": "ipad-workspace",
+        "status": "passed",
+        "mode": "agent-driven native simulator",
+        "notes": "Configure the loopback service and sign in to the isolated QA account; verify three document kinds and the 3 GB indicator.",
+        "evidence": [
+          "releases/mobile/ipad-workspace-portrait.png"
+        ]
+      },
+      {
+        "caseId": "ipad-word-keyboard",
+        "status": "passed",
+        "mode": "agent-driven native simulator",
+        "notes": "Enter Tablet QA. Show the software keyboard and rotate to landscape; caret, document and toolbar remain visible. Server readback confirms exact text.",
+        "evidence": [
+          "releases/mobile/ipad-word-keyboard-portrait.png",
+          "releases/mobile/ipad-word-keyboard-landscape.png",
+          "releases/mobile/ipad-layout-readback.json"
+        ]
+      },
+      {
+        "caseId": "ipad-sheet-landscape",
+        "status": "passed",
+        "mode": "agent-driven native simulator",
+        "notes": "Enter =120+80 through the formula bar, observe A1=200 and save. Server readback preserves the formula. Software keyboard geometry for sheets was not tested.",
+        "evidence": [
+          "releases/mobile/ipad-sheet-landscape.png",
+          "releases/mobile/ipad-layout-readback.json"
+        ]
+      },
+      {
+        "caseId": "ipad-slide-landscape",
+        "status": "passed",
+        "mode": "agent-driven native simulator",
+        "notes": "Replace the title with iPad QA, save, start presentation and close using the visible close control. Server readback confirms the title.",
+        "evidence": [
+          "releases/mobile/ipad-slideshow-landscape.png",
+          "releases/mobile/ipad-slide-return.png",
+          "releases/mobile/ipad-layout-readback.json"
+        ]
+      },
+      {
+        "caseId": "ipad-ime",
+        "status": "not-run",
+        "mode": "agent-driven native simulator",
+        "notes": "Input automation encountered focus/composition limitations; no Chinese IME or clipboard acceptance claim.",
+        "evidence": []
+      },
+      {
+        "caseId": "ipad-multitasking",
+        "status": "not-run",
+        "mode": "agent-driven native simulator",
+        "notes": "Full-screen simulator only; multi-window scenarios remain untested.",
+        "evidence": []
+      }
+    ],
+    "exclusions": [
+      "Physical iPad and iPhone acceptance, production backend and store distribution.",
+      "Chinese IME, native clipboard, Split View, Stage Manager, external keyboard hardware and accessibility audit.",
+      "Sheet and slide portrait/expanded software-keyboard layouts; long document caret scrolling; multi-slide navigation; Office import/export and offline restart on this iPad.",
+      "These fresh iPad results do not re-certify historical iPhone or other platform runs."
+    ]
+  }
+}
