@@ -2857,6 +2857,15 @@ hr {
   padding-top: calc(env(safe-area-inset-top) + 16px);
   padding-bottom: calc(env(safe-area-inset-bottom) + 16px);
 }
+.native-mobile .presentation {
+  inset: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
+}
+.native-mobile .presentation-close,
+.native-mobile .presentation-controls button {
+  min-width: 44px;
+  min-height: 44px;
+}
 .mobile-connection-button {
   position: fixed;
   bottom: calc(env(safe-area-inset-bottom) + 12px);

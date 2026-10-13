@@ -204,3 +204,11 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - This closes the picker regression after the shared-reader refactor. External file-manager MIME matching, URI grants and cold/warm incoming-file delivery remain unverified.
 - iOS browser mirroring restored touch and individual key input for the task-owned simulator. The named sheet `iOS-sheet-1013` showed SUM=200 before and after reopening. Read-only local server database evidence retained A1=120, A2=080 (numeric 80), B1=`=sum(a1:a2)`, revision 7. The fixture remains for inspection; no other simulator was operated.
 - Evidence: `releases/mobile/ios-sheet-reopened.png` and `ios-sheet-server-readback.json`. The iOS QA catalog now records the formula case as passed; presentation and offline/cache remain unexecuted. This is simulator evidence, not physical iPhone acceptance.
+
+## iOS slideshow safe-area repair — 2026-10-13
+
+- Real simulator interaction found the fixed slideshow close control overlapping the iOS status bar; tapping it did not dismiss the slideshow. The native body padding did not constrain this fixed overlay.
+- Inset the native slideshow by all four system safe-area values and give its close/navigation controls a minimum 44-point target. Desktop/web styling is unchanged. The rule also applies to native Android/Harmony hosts when they are rebuilt; those artifacts have not been refreshed for this delta.
+- `npm run mobile:sync` and the task-scoped Debug simulator Xcode build passed. Installed the resulting app on Zhuole Docs QA only, preserving its session and data. Reopened `iOS-slides-1013`, verified its title, started slideshow, observed the close control below the status bar and successfully tapped back to the editor.
+- Read-only local server database evidence retained `iOS slide qa`, revision 3. The dedicated QA document remains for inspection. Screenshots: `releases/mobile/ios-slides-presenting.png` (before), `ios-slides-safe-area.png` (after), `ios-slides-dismissed.png`; build log: `ios-slides-safe-area-build.log`.
+- This validates portrait iPhone 17 Pro / iOS 26.1 Simulator. Physical iPhone/iPad, landscape and offline/cache acceptance remain open. The mirror was shut down by its exact simulator UDID; other simulators were not operated.

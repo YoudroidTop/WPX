@@ -25,7 +25,7 @@
     {
       "area": "Presentation",
       "caseIds": ["ios-slides"],
-      "status": "not-run"
+      "status": "passed"
     },
     {
       "area": "Offline/cache",
@@ -104,7 +104,7 @@
   "lastRun": {
     "date": "2026-10-13",
     "device": "Zhuole Docs QA / iPhone 17 Pro / iOS 26.1",
-    "build": "7bf19ba simulator Debug",
+    "build": "Mixed evidence: 7bf19ba baseline; presentation on 37283be plus native slideshow safe-area fix",
     "authSource": "Existing task-owned local Mobile QA session; no credentials logged",
     "results": [
       {
@@ -126,10 +126,14 @@
       },
       {
         "caseId": "ios-slides",
-        "status": "not-run",
-        "mode": "planned",
-        "evidence": [],
-        "notes": "Browser mirror touch and key events now work. This scenario has not yet been executed."
+        "status": "passed",
+        "mode": "manual",
+        "evidence": [
+          "releases/mobile/ios-slides-safe-area.png",
+          "releases/mobile/ios-slides-dismissed.png",
+          "releases/mobile/ios-slides-server-readback.json"
+        ],
+        "notes": "Initial build placed the close control under the status bar and tapping failed. After native safe-area CSS repair and simulator rebuild/install, the saved title survived reopening, appeared in slideshow, and the visible close button returned to the editor. Local server readback retained the same title at revision 3."
       },
       {
         "caseId": "ios-cache-draft",
@@ -143,7 +147,7 @@
       "Physical iPhone/iPad",
       "Store distribution",
       "Keyboard and tablet layouts",
-      "Presentation and offline/cache scenarios remain unexecuted in this run"
+      "Offline/cache scenario remains unexecuted; latest native style change only rebuilt and installed on iOS Simulator"
     ]
   }
 }
