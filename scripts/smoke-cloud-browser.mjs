@@ -29,6 +29,27 @@ try {
   await saved();
   await back();
   await page.getByRole('button', { name: /新建电子表格 用数据/ }).click();
+  await page.getByRole('textbox', { name: '文档名称', exact: true }).fill('Live Sheet IME QA');
+  const imeCell = page.getByRole('textbox', { name: 'D2', exact: true });
+  await imeCell.fill('ni');
+  // Check event interception separately from native OS candidate selection.
+  for (const key of ['Enter', 'ArrowDown', 'ArrowUp', 'Tab']) {
+    const intercepted = await imeCell.evaluate((input, key) => {
+      const event = new KeyboardEvent('keydown', {
+        key,
+        isComposing: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      input.dispatchEvent(event);
+      return event.defaultPrevented;
+    }, key);
+    expect(intercepted).toBe(false);
+    await expect(imeCell).toBeFocused();
+  }
+  await imeCell.fill('你好');
+  await imeCell.press('Enter');
+  await expect(page.getByRole('textbox', { name: 'D3', exact: true })).toBeFocused();
   await page.getByRole('textbox', { name: 'A1', exact: true }).fill('120');
   await page.getByRole('textbox', { name: 'A2', exact: true }).fill('80');
   await page.getByRole('textbox', { name: 'B1', exact: true }).fill('=SUM(A1:A2)');
@@ -65,6 +86,10 @@ try {
     '卓乐云文档公网保存验证。',
   );
   await back();
+  await page.getByRole('button', { name: 'Live Sheet IME QA XLSX · 电子表格' }).click();
+  await expect(imeCell).toHaveValue('你好');
+  await expect(page.getByRole('textbox', { name: 'B1', exact: true })).toHaveValue('200');
+  await back();
   await mkdir('releases/cloudflare', { recursive: true });
   await expect(page.locator('.file-row')).toHaveCount(3);
   await page.screenshot({
@@ -92,7 +117,7 @@ try {
   await page.getByRole('button', { name: '退出登录', exact: true }).click();
   await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible();
   console.log(
-    'Production browser passed: registration, Word persistence, sheet formula, slide presentation, reload, logout. Test documents removed.',
+    'Production browser passed: registration, Word persistence, sheet formula and IME event/persistence regression, slide presentation, reload, logout. Test documents removed.',
   );
 } finally {
   await browser.close();
