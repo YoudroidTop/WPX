@@ -10,14 +10,8 @@ import {
   type DocumentSummary,
 } from '../shared/documents';
 
-export class ApiError extends Error {
-  constructor(
-    public status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
+import { ApiError } from './errors';
+export { ApiError } from './errors';
 interface DocumentRow {
   id: string;
   owner_id: string;

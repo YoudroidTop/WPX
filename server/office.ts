@@ -23,7 +23,7 @@ import {
   type RichNode,
 } from '../shared/documents';
 import { createCalculator } from '../shared/formulas';
-import { ApiError } from './store';
+import { ApiError } from './errors';
 
 const parser = new XMLParser({
   ignoreAttributes: false,
