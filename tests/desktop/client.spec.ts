@@ -245,3 +245,104 @@ test('startup file arguments are retained until the renderer requests them', asy
     await app.close();
   }
 });
+
+test('cache cleanup preserves pending drafts and other account namespaces', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zhuole-cache-cleanup-'));
+  const app = await launch(directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole('button', { name: '创建免费账号' }).click();
+    await page.getByLabel('怎么称呼你').fill('缓存验收');
+    await page.getByLabel('邮箱地址').fill(`cache-${crypto.randomUUID()}@example.com`);
+    await page.getByLabel('密码', { exact: true }).fill('cache-test-password');
+    await page.getByRole('button', { name: '创建账号', exact: true }).click();
+    for (const name of ['保留草稿', '可清理正文']) {
+      await page.getByRole('button', { name: /新建文字文档 落笔/ }).click();
+      await page.getByRole('textbox', { name: '文档名称', exact: true }).fill(name);
+      await page.getByRole('textbox', { name: '文档正文' }).fill(`Cloud ${name}`);
+      await expect(page.getByText('已保存到云端', { exact: true })).toBeVisible();
+      await page.getByRole('button', { name: '返回工作空间' }).click();
+    }
+    await page.getByRole('button', { name: '保留草稿 DOCX · 文字文档', exact: true }).click();
+    await offline(app, true);
+    await page.getByRole('textbox', { name: '文档正文' }).fill('Pending text must survive cleanup');
+    await expect(page.getByText('已保存到此设备 · 待同步')).toBeVisible();
+    await page.getByRole('button', { name: '返回工作空间' }).click();
+    await expect(page.locator('.local-draft-row')).toHaveCount(1);
+    const foreignKeys = [
+      `${origin}:account:another-account:/documents/foreign`,
+      'https://another.example:account:another-account:/documents/foreign',
+    ];
+    await page.evaluate(async (keys) => {
+      const database = await new Promise<IDBDatabase>((resolve, reject) => {
+        const request = indexedDB.open('zhuole-client-cache', 1);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      try {
+        await new Promise<void>((resolve, reject) => {
+          const transaction = database.transaction('entries', 'readwrite');
+          for (const key of keys) transaction.objectStore('entries').put({ sentinel: key }, key);
+          transaction.oncomplete = () => resolve();
+          transaction.onerror = () => reject(transaction.error);
+        });
+      } finally {
+        database.close();
+      }
+    }, foreignKeys);
+    async function cacheEntries() {
+      return page.evaluate(async () => {
+        const database = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open('zhuole-client-cache', 1);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+        try {
+          return await new Promise<Record<string, unknown>>((resolve, reject) => {
+            const entries: Record<string, unknown> = {};
+            const request = database.transaction('entries').objectStore('entries').openCursor();
+            request.onsuccess = () => {
+              const cursor = request.result;
+              if (!cursor) return resolve(entries);
+              entries[String(cursor.key)] = cursor.value;
+              cursor.continue();
+            };
+            request.onerror = () => reject(request.error);
+          });
+        } finally {
+          database.close();
+        }
+      });
+    }
+    const before = await cacheEntries();
+    const removable = Object.entries(before).find(
+      ([key, value]) =>
+        key.includes(':/documents/') && (value as { name?: string }).name === '可清理正文',
+    )?.[0];
+    expect(removable).toBeTruthy();
+    await page.getByRole('button', { name: '账号设置' }).click();
+    await page.getByRole('button', { name: '清理已同步缓存', exact: true }).click();
+    await page.getByRole('button', { name: '取消清理', exact: true }).click();
+    expect(await cacheEntries()).toEqual(before);
+    await page.getByRole('button', { name: '清理已同步缓存', exact: true }).click();
+    await page.getByRole('button', { name: '确认清理缓存', exact: true }).click();
+    await expect(page.getByText('已清理 1 份文档缓存，未同步草稿已保留')).toBeVisible();
+    const expected = { ...before };
+    delete expected[removable!];
+    expect(await cacheEntries()).toEqual(expected);
+    await page.reload();
+    await expect(page.locator('.local-draft-row')).toHaveCount(1);
+    await page.locator('.local-draft-row').click();
+    await expect(page.getByRole('textbox', { name: '文档正文' })).toContainText(
+      'Pending text must survive cleanup',
+    );
+    await page.getByRole('button', { name: '返回工作空间' }).click();
+    await page.getByRole('button', { name: '可清理正文 DOCX · 文字文档', exact: true }).click();
+    await expect(page.getByText('云服务暂不可用；尚未缓存的文档需要联网打开')).toBeVisible();
+    await offline(app, false);
+    await page.getByRole('button', { name: '可清理正文 DOCX · 文字文档', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: '文档正文' })).toContainText('Cloud 可清理正文');
+  } finally {
+    await app.close();
+  }
+});

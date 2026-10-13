@@ -80,3 +80,9 @@ HDC=/path/to/hdc HARMONY_DEVICE=device-id HARMONY_RESTART_QA=1 node scripts/smok
 ```
 
 This mode force-stops the app while its page API requests are blocked, confirms the old process exits, starts a distinct process and reconnects its debug socket. It requires restored login, the persisted draft text and synchronized server content. The API 24 physical device passed after explicit cookie flushing was added. The earlier build lost its login session in this scenario. Networking is available after restart; this is not an airplane-mode cold-start or OS memory-pressure test.
+
+## Cache cleanup acceptance harness
+
+`node scripts/smoke-harmony-cache.mjs` uses the same dedicated account fixture and debug forwarding as the file-picker harness. It creates two uniquely named Word documents, leaves one pending under page-only API failure, clears synced bodies from account settings, reloads the pending draft offline, and checks that the removed body requires the cloud and can be downloaded again. The finalizer restores API access, verifies the pending text reaches the cloud, deletes only this run's documents and logs out.
+
+The initial attempt after packaging the feature could not establish debug inspection while the device was locked; no test documents were created. The signed build is installed, but this new scenario is not yet claimed as physically verified.

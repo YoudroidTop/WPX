@@ -131,3 +131,23 @@ export async function listDrafts(): Promise<LocalDraft[]> {
   }
   return drafts.sort((a, b) => b.savedAt - a.savedAt);
 }
+
+export async function clearSyncedDocumentCache(): Promise<number> {
+  if (!isNative || !currentAccount) return 0;
+  const scope = ownerKey();
+  const prefix = `${scope}:/documents/`;
+  const transaction = (await db()).transaction('entries', 'readwrite');
+  let removed = 0;
+  let cursor = await transaction.store.openCursor(IDBKeyRange.bound(prefix, `${prefix}\uffff`));
+  while (cursor) {
+    const id = String(cursor.key).slice(prefix.length);
+    // Check and delete in one transaction so a concurrently persisted draft is protected.
+    if ((await transaction.store.getKey(`${scope}:draft:${id}`)) === undefined) {
+      await cursor.delete();
+      removed++;
+    }
+    cursor = await cursor.continue();
+  }
+  await transaction.done;
+  return removed;
+}

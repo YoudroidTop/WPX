@@ -166,3 +166,11 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - Removed the exact earlier failed-run document from the verified dedicated QA account. No other account's data was modified. Log: `releases/harmony/device-restart-smoke.log`.
 - `npm test`: 16 passed. Harmony sync/signing and desktop build passed. Web E2E: 5 passed. Desktop suite: 5 passed, one timeout locating the document after restart; that exact test passed on an isolated rerun. The initial desktop failure remains recorded as intermittent, without claiming its cause is established.
 - Review found no unresolved P0/P1 issues in this delta. This verifies process restart with networking restored, not device-wide offline cold start, OS memory pressure, or formal distribution.
+
+## Native account cache controls — 2026-10-13
+
+- Implemented two-step clearing of synchronized document bodies for the active service/account. A single IndexedDB read/write transaction preserves pending drafts and their body caches; directory metadata, sessions, foreign accounts and foreign origins are untouched. Cloud documents are never mutated by this action.
+- New Electron integration test passed: cancel leaves exact contents unchanged; confirm removes exactly the eligible body; reload while offline still opens the pending draft; removed body reports that a connection is needed, then reopens with original content online.
+- Full desktop suite: 7 passed. Web E2E: 5 passed. Unit tests: 16 passed. Desktop build, mobile sync, Android debug build, iOS simulator build and Harmony development signing passed. Refreshed the ignored Android APK, iOS simulator ZIP and checksums. The updated Harmony HAP was installed.
+- The earlier desktop restart lookup timeout did not recur in five consecutive targeted runs or the full suite. Its cause remains unproven; no speculative change was made to that flow.
+- Added a dedicated Harmony cache harness. Its initial connection attempt timed out before any test mutation; the device then reported a locked-screen launch block. Requested unlock. Cache UI runtime acceptance on Harmony/iOS/Android remains open; prior editor/lifecycle acceptance remains separate.

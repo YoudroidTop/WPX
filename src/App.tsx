@@ -37,7 +37,7 @@ import {
   type DocumentSummary,
 } from '../shared/documents';
 import Auth from './components/Auth';
-import { listDrafts, isOffline, type LocalDraft } from './cache';
+import { listDrafts, isOffline, clearSyncedDocumentCache, type LocalDraft } from './cache';
 import { synchronizeDrafts } from './sync';
 import { nativeBridge, nativeCommand, openNativeFile } from './platform';
 import Editor from './components/Editor';
@@ -887,6 +887,7 @@ function AccountSettings({
   onLogout: () => Promise<void>;
   notify: (message: string) => void;
 }) {
+  const [confirmCacheClear, setConfirmCacheClear] = useState(false);
   function changePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = event.currentTarget,
@@ -956,6 +957,46 @@ function AccountSettings({
           更新密码
         </button>
       </form>
+      {nativeBridge && (
+        <>
+          <hr />
+          <h3>本地文档缓存</h3>
+          <p>清理当前账号已同步的正文缓存。未同步草稿会保留，云端文档不受影响。</p>
+          {confirmCacheClear ? (
+            <div>
+              <p role="status">清理后，这些文档需要联网才能重新打开。</p>
+              <button
+                className="secondary"
+                disabled={busy}
+                onClick={() =>
+                  void perform(async () => {
+                    const removed = await clearSyncedDocumentCache();
+                    setConfirmCacheClear(false);
+                    notify(`已清理 ${removed} 份文档缓存，未同步草稿已保留`);
+                  })
+                }
+              >
+                确认清理缓存
+              </button>
+              <button
+                className="text-button"
+                disabled={busy}
+                onClick={() => setConfirmCacheClear(false)}
+              >
+                取消清理
+              </button>
+            </div>
+          ) : (
+            <button
+              className="secondary"
+              disabled={busy}
+              onClick={() => setConfirmCacheClear(true)}
+            >
+              清理已同步缓存
+            </button>
+          )}
+        </>
+      )}
       <hr />
       <button className="text-button danger" disabled={busy} onClick={() => void onLogout()}>
         <LogOut size={16} />
