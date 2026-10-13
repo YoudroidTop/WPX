@@ -104,7 +104,7 @@
   "lastRun": {
     "date": "2026-10-13",
     "device": "Zhuole Docs QA / iPhone 17 Pro / iOS 26.1",
-    "build": "Mixed evidence: 7bf19ba baseline; presentation repair; offline/cache on ce151b7",
+    "build": "Mixed evidence: 7bf19ba baseline; presentation repair; offline/cache on ce151b7; spreadsheet retest on a443485",
     "authSource": "Task-owned local QA accounts; no credentials logged",
     "results": [
       {
@@ -120,9 +120,11 @@
         "mode": "manual",
         "evidence": [
           "releases/mobile/ios-sheet-reopened.png",
-          "releases/mobile/ios-sheet-server-readback.json"
+          "releases/mobile/ios-sheet-server-readback.json",
+          "releases/mobile/ios-current-sheet-reopened.png",
+          "releases/mobile/ios-current-sheet-readback.json"
         ],
-        "notes": "Browser mirror touch and individual key events entered a numeric 120 and 80 (A2 stored as 080); SUM showed 200 before and after reopening. Read-only local server database query retained =sum(a1:a2), revision 7. The named QA sheet remains for inspection."
+        "notes": "Browser mirror touch and individual key events entered a numeric 120 and 80 (A2 stored as 080); SUM showed 200 before and after reopening. Read-only local server database query retained =sum(a1:a2), revision 7. The named QA sheet remains for inspection. Retested the a443485 simulator build with a separate local QA account: native input stored A1=120, A2=80, B1 containing =SUM(A1:A2); reopening displayed 200 and independent authenticated API readback matched all three cells. System clipboard acceptance is not established; mirror input/paste forwarding was unreliable."
       },
       {
         "caseId": "ios-slides",
