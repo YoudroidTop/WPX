@@ -151,3 +151,10 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - Verified reimported Word text, spreadsheet formula result 200, and presentation title. The native save callback completed and editing remained available. All six cloud documents from the final run were deleted and the app logged out; the earlier manual Word and first sheet/slide run's six cloud documents were also cleaned up.
 - Evidence: `releases/harmony/native-docx-roundtrip.png`, `native-xlsx-roundtrip.png`, `native-pptx-roundtrip.png`, `file-qa-result.json`, and `native-file-smoke.log`.
 - Exported test files remain in device Download for inspection. This proves persistence through the system picker and later native readback; receiving file-open intents from other apps remains separate work.
+
+## Harmony native foreground recovery — 2026-10-13
+
+- `scripts/smoke-harmony-lifecycle.mjs` passed on the connected API 24 device. It confirmed a persisted offline Word draft, actual native Home/background transition, hidden WebView state, restored API access, ability foreground transition and visible WebView state.
+- The app synchronized automatically after foregrounding; the test neither clicked reconnect nor dispatched an online event. Authenticated server readback contained the draft text. The existing page-show hook was sufficient, so no application lifecycle code was changed.
+- The final run cleaned up its uniquely named document, removed the page-only API interception, reloaded and logged out. Device networking and unrelated app state were not changed.
+- Evidence: `releases/harmony/device-lifecycle-smoke.log`. This proves a normal background/foreground cycle, not application-process termination or OS memory-pressure recovery.

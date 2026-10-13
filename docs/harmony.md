@@ -58,3 +58,15 @@ HDC=/path/to/hdc HARMONY_DEVICE=device-id node scripts/smoke-harmony-files.mjs
 ```
 
 A password-vault prompt, if shown, should be declined for these generated test credentials. Layout and screenshot artifacts remain local under `releases/harmony/`. Native picker acceptance is separate from receiving external application file-open intents.
+
+## Foreground recovery acceptance
+
+With the same dedicated account fixture, unlocked device and forwarded ArkWeb port, run:
+
+```sh
+HDC=/path/to/hdc HARMONY_DEVICE=device-id node scripts/smoke-harmony-lifecycle.mjs
+```
+
+The test creates one uniquely named document, aborts only its page API requests, waits for a persisted offline draft, sends the actual native Home action, and confirms that the WebView becomes hidden. It restores API requests while the app is in the background, starts the existing ability, confirms visibility, and requires cloud synchronization without clicking reconnect or injecting an online event. Server readback verifies the draft text. The finalizer removes the route, deletes only that test document after verifying the account, reloads and logs out.
+
+This scenario passed on the API 24 device using the existing `onPageShow` hook; no additional lifecycle bridge was needed. Process termination is a distinct acceptance scenario and remains unverified.
