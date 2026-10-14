@@ -177,3 +177,12 @@ On the task-owned `Zhuole_Docs_Release_API35` emulator, `adb install -r` success
 This is a local signed candidate, not a public download or store publication. iOS, HarmonyOS and desktop installers still require this formula correction in a subsequent version.
 
 With software rendering the OS completed boot in 75.7 seconds and reported RUNNING_UNLOCKED. The subsequent `am start -W` observation timed out after 11 seconds, but follow-up activity inspection confirmed a live process (1870) and top-resumed MainActivity. The captured AndroidRuntime error log was empty. This is process/activity evidence only: no visible editor or draft/session acceptance is claimed. Logs: `0.1.2-android-{launch-booted,activities,runtime-errors}.log`. The task emulator was stopped after evidence collection; its upgraded data remains available for further QA.
+
+## iOS and HarmonyOS 0.1.2 packages (2026-10-14)
+
+Both native projects now use version 0.1.2/build 3 and embed the aggregate reference correction. Existing artifacts are retained. All ten web resources in each new package match the current `dist` byte-for-byte.
+
+- iOS: `releases/mobile/ZhuoleDocs-0.1.2-ios-development.ipa`, 1,116,499 bytes, SHA-256 `4e53e6aa3f658add3bbf24f1917482ba718c237255dbe21dc4994ac6d33205a8`. Release archive/export and strict deep codesign verification passed. Actual entitlements identify `Y4MB2B6UD3.com.youdroid.zhuoledocs` with development access. The existing profile lists ten devices and expires 2027-07-14. No provisioning update or store submission occurred. All three paired iPhones were unavailable during this run; no installation/runtime acceptance is claimed.
+- HarmonyOS: `releases/harmony/ZhuoleDocs-0.1.2-harmony-debug.hap`, 1,023,068 bytes, SHA-256 `657bde2e6d917294b2ed39a3395b9ebc77de6f65d243fe6eea6e990e3b2392db`. The existing matching profile/certificate passed validation and `hvigorw assembleHap` succeeded. Installation on `4UQ9K25530058677` succeeded without an uninstall or clear-data command. The installed bundle dump confirms version 0.1.2/code 3. No new visible UI acceptance is claimed.
+
+Evidence: `releases/mobile/0.1.2-ios-{archive,export,sync}.log`, `0.1.2-ios-verification.json`; `releases/harmony/0.1.2-{debug-build.log,verification.json,install.log,installed-bundle.json}`. Material-bearing temporary Harmony signing configuration was removed by the build helper. These remain development packages, not public/store releases. Desktop packages and mobile runtime acceptance remain separate work.
