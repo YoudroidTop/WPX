@@ -222,3 +222,11 @@ Apple Silicon DMG/ZIP packaging completed with the existing Developer ID identit
 The arm64 notarization helper is running, with a live `notarytool` submission process observed but no 0.1.5 submission ID persisted yet. This is an outstanding submission, not an accepted job or a failed upload. Preserve its live process and exclusive lock, observe it to completion, and reconcile Apple history before retrying any ambiguous submission. Logs: `releases/desktop/0.1.5-{mac-build,arm64-notarization}.log`. Installer payload checks, Apple acceptance, stapling, Gatekeeper and public cutover remain open. Public downloads stay on 0.1.4.
 
 The same arm64 process subsequently persisted ZIP submission `d9e377e0-e1a5-4584-b581-4aa5125020ba` as In Progress and continued with DMG submission. The DMG upload remains live; retain the process and lock rather than resubmitting.
+
+### Mac 0.1.5 Apple Silicon distribution acceptance (2026-10-14)
+
+The original Mac build completed successfully for both architectures. Full payload verification passed all four desktop CPU targets against 13 staged files and all six original installer/archive containers against their unpacked applications (`0.1.5-payload-verification.log`, `release-manifest.json`).
+
+Apple accepted arm64 ZIP `d9e377e0-e1a5-4584-b581-4aa5125020ba` and DMG `dc205154-e38f-454b-b81e-b886c2798af1`, confirmed by separate live status responses saved as `0.1.5-arm64-{zip,dmg}-status.json`. The submission ledger retains its earlier In Progress observations until a later status refresh. The app and DMG now have validated tickets; the repacked `ZhuoleDocs-0.1.5-mac-arm64-stapled.zip` and DMG passed strict signature, ticket and Gatekeeper distribution checks (`0.1.5-arm64-distribution.{json,log}`). Use status-only checks for the existing DMG submission after stapling; do not submit its changed bytes again.
+
+Intel notarization is running in the existing helper process (`0.1.5-x64-notarization.log`). Preserve that process and exclusive lock; submission, Apple acceptance and ticket checks are still separate gates. Public downloads remain 0.1.4. No 0.1.5 native editor/runtime or profile-upgrade acceptance is claimed by these packaging checks.
