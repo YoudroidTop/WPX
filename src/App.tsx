@@ -105,6 +105,8 @@ export default function App() {
         setDocuments([]);
         setLocalDrafts([]);
       } else {
+        // Local drafts remain available even when the cloud library cannot be read.
+        setLocalDrafts(await listDrafts().catch(() => []));
         if (error instanceof RequestError && error.status >= 500)
           setAccount((current) => (current ? { ...current, usedBytes: null } : null));
         notify((error as Error).message);

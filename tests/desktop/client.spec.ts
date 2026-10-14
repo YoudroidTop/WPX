@@ -550,3 +550,64 @@ test('packaged upgrade preserves the previous version session and saved document
     await app.close();
   }
 });
+
+test('storage outage after reload preserves local drafts and recovery synchronizes them', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'zhuole-storage-outage-'));
+  const app = await launch(directory);
+  try {
+    const page = await app.firstWindow();
+    await page.getByRole('button', { name: '创建免费账号' }).click();
+    await page.getByLabel('怎么称呼你').fill('故障恢复验收');
+    await page.getByLabel('邮箱地址').fill(`outage-${crypto.randomUUID()}@example.com`);
+    await page.getByLabel('密码', { exact: true }).fill('outage-test-password');
+    await page.getByRole('button', { name: '创建账号', exact: true }).click();
+    await page.getByRole('button', { name: /新建文字文档 落笔/ }).click();
+    await page.getByRole('textbox', { name: '文档名称', exact: true }).fill('故障期间的草稿');
+    await page.getByRole('textbox', { name: '文档正文' }).fill('Cloud original');
+    await expect(page.getByText('已保存到云端', { exact: true })).toBeVisible();
+    await offline(app, true);
+    await page
+      .getByRole('textbox', { name: '文档正文' })
+      .fill('Local text survives storage outage');
+    await expect(page.getByText('已保存到此设备 · 待同步')).toBeVisible();
+    await page.getByRole('button', { name: '返回工作空间' }).click();
+    await expect(page.locator('.local-draft-row')).toHaveCount(1);
+    await offline(app, false);
+    const partition = `persist:cloud-${createHash('sha256').update(origin).digest('hex')}`;
+    await app.evaluate(({ session }, partition) => {
+      const transport = session.fromPartition(partition);
+      const original = transport.fetch.bind(transport);
+      (globalThis as any).restoreOutageTransport = () => {
+        transport.fetch = original;
+      };
+      transport.fetch = async (input, options) => {
+        const url = new URL(typeof input === 'string' ? input : input.url);
+        if (url.pathname.startsWith('/api/documents'))
+          return Response.json({ error: 'Storage unavailable' }, { status: 503 });
+        return original(input, options);
+      };
+    }, partition);
+    await page.reload();
+    await expect(page.getByText('云空间用量暂不可用', { exact: true })).toBeVisible();
+    await expect(page.locator('.local-draft-row')).toHaveCount(1);
+    await page.screenshot({
+      path: 'test-results/desktop-storage-outage.png',
+      animations: 'disabled',
+    });
+    await page.locator('.local-draft-row').click();
+    await expect(page.getByRole('textbox', { name: '文档正文' })).toContainText(
+      'Local text survives storage outage',
+    );
+    await app.evaluate(() => (globalThis as any).restoreOutageTransport());
+    await page.reload();
+    await expect(page.locator('.local-draft-row')).toHaveCount(0);
+    await expect(page.getByRole('progressbar', { name: '云空间用量' })).toBeVisible();
+    await page.getByRole('button', { name: '故障期间的草稿 DOCX · 文字文档', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: '文档正文' })).toContainText(
+      'Local text survives storage outage',
+    );
+    await expect(page.getByText('已保存到云端', { exact: true })).toBeVisible();
+  } finally {
+    await app.close();
+  }
+});

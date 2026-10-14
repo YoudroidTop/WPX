@@ -321,3 +321,11 @@ Still open: Android native share/export acceptance, account-switch isolation und
 - This is basic presentation compatibility. Arbitrary layouts, grouped graphics, master-derived colors and rich typography remain outside the current model. Only explicit built-in background colors map to matching themes; other backgrounds fall back to paper. Slide IDs are regenerated during import.
 - Production version `6b5ebc1b-42e7-4e02-a30b-b18e973bd715` serves 100% of traffic; rollback baseline is `12d552df-63fe-4f47-aae0-ec4125609518`. Live smoke compared all presentation fields except regenerated IDs after export/reimport, and passed existing Word table/XLSX literal and lifecycle checks. Test documents/session were removed, leaving an empty generated account. Logs: `releases/cloudflare/slides-{build,deploy,live-smoke,postdeploy}.log`.
 - Server-only conversion fix; production-connected clients need no installer update. Isolated local workerd was stopped, and no customer data or schema migration occurred.
+
+## Native drafts during storage outages — 2026-10-14
+
+The workspace previously loaded local drafts only after a successful cloud library request. A 503 during reload therefore hid pending drafts even though IndexedDB still retained them. The failure path now loads the current account's local drafts independently while keeping cloud usage unavailable.
+
+The Electron regression creates a real cloud document, edits it offline, then injects persistent document-service 503 responses into the application's transport and reloads the renderer. It verifies that the pending draft remains visible and readable. Restoring the transport and reloading synchronizes the draft; the cloud document contains the exact pending text and normal quota display returns. Existing offline/conflict/backup and cache-cleanup/account-isolation tests also passed (3 tests total). Build and TypeScript checks passed through `npm run desktop:build`.
+
+Evidence: `releases/desktop/storage-outage-regression.log`, `test-results/desktop-storage-outage.png`. Reproduce with `npx playwright test --config playwright.desktop.config.ts --grep 'storage outage after reload|cache cleanup preserves|native window, authentication'`. This verifies the local Electron build; public installers and mobile packages have not been rebuilt with this fix.
