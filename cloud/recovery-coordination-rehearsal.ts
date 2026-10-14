@@ -15,7 +15,7 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
   await restart(controlId);
   assert.equal((await control().admissionStatus()).phase, 'uninitialized');
   await assert.rejects(() => control().admitMutation());
-  await control().initializeAdmission();
+  await control().initializeHttpAccount('generated-fixture', dataId.toString());
   await restart(controlId);
   assert.equal((await control().admissionStatus()).phase, 'active');
   assert.equal((await control().admissionStatus()).highWaterMark, 0);

@@ -5,8 +5,9 @@ import type { SqlDatabase, SqlValue } from '../cloud/documents';
 import { AccountWriteAdmission } from '../cloud/write-admission';
 import { RecoveryJournal } from '../cloud/recovery-journal';
 import { startDrainedRecovery } from '../cloud/recovery-start';
+import { CoordinatorTarget } from '../cloud/coordinator-target';
 
-function fixture(ceiling = 0) {
+function fixture(ceiling = 0, binding: [string, string] | null = ['fixture', 'a'.repeat(64)]) {
   const db = new DatabaseSync(':memory:');
   let fail = false;
   const sql: SqlDatabase = {
@@ -30,12 +31,13 @@ function fixture(ceiling = 0) {
   };
   const gate = new AccountWriteAdmission(sql, atomic);
   const journal = new RecoveryJournal(sql, atomic);
+  if (binding) new CoordinatorTarget(sql, atomic).bind(...binding);
   gate.initialize(0);
   const snapshot = { sha256: 'a'.repeat(64), count: 0, usedBytes: 0, trashed: 0 };
   journal.begin({
     id: 'restore',
     accountId: 'fixture',
-    objectId: 'fixture-object',
+    objectId: 'a'.repeat(64),
     approvalReference: 'fixture',
     codeVersion: 'test',
     schemaVersion: '1',
@@ -108,5 +110,23 @@ test('storage failure leaves scheduling unstarted and admission suspended', () =
     assert.equal(f.start().phase, 'scheduling');
   } finally {
     f.db.close();
+  }
+});
+
+test('unbound and mismatched account targets cannot start recovery even when drained', () => {
+  for (const binding of [null, ['other-account', 'a'.repeat(64)], ['fixture', 'b'.repeat(64)]] as (
+    [string, string] | null
+  )[]) {
+    const f = fixture(0, binding);
+    try {
+      f.gate.suspend('restore');
+      assert.throws(f.start, /not bound|does not match/);
+      assert.equal(f.journal.get('restore').phase, 'prepared');
+      assert.equal(f.journal.get('restore').undoBookmark, null);
+      assert.equal(f.gate.status().phase, 'suspended');
+      assert.equal(f.gate.status().highWaterMark, 0);
+    } finally {
+      f.db.close();
+    }
   }
 });
