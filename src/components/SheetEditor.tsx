@@ -1,3 +1,4 @@
+import { useSheetFillHandle } from './useSheetFillHandle';
 import { copySheetRange, fillSheetRange } from '../../shared/sheet-fill';
 import {
   SHEET_CLIPBOARD_TYPE,
@@ -73,7 +74,7 @@ export default function SheetEditor({
   const grid = useRef<HTMLDivElement>(null);
   const [addressInput, setAddressInput] = useState<string | null>(null);
   const selected = cellAddress(selection.anchor);
-  const bounds = selectionBounds(selection);
+  const sourceBounds = selectionBounds(selection);
   const resetSelection = () =>
     setSelection({ anchor: { row: 1, col: 0 }, focus: { row: 1, col: 0 } });
   useEffect(() => {
@@ -154,6 +155,20 @@ export default function SheetEditor({
 
   const sheet = content.sheets.find((s) => s.id === sheetId) ?? content.sheets[0];
   const calculate = useMemo(() => createCalculator(sheet.cells), [sheet.cells]);
+  const fillHandle = useSheetFillHandle({
+    sheet,
+    selection,
+    grid,
+    onApply: (next, target) => {
+      onChange({ ...content, sheets: content.sheets.map((s) => (s.id === sheet.id ? next : s)) });
+      setSelection(target);
+      setEditing(null);
+      setPasteError('');
+    },
+    onError: () => setPasteError('填充超出工作表、数值或单元格长度上限，原表格未修改。'),
+  });
+  const visualSelection = fillHandle.preview ?? selection;
+  const bounds = selectionBounds(visualSelection);
   useEffect(() => {
     setColumnWidth(String(sheet.columnWidths?.[selection.anchor.col] ?? 120));
     setRowHeight(String(sheet.rowHeights?.[selection.anchor.row] ?? 29));
@@ -187,7 +202,7 @@ export default function SheetEditor({
       left: fixedColumn ? columnOffsets.offsets[col] : undefined,
       zIndex: fixedRow && fixedColumn ? 5 : fixedRow ? 4 : 3,
       backgroundColor:
-        inSelection(selection, { row, col }) && selected !== cellAddress({ row, col })
+        inSelection(visualSelection, { row, col }) && selected !== cellAddress({ row, col })
           ? '#e7f1eb'
           : 'white',
     };
@@ -701,11 +716,14 @@ export default function SheetEditor({
                     return (
                       <td
                         key={address}
-                        className={`${selected === address ? 'selected-cell' : ''} ${inSelection(selection, { row, col }) ? 'range-cell' : ''} ${typeof value === 'string' && value.startsWith('#') ? 'cell-error' : ''}`}
-                        data-range={inSelection(selection, { row, col }) ? 'selected' : undefined}
+                        data-cell={address}
+                        className={`${selected === address ? 'selected-cell' : ''} ${inSelection(visualSelection, { row, col }) ? 'range-cell' : ''} ${typeof value === 'string' && value.startsWith('#') ? 'cell-error' : ''}`}
+                        data-range={
+                          inSelection(visualSelection, { row, col }) ? 'selected' : undefined
+                        }
                         style={{
                           ...frozenCellStyle(row, col),
-                          ...(inSelection(selection, { row, col })
+                          ...(inSelection(visualSelection, { row, col })
                             ? {
                                 boxShadow:
                                   [
@@ -751,13 +769,13 @@ export default function SheetEditor({
                             color: style?.color,
                             backgroundColor: style?.fill,
                             backgroundImage:
-                              inSelection(selection, { row, col }) && selected !== address
+                              inSelection(visualSelection, { row, col }) && selected !== address
                                 ? 'linear-gradient(#1b784d22, #1b784d22)'
                                 : undefined,
                             textAlign: style?.align,
                             boxShadow:
                               [
-                                ...(inSelection(selection, { row, col })
+                                ...(inSelection(visualSelection, { row, col })
                                   ? [
                                       row === bounds.top && 'inset 0 2px var(--green)',
                                       row === bounds.bottom && 'inset 0 -2px var(--green)',
@@ -790,6 +808,14 @@ export default function SheetEditor({
                           onKeyDown={(event) => keyboard(event, row, col)}
                           onPaste={(event) => paste(event, row, col)}
                         />
+                        {!editing && row === sourceBounds.bottom && col === sourceBounds.right && (
+                          <button
+                            className="sheet-fill-handle"
+                            aria-label="拖动填充选区"
+                            title="拖动以复制公式或延续数字序列，Esc 取消"
+                            {...fillHandle.handleProps}
+                          />
+                        )}
                       </td>
                     );
                   })}

@@ -97,3 +97,104 @@ export function fillSheetRange(
     }
   return result;
 }
+
+export function fillTarget(source: SheetSelection, point: CellPoint): SheetSelection {
+  const b = selectionBounds(source);
+  const vertical = Math.max(b.top - point.row, point.row - b.bottom, 0);
+  const horizontal = Math.max(b.left - point.col, point.col - b.right, 0);
+  if (!vertical && !horizontal) return source;
+  return vertical >= horizontal
+    ? {
+        anchor: { row: Math.min(b.top, point.row), col: b.left },
+        focus: { row: Math.max(b.bottom, point.row), col: b.right },
+      }
+    : {
+        anchor: { row: b.top, col: Math.min(b.left, point.col) },
+        focus: { row: b.bottom, col: Math.max(b.right, point.col) },
+      };
+}
+
+function numericSeries(values: string[]): { first: number; step: number } | null {
+  if (
+    values.length < 2 ||
+    values.some(
+      (value) =>
+        !/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(value) || value.replace(/[-.]/g, '').length > 15,
+    )
+  )
+    return null;
+  const numbers = values.map(Number),
+    first = numbers[0],
+    step = numbers[1] - first;
+  if (
+    !numbers.every((number, index) => {
+      const expected = first + step * index;
+      return (
+        Math.abs(number - expected) <= Math.max(1e-12, Math.abs(expected) * Number.EPSILON * 4)
+      );
+    })
+  )
+    return null;
+  return { first, step };
+}
+
+export function extendSheetRange(
+  sheet: SheetPage,
+  source: SheetSelection,
+  target: SheetSelection,
+): SheetPage {
+  const from = selectionBounds(source),
+    to = selectionBounds(target);
+  const vertical = to.top !== from.top || to.bottom !== from.bottom;
+  if (
+    to.top < 1 ||
+    to.bottom > MAX_ROWS ||
+    to.left < 0 ||
+    to.right >= MAX_COLUMNS ||
+    to.top > from.top ||
+    to.bottom < from.bottom ||
+    to.left > from.left ||
+    to.right < from.right ||
+    (vertical && (to.left !== from.left || to.right !== from.right))
+  )
+    throw new Error('range');
+  const result = { ...sheet, cells: { ...sheet.cells }, styles: { ...sheet.styles } };
+  const length = vertical ? from.bottom - from.top + 1 : from.right - from.left + 1;
+  const lanes = new Map<number, ReturnType<typeof numericSeries>>();
+  for (
+    let lane = vertical ? from.left : from.top;
+    lane <= (vertical ? from.right : from.bottom);
+    lane++
+  ) {
+    const values = Array.from(
+      { length },
+      (_, index) =>
+        sheet.cells[
+          cellAddress(
+            vertical ? { row: from.top + index, col: lane } : { row: lane, col: from.left + index },
+          )
+        ] ?? '',
+    );
+    lanes.set(lane, numericSeries(values));
+  }
+  for (let row = to.top; row <= to.bottom; row++)
+    for (let col = to.left; col <= to.right; col++) {
+      if (row >= from.top && row <= from.bottom && col >= from.left && col <= from.right) continue;
+      const index = vertical ? row - from.top : col - from.left;
+      const seedIndex = ((index % length) + length) % length;
+      writeCopy(
+        result,
+        sheet,
+        vertical ? { row: from.top + seedIndex, col } : { row, col: from.left + seedIndex },
+        { row, col },
+      );
+      const series = lanes.get(vertical ? col : row);
+      if (series) {
+        const value = series.first + series.step * index;
+        if (!Number.isFinite(value) || Math.abs(value) > Number.MAX_SAFE_INTEGER)
+          throw new Error('number-range');
+        result.cells[cellAddress({ row, col })] = String(Number(value.toPrecision(15)));
+      }
+    }
+  return result;
+}

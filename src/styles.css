@@ -3078,3 +3078,23 @@ hr {
   color: var(--green);
   white-space: nowrap;
 }
+
+.spreadsheet .sheet-fill-handle {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 9px;
+  height: 9px;
+  min-width: 0;
+  padding: 0;
+  border: 1px solid white;
+  border-radius: 0;
+  background: var(--green);
+  cursor: crosshair;
+  touch-action: none;
+  z-index: 10;
+}
+.spreadsheet .sheet-fill-handle:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 2px;
+}
