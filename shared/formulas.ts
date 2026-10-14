@@ -35,7 +35,7 @@ export function createCalculator(cells: Record<string, string>) {
       source
         .toUpperCase()
         .match(
-          /(?:\d+(?:\.\d*)?|\.\d+)(?:E[+-]?\d+)?|\$?[A-Z]+\$?[0-9]+|[A-Z]+|[+\-*/^():,]|\S/g,
+          /#REF!|(?:\d+(?:\.\d*)?|\.\d+)(?:E[+-]?\d+)?|\$?[A-Z]+\$?[0-9]+|[A-Z]+|[+\-*/^():,]|\S/g,
         ) ?? [];
     let cursor = 0;
     const take = () => tokens[cursor++];
@@ -52,6 +52,7 @@ export function createCalculator(cells: Record<string, string>) {
     }
     function atom(): number {
       const token = take();
+      if (token === '#REF!') throw new Error('#REF!');
       if (token === '+') return atom();
       if (token === '-') return -atom();
       if (token === '(') {

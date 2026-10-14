@@ -116,6 +116,10 @@ export async function exportOffice(content: DocumentContent): Promise<Buffer> {
       ws.columns?.forEach((column) => {
         column.width = 18;
       });
+      for (const [index, width] of Object.entries(sheet.columnWidths ?? {}))
+        ws.getColumn(Number(index) + 1).width = (width - 5) / 7;
+      for (const [index, height] of Object.entries(sheet.rowHeights ?? {}))
+        ws.getRow(Number(index)).height = height * 0.75;
     }
     workbook.calcProperties.fullCalcOnLoad = true;
     buffer = Buffer.from(await workbook.xlsx.writeBuffer());
@@ -223,7 +227,23 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
           cells[cell.address] = cell.formula ? `=${cell.formula}` : cell.text;
         }),
       );
-      return { id: randomUUID(), name: ws.name, cells };
+      const columnWidths: Record<string, number> = {},
+        rowHeights: Record<string, number> = {};
+      ws.columns?.forEach((column, index) => {
+        if (column.width)
+          columnWidths[index] = Math.max(48, Math.min(600, Math.round(column.width * 7 + 5)));
+      });
+      ws.eachRow({ includeEmpty: true }, (row) => {
+        if (row.height)
+          rowHeights[row.number] = Math.max(24, Math.min(300, Math.round(row.height / 0.75)));
+      });
+      return {
+        id: randomUUID(),
+        name: ws.name,
+        cells,
+        ...(Object.keys(columnWidths).length ? { columnWidths } : {}),
+        ...(Object.keys(rowHeights).length ? { rowHeights } : {}),
+      };
     });
     return contentSchema.parse({ type: 'sheet', sheets });
   }

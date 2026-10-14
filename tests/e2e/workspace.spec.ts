@@ -121,8 +121,11 @@ test('three editors persist content, export Office files, and manage the cloud l
   await back(page);
   await page.getByRole('button', { name: /新建电子表格 用数据/ }).click();
   await page.getByRole('textbox', { name: '文档名称', exact: true }).fill('十月工作计划');
+  await page.getByRole('textbox', { name: 'A1', exact: true }).dblclick();
   await page.getByRole('textbox', { name: 'A1', exact: true }).fill('120');
+  await page.getByRole('textbox', { name: 'A2', exact: true }).dblclick();
   await page.getByRole('textbox', { name: 'A2', exact: true }).fill('80');
+  await page.getByRole('textbox', { name: 'B1', exact: true }).dblclick();
   await page.getByRole('textbox', { name: 'B1', exact: true }).fill('=SUM(A1:A2)');
   await page.getByRole('textbox', { name: 'C1', exact: true }).click();
   await expect(page.getByRole('textbox', { name: 'B1', exact: true })).toHaveValue('200');

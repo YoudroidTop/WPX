@@ -22,6 +22,8 @@ export interface SheetPage {
   id: string;
   name: string;
   cells: Record<string, string>;
+  rowHeights?: Record<string, number>;
+  columnWidths?: Record<string, number>;
 }
 export interface SheetContent {
   type: 'sheet';
@@ -134,6 +136,12 @@ const nativeContentSchema = z.discriminatedUnion('type', [
           id: z.string().max(100),
           name: z.string().min(1).max(31),
           cells: z.record(z.string().regex(cellAddress), z.string().max(MAX_CELL_LENGTH)),
+          rowHeights: z
+            .record(z.string().regex(/^(?:[1-9]\d?|[1-4]\d{2}|500)$/), z.number().min(24).max(300))
+            .optional(),
+          columnWidths: z
+            .record(z.string().regex(/^(?:[0-9]|[1-4][0-9]|5[01])$/), z.number().min(48).max(600))
+            .optional(),
         }),
       )
       .min(1)
