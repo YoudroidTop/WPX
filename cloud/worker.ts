@@ -9,10 +9,12 @@ import {
   type UserRow,
 } from '../server/auth';
 import { ApiError } from '../server/errors';
-import { exportOffice, importOffice } from '../server/office';
-import { blankContent, contentSchema, extensions, STORAGE_LIMIT } from '../shared/documents';
+import { exportOffice } from '../server/office';
+import { extensions, STORAGE_LIMIT } from '../shared/documents';
 import { AccountDocuments } from './documents';
 import { desktopDownload } from './desktop-downloads';
+import { body } from './request-body';
+import { parseDocumentMutation } from './document-mutations';
 
 interface Env {
   ACCOUNTS: DurableObjectNamespace;
@@ -24,7 +26,6 @@ interface Env {
 const name = z.string().trim().min(1).max(100);
 const email = z.string().trim().toLowerCase().email().max(254);
 const password = z.string().min(10).max(128);
-const revision = z.number().int().positive();
 const json = (body: unknown, status = 200) => Response.json(body, { status });
 const token = (request: Request) =>
   (request.headers.get('Cookie') ?? '')
@@ -32,31 +33,6 @@ const token = (request: Request) =>
     .map((value) => value.trim())
     .find((value) => value.startsWith(`${SESSION_COOKIE}=`))
     ?.slice(SESSION_COOKIE.length + 1) ?? '';
-async function bounded(request: Request, limit = 5_000_000): Promise<Uint8Array> {
-  const reader = request.body?.getReader();
-  if (!reader) return new Uint8Array();
-  const parts: Uint8Array[] = [];
-  let length = 0;
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    length += value.length;
-    if (length > limit) {
-      await reader.cancel();
-      throw new ApiError(413, '文件过大');
-    }
-    parts.push(value);
-  }
-  const bytes = new Uint8Array(length);
-  let offset = 0;
-  for (const part of parts) {
-    bytes.set(part, offset);
-    offset += part.length;
-  }
-  return bytes;
-}
-const body = async (request: Request) =>
-  JSON.parse(new TextDecoder().decode(await bounded(request)));
 async function guarded(callback: () => Promise<Response>): Promise<Response> {
   try {
     return await callback();
@@ -232,41 +208,14 @@ export class Documents extends DurableObject<Env> {
       if (path === '/usage') return json({ usedBytes: store.used(), limitBytes: STORAGE_LIMIT });
       if (path === '/api/documents' && request.method === 'GET')
         return json({ documents: store.list(), usedBytes: store.used() });
-      if (path === '/api/documents' && request.method === 'POST') {
-        const input = z
-          .object({
-            name,
-            kind: z.enum(['word', 'sheet', 'slide']),
-            content: contentSchema.optional(),
-          })
-          .parse(await body(request));
-        if (input.content && input.content.type !== input.kind)
-          throw new ApiError(400, '文档类型不匹配');
-        return json(store.create(input.name, input.content ?? blankContent(input.kind)), 201);
-      }
-      if (path === '/api/documents/import' && request.method === 'POST') {
-        const filename = decodeURIComponent(
-          z.string().min(1).max(500).parse(request.headers.get('x-filename')),
-        );
-        const bytes = await bounded(request, 10_000_000);
-        if (!bytes.length) throw new ApiError(400, '请选择非空文件');
-        let content;
-        try {
-          content = await importOffice(filename, Buffer.from(bytes));
-        } catch (error) {
-          if (error instanceof ApiError) throw error;
-          throw new ApiError(400, '文件无法导入，请检查格式或使用卓乐备份文件');
-        }
-        return json(
-          store.create(
-            filename
-              .replace(/\.[^.]+$/, '')
-              .slice(0, 100)
-              .trim() || '导入的文档',
-            content,
-          ),
-          201,
-        );
+      const mutation = await parseDocumentMutation(request);
+      if (mutation?.kind === 'create')
+        return json(store.create(mutation.name, mutation.content), 201);
+      if (mutation?.kind === 'update')
+        return json(store.update(mutation.id, mutation.revision, mutation.patch));
+      if (mutation?.kind === 'remove') {
+        store.remove(mutation.id, mutation.revision);
+        return new Response(null, { status: 204 });
       }
       const match = path.match(/^\/api\/documents\/([^/]+)(\/export)?$/);
       if (!match) throw new ApiError(404, '接口不存在');
@@ -293,22 +242,6 @@ export class Documents extends DurableObject<Env> {
         });
       }
       if (!match[2] && request.method === 'GET') return json(store.get(id));
-      if (!match[2] && request.method === 'PATCH') {
-        const input = z
-          .object({
-            revision,
-            name: name.optional(),
-            content: contentSchema.optional(),
-            starred: z.boolean().optional(),
-            deleted: z.boolean().optional(),
-          })
-          .parse(await body(request));
-        return json(store.update(id, input.revision, input));
-      }
-      if (!match[2] && request.method === 'DELETE') {
-        store.remove(id, z.object({ revision }).parse(await body(request)).revision);
-        return new Response(null, { status: 204 });
-      }
       throw new ApiError(404, '接口不存在');
     });
   }
