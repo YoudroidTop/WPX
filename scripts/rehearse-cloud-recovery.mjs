@@ -82,6 +82,7 @@ try {
     journalSurvivedRestart: true,
     schedulingRejectedUntilDrained: true,
     boundTransportScheduledUndo: true,
+    boundVerificationCompletedUndo: true,
     originalUndoPreserved: true,
     completionFailureKeptSuspended: true,
     completionRetryPreservedPending: true,

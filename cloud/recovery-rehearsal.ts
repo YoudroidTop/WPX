@@ -22,6 +22,8 @@ import { rehearseCoordination, rehearseLargeDispatch } from './recovery-coordina
 import { RecoveryJournal, type RecoveryIntent } from './recovery-journal';
 import { completeVerifiedRecovery } from './recovery-completion';
 import { startDrainedRecovery } from './recovery-start';
+import { RecoveryVerifier, type VerificationRequest } from './recovery-verifier';
+import { verifyBoundRecovery } from './recovery-verification';
 import { scheduleBoundRecovery } from './recovery-scheduler';
 import { CoordinatedMutations, type MutationFlight } from './coordinated-mutations';
 import { CoordinatedReads } from './coordinated-reads';
@@ -135,6 +137,24 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   }
   journalRestored(id: string) {
     return this.journal().recordRestored(id);
+  }
+  verifyDocumentRecovery(request: VerificationRequest) {
+    return new RecoveryVerifier(this.ctx.storage.sql, (fn) =>
+      this.ctx.storage.transactionSync(fn),
+    ).verify(request);
+  }
+  verifyBound(id: string) {
+    return verifyBoundRecovery(
+      this.ctx.storage.sql,
+      (fn) => this.ctx.storage.transactionSync(fn),
+      id,
+      {
+        verify: (objectId, request) =>
+          this.env.REHEARSAL.get(this.env.REHEARSAL.idFromString(objectId)).verifyDocumentRecovery(
+            request,
+          ),
+      },
+    );
   }
   journalVerified(id: string, actual: RecoveryIntent['expected'], revision: number) {
     return this.journal().recordVerified(id, actual, revision);

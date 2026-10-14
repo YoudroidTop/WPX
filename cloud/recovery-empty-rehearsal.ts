@@ -30,12 +30,13 @@ export async function rehearseEmptyRecovery(namespace: DurableObjectNamespace<Re
   await assert.rejects(() => data().restart(), /Recovery rehearsal restart/);
   assert.deepEqual(await data().snapshot(), empty);
   await control().journalRestored('restore-empty');
-  const fence = await data().verifyRevisionFence(ceiling);
-  assert.deepEqual(fence, { rejected: 0, highWaterMark: 1, nextRevision: 2 });
+  const verified = await control().verifyBound('restore-empty');
+  assert.equal(verified.verifiedRevision, 2);
+  assert.deepEqual(await control().verifyBound('restore-empty'), verified);
   await assert.rejects(() => data().fixtureMutation(write), /obsolete/);
   await assert.rejects(() => data().restart(), /Recovery rehearsal restart/);
   await assert.rejects(() => data().fixtureMutation(write), /obsolete/);
-  await control().journalVerified('restore-empty', empty, fence.nextRevision);
+
   await control().finishRecovery('restore-empty');
   await assert.rejects(() => control().restart(), /Recovery rehearsal restart/);
   assert.equal((await control().admissionStatus()).highWaterMark, 2);

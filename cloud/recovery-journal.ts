@@ -2,7 +2,7 @@ import { z } from 'zod';
 import type { SqlDatabase } from './documents';
 
 const label = z.string().trim().min(1).max(512);
-const snapshot = z
+export const recoverySnapshotSchema = z
   .object({
     sha256: z.string().regex(/^[a-f0-9]{64}$/),
     count: z.number().int().nonnegative(),
@@ -25,8 +25,8 @@ const intentSchema = z
       .int()
       .nonnegative()
       .max(Number.MAX_SAFE_INTEGER - 2),
-    expected: snapshot,
-    before: snapshot,
+    expected: recoverySnapshotSchema,
+    before: recoverySnapshotSchema,
   })
   .strict();
 export type RecoveryIntent = z.infer<typeof intentSchema>;
@@ -124,8 +124,12 @@ export class RecoveryJournal {
   recordRestored(id: string) {
     return this.advance(id, 'scheduled', 'restored');
   }
-  recordVerified(id: string, actual: z.infer<typeof snapshot>, revision: number): RecoveryRecord {
-    const checked = snapshot.parse(actual);
+  recordVerified(
+    id: string,
+    actual: z.infer<typeof recoverySnapshotSchema>,
+    revision: number,
+  ): RecoveryRecord {
+    const checked = recoverySnapshotSchema.parse(actual);
     return this.atomic(() => {
       const record = this.get(id);
       if (JSON.stringify(checked) !== JSON.stringify(record.intent.expected))

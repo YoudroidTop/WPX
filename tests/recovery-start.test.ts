@@ -5,6 +5,8 @@ import type { SqlDatabase, SqlValue } from '../cloud/documents';
 import { AccountWriteAdmission } from '../cloud/write-admission';
 import { RecoveryJournal } from '../cloud/recovery-journal';
 import { startDrainedRecovery } from '../cloud/recovery-start';
+import { verifyBoundRecovery } from '../cloud/recovery-verification';
+import type { VerificationRequest, VerificationReceipt } from '../cloud/recovery-verifier';
 import { CoordinatorTarget } from '../cloud/coordinator-target';
 import { scheduleBoundRecovery, type RecoveryTransport } from '../cloud/recovery-scheduler';
 
@@ -52,6 +54,9 @@ function fixture(ceiling = 0, binding: [string, string] | null = ['fixture', 'a'
     db,
     gate,
     journal,
+    verify: (
+      verify: (objectId: string, request: VerificationRequest) => Promise<VerificationReceipt>,
+    ) => verifyBoundRecovery(sql, atomic, 'restore', { verify }),
     start: () => startDrainedRecovery(sql, atomic, 'restore'),
     schedule: (transport: RecoveryTransport) =>
       scheduleBoundRecovery(sql, atomic, 'restore', transport),
@@ -205,6 +210,56 @@ test('an invalid binding rejects before the restore transport is called', async 
     );
     assert.equal(calls, 0);
     assert.equal(f.journal.get('restore').phase, 'prepared');
+  } finally {
+    f.db.close();
+  }
+});
+
+test('bound verification validates receipt identity and rechecks admission after transport', async () => {
+  const f = fixture();
+  try {
+    f.gate.suspend('restore');
+    f.start();
+    f.journal.recordScheduled('restore', 'undo');
+    f.journal.recordRestored('restore');
+    await assert.rejects(
+      () => f.verify(async (_id, request) => ({ ...request, operation: 'wrong', revision: 1 })),
+      /identity mismatch/,
+    );
+    assert.equal(f.journal.get('restore').phase, 'restored');
+    await assert.rejects(
+      () =>
+        f.verify(async (_id, request) => {
+          f.gate.registerHistoricalCeiling('restore', 2);
+          return { ...request, revision: 1 };
+        }),
+      /ceiling changed/,
+    );
+    assert.equal(f.journal.get('restore').phase, 'restored');
+    assert.equal(f.gate.status().phase, 'suspended');
+  } finally {
+    f.db.close();
+  }
+});
+
+test('bound verification reads its own target and retries verified results without I/O', async () => {
+  const f = fixture();
+  let calls = 0;
+  try {
+    f.gate.suspend('restore');
+    f.start();
+    f.journal.recordScheduled('restore', 'undo');
+    f.journal.recordRestored('restore');
+    const transport = async (id: string, request: VerificationRequest) => {
+      calls++;
+      assert.equal(id, 'a'.repeat(64));
+      assert.equal(request.operation, 'restore');
+      return { ...request, revision: 1 };
+    };
+    assert.equal((await f.verify(transport)).phase, 'verified');
+    assert.equal((await f.verify(transport)).phase, 'verified');
+    assert.equal(calls, 1);
+    assert.equal(f.gate.status().phase, 'suspended');
   } finally {
     f.db.close();
   }

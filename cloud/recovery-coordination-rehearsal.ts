@@ -123,9 +123,9 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
   assert.deepEqual(await data().snapshot(), changed);
   await control().journalRestored('undo');
   assert.equal(await control().drainedRevision('undo'), undoCeiling);
-  const undoneFence = await data().verifyRevisionFence(undoCeiling);
+  const verifiedUndo = await control().verifyBound('undo');
+  assert.equal(verifiedUndo.verifiedRevision, undoCeiling + 1);
   await assert.rejects(() => data().fixtureMutation(fresh), /obsolete/);
-  await control().journalVerified('undo', changed, undoneFence.nextRevision!);
   await control().finishRecovery('undo');
   await restart(controlId);
   const final = await control().admissionStatus();
@@ -152,6 +152,7 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
     journalSurvivedRestart: true,
     schedulingRejectedUntilDrained: true,
     boundTransportScheduledUndo: true,
+    boundVerificationCompletedUndo: true,
     originalUndoPreserved: true,
     completionFailureKeptSuspended: true,
     completionRetryPreservedPending: true,

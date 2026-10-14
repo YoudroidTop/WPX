@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { AccountDocuments, type SqlDatabase, type SqlValue } from '../cloud/documents';
+import { RecoveryVerifier, recoverySnapshot } from '../cloud/recovery-verifier';
 import { AccountMutationExecutor } from '../cloud/mutation-executor';
 import { AccountWriteAdmission } from '../cloud/write-admission';
 import { blankContent } from '../shared/documents';
@@ -11,7 +12,11 @@ function database() {
   let failReceipt = false;
   const sql: SqlDatabase = {
     exec<T extends Record<string, SqlValue>>(query: string, ...bindings: SqlValue[]): T[] {
-      if (failReceipt && query.startsWith('INSERT OR REPLACE INTO mutation_receipt'))
+      if (
+        failReceipt &&
+        (query.startsWith('INSERT OR REPLACE INTO mutation_receipt') ||
+          query.startsWith('INSERT OR REPLACE INTO recovery_verification'))
+      )
         throw new Error('Receipt storage unavailable');
       return db
         .prepare(query)
@@ -184,6 +189,51 @@ test('empty restored storage rejects stale permits before the first fresh mutati
     const receipt = executor.execute({ token: 'fresh', revision: 19 }, command);
     assert.ok('document' in receipt.result);
     assert.equal(documents.list()[0].revision, 19);
+  } finally {
+    f.db.close();
+  }
+});
+
+test('verification receipt atomically fences content and survives executor reconstruction', () => {
+  const f = database();
+  try {
+    const docs = new AccountDocuments(f.sql, f.atomic);
+    docs.create('Recovered', blankContent('word'));
+    const expected = recoverySnapshot(docs);
+    const request = { operation: 'recover', highWaterMark: 17, expected };
+    const verifier = new RecoveryVerifier(f.sql, f.atomic);
+    assert.throws(
+      () => verifier.verify({ ...request, expected: { ...expected, sha256: '0'.repeat(64) } }),
+      /does not match/,
+    );
+    assert.equal(docs.list()[0].revision, 1);
+    f.failReceipt(true);
+    assert.throws(() => verifier.verify(request), /storage unavailable/);
+    assert.equal(docs.list()[0].revision, 1);
+    assert.equal([...f.sql.exec('SELECT revision FROM recovery_revision_floor')][0].revision, 0);
+    f.failReceipt(false);
+    const receipt = verifier.verify(request);
+    assert.equal(receipt.revision, 18);
+    assert.equal(docs.list()[0].revision, 18);
+    assert.deepEqual(new RecoveryVerifier(f.sql, f.atomic).verify(request), receipt);
+    assert.equal(docs.list()[0].revision, 18);
+    assert.throws(() => verifier.verify({ ...request, highWaterMark: 18 }), /input changed/);
+    assert.throws(() => verifier.verify({ ...request, operation: 'older' }), /obsolete/);
+  } finally {
+    f.db.close();
+  }
+});
+
+test('empty verification has a durable receipt and no quota allocation', () => {
+  const f = database();
+  try {
+    const docs = new AccountDocuments(f.sql, f.atomic);
+    const request = { operation: 'empty', highWaterMark: 1, expected: recoverySnapshot(docs) };
+    const receipt = new RecoveryVerifier(f.sql, f.atomic).verify(request);
+    assert.equal(receipt.revision, 2);
+    assert.deepEqual(new RecoveryVerifier(f.sql, f.atomic).verify(request), receipt);
+    assert.deepEqual(docs.list(), []);
+    assert.equal(docs.used(), 0);
   } finally {
     f.db.close();
   }
