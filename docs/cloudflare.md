@@ -121,7 +121,6 @@ The caller must isolate writes and retain the maximum of **all issued revisions 
 
 The isolated Worker was updated to `4132303b-965e-4aa0-a8d3-ebbac736cfe1`, still with no public targets or customer bindings. The real remote PITR/undo run passed full pre-fence content/counter comparisons, then checked unchanged content after fencing and rejection of three stale writes after restore (revision 3) and two after undo (revision 4). Its fixture deterministically issues revisions 1 and 2 with no concurrent writers; this is not evidence of a production high-water coordinator. The preview shut down successfully. Evidence: `releases/cloudflare/recovery-fence-deploy.log`, `recovery-fence-run.log`, and `recovery-result.json`; the preceding result is preserved in `recovery-before-fencing-result.json`. All 35 unit/API tests and the cloud TypeScript check passed. Production Worker and data were unchanged.
 
-
 ## Spreadsheet IME deployment (2026-10-14)
 
 Production Worker `384229a8-835a-424a-b4a1-c20e6aa70935` serves 100% of traffic on `wpx.youdroid.top`. Editor source includes `d73726a`: spreadsheet navigation ignores composing keyboard events. The deployment also includes the previously tested safe-integer revision exhaustion guard; recovery orchestration is still disconnected from production. Bindings and migration declarations are unchanged. Code rollback target: `a2b998cb-d5de-445a-9f1f-bf9b5ec93174`.
@@ -129,7 +128,6 @@ Production Worker `384229a8-835a-424a-b4a1-c20e6aa70935` serves 100% of traffic 
 `npm run cloud:build` and all six cloud document tests passed. The production browser smoke passed registration, Word persistence, spreadsheet SUM, composing Enter/arrow/Tab event handling, normal Enter navigation, Chinese text readback after reload, slide presentation and logout. Only generated QA documents were removed. These synthetic keyboard events verify application interception, not native OS candidate selection. Client installers have not been rebuilt for this fix.
 
 Evidence: `releases/cloudflare/ime-build.log`, `ime-before-deploy.log`, `ime-deploy.log`, `ime-after-deploy.log`, and `ime-live-browser.log`. Reproduce browser acceptance with `SMOKE_PROXY=http://127.0.0.1:7897 node scripts/smoke-cloud-browser.mjs` in this configured environment.
-
 
 ## Desktop 0.1.2 public cutover (2026-10-14)
 
@@ -146,7 +144,6 @@ Production Worker `151776aa-dbd9-4782-b217-05776fb9d27f` serves 100% of traffic 
 The cloud build and focused session regression checks passed; the preceding full suite contained 82 passing tests. The expanded public API smoke now verifies logout/login, password rotation, old-session revocation and login with the new password, followed by three Office round trips, private access, revision conflicts, trash/removal and final logout. Browser smoke passed registration, Word persistence, sheet SUM/composition-event/Chinese persistence, slideshow, reload and logout. Generated QA documents and sessions were removed; empty QA accounts remain. Usage-failure injection is covered by local tests, not induced against production.
 
 Evidence: `releases/cloudflare/session-fix-{auth,before,build,deploy,after,live-api,live-browser}.log`. Recovery components remain isolated; production recovery and migration acceptance are still open.
-
 
 ## Account availability deployment (2026-10-14)
 
@@ -235,3 +232,15 @@ The candidate release manifest references the four verified 0.1.6 installers. Th
 Deployment staging reuses the last production snapshot (`269ccf6` plus the formula correction) and adds only the new release/current-history manifests. An explicit file comparison verified unchanged production storage code, Worker routing and binding/migration configuration. Evidence: `0.1.6-deploy-source.json`, `0.1.6-build.log`. This continues to exclude main's experimental recovery-floor storage addition.
 
 The original uploader is still live. Apple Silicon upload completed; Intel upload is currently outstanding (`0.1.6-upload.log`). Preserve that process rather than starting duplicate uploads on an observation timeout. Windows uploads, deployment and public full-file readback are not yet established. Current production remains Worker `3663f0cc-3f58-4a24-abd5-dac1d23cf5eb`, the rollback baseline in `0.1.6-before.json`, serving desktop 0.1.5. No public cutover is claimed.
+
+## Desktop 0.1.6 production cutover (2026-10-14)
+
+All four installers were uploaded before deploying Worker `7470c438-1f90-4a43-89c6-019843a4ed74`, confirmed at 100% traffic. Rollback is `3663f0cc-3f58-4a24-abd5-dac1d23cf5eb`. The isolated deployment retains the production storage implementation and bindings; only the release manifests changed relative to the preceding formula deployment. No customer restore or schema migration was performed.
+
+Windows x64 required a fresh-authenticated direct retry after an expired-authorization response and a failed proxy transfer. ARM64's Wrangler transfer ended with a connection error; a system curl transfer through the existing proxy then returned HTTP 200, success=true and the exact 105,453,529-byte size in 85 seconds. Existing authentication was reused without printing or changing credentials. The three completed artifacts were not reuploaded.
+
+The production account/password/session and three-document API smoke passed, including absolute/mixed formula XLSX results. All 24 historical links passed post-cutover HEAD/checksum/size and first/last range checks. A new Safari private window passed login, workspace/account display and logout; the existing 69-byte Word document was preserved without editing, and only the test window was closed. The user's native app/session was not touched. This browser check does not claim another three-editor regression or a visible download dialog.
+
+Full public installer readback remains in progress: the Apple Silicon DMG has passed complete SHA-256, size, HEAD and range checks; the other three must finish before final artifact-delivery acceptance. Preserve the existing verifier process rather than restarting it on observation timeout.
+
+Evidence: `releases/cloudflare/0.1.6-{deploy.log,after.json,api-smoke.log,history-after.log,history-links.json,download-readback.log,safari-account.txt,safari-account.png,safari-logout.txt,win-arm64-curl.log,win-arm64-curl-response.json}`. The final version-specific full-download report is still pending.
