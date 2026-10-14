@@ -74,6 +74,17 @@ On first launch, the service form pre-fills `https://wpx.youdroid.top` and valid
 
 See [Delivery status](docs/delivery-status.md) for the requirement-by-requirement acceptance boundary. See [Desktop delivery](docs/desktop.md) for artifact locations, platform validation, signing boundaries, and offline behavior.
 
+Official desktop installers for version 0.1.6:
+
+| Platform            | Download                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------- |
+| macOS Apple Silicon | [DMG](https://wpx.youdroid.top/downloads/desktop/0.1.6/ZhuoleDocs-0.1.6-mac-arm64.dmg)       |
+| macOS Intel         | [DMG](https://wpx.youdroid.top/downloads/desktop/0.1.6/ZhuoleDocs-0.1.6-mac-x64.dmg)         |
+| Windows x64         | [Installer](https://wpx.youdroid.top/downloads/desktop/0.1.6/ZhuoleDocs-0.1.6-win-x64.exe)   |
+| Windows ARM64       | [Installer](https://wpx.youdroid.top/downloads/desktop/0.1.6/ZhuoleDocs-0.1.6-win-arm64.exe) |
+
+Mac installers are Developer ID signed and notarized. Windows installers are unsigned by owner decision. Release filenames, sizes and SHA-256 checksums are available in the [public release manifest](https://wpx.youdroid.top/api/releases/desktop).
+
 ## Roadmap and structure
 
 - **Phase 1 / WPX-1:** 卓乐云文档 Web MVP.

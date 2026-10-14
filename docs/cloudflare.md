@@ -237,10 +237,16 @@ The original uploader is still live. Apple Silicon upload completed; Intel uploa
 
 All four installers were uploaded before deploying Worker `7470c438-1f90-4a43-89c6-019843a4ed74`, confirmed at 100% traffic. Rollback is `3663f0cc-3f58-4a24-abd5-dac1d23cf5eb`. The isolated deployment retains the production storage implementation and bindings; only the release manifests changed relative to the preceding formula deployment. No customer restore or schema migration was performed.
 
-Windows x64 required a fresh-authenticated direct retry after an expired-authorization response and a failed proxy transfer. ARM64's Wrangler transfer ended with a connection error; a system curl transfer through the existing proxy then returned HTTP 200, success=true and the exact 105,453,529-byte size in 85 seconds. Existing authentication was reused without printing or changing credentials. The three completed artifacts were not reuploaded.
+Windows x64 required a fresh-authenticated direct retry after a 401 authorization response and a failed proxy transfer. ARM64's Wrangler transfer ended with a connection error; a system curl transfer through the existing proxy then returned HTTP 200, success=true and the exact 105,453,529-byte size in 85 seconds. Existing authentication was reused without printing or changing credentials. The three completed artifacts were not reuploaded.
 
 The production account/password/session and three-document API smoke passed, including absolute/mixed formula XLSX results. All 24 historical links passed post-cutover HEAD/checksum/size and first/last range checks. A new Safari private window passed login, workspace/account display and logout; the existing 69-byte Word document was preserved without editing, and only the test window was closed. The user's native app/session was not touched. This browser check does not claim another three-editor regression or a visible download dialog.
 
 Full public installer readback remains in progress: the Apple Silicon DMG has passed complete SHA-256, size, HEAD and range checks; the other three must finish before final artifact-delivery acceptance. Preserve the existing verifier process rather than restarting it on observation timeout.
 
 Evidence: `releases/cloudflare/0.1.6-{deploy.log,after.json,api-smoke.log,history-after.log,history-links.json,download-readback.log,safari-account.txt,safari-account.png,safari-logout.txt,win-arm64-curl.log,win-arm64-curl-response.json}`. The final version-specific full-download report is still pending.
+
+### Desktop 0.1.6 final public-file acceptance
+
+All four installers now pass complete SHA-256/size, HEAD metadata and first/last byte-range comparison against the local release files. The initial verifier completed both Mac targets and Windows x64, then exited on a connection reset while reading Windows ARM64. A targeted curl retry verified only that remaining artifact, including HTTP 206 ranges and the entire 105,453,529-byte body. No failed or partial read was counted as a pass. A fresh public manifest comparison matched all four expected artifact identities.
+
+The combined report is `releases/cloudflare/0.1.6-download-readback.json`; each entry identifies its supporting log or result. ARM64 evidence is `0.1.6-arm64-download-readback.json` and `0.1.6-arm64-download-retry.log`. Together with the 24 historical-link checks and production API/Safari checks above, this completes public artifact-delivery acceptance for 0.1.6. Intel/Windows runtime coverage and remaining mobile workflows retain their separate evidence boundaries.
