@@ -226,3 +226,9 @@ Evidence: `releases/mobile/0.1.3-android-{release-build.log,release-verification
 A separate Debug simulator build also succeeded at `releases/mobile/Simulator013/Build/Products/Debug-iphonesimulator/App.app`, with matching version/build and all ten web resources. This turn verifies package construction, not installation or runtime. All three paired iPhones remained unavailable in `devicectl`; physical-device, safe-area and current-build editor acceptance remain open. No profile changes, public upload or App Store submission occurred.
 
 Evidence: `releases/mobile/0.1.3-ios-{sync.log,archive.log,export.log,simulator-build.log,verification.json}`. HarmonyOS and desktop packages still require this correction.
+
+### HarmonyOS development candidate 0.1.3 — 2026-10-14
+
+`releases/harmony/ZhuoleDocs-0.1.3-harmony-debug.hap` contains the presentation aspect-ratio correction, version 0.1.3/code 4. Size: 1,023,073 bytes; SHA-256: `2fe9b1d8e470ddeb19866ac160402e5943ae6cc2a5d1e6b1dce12fbe0bf2ddf1`. The build helper validated the existing matching debug profile/certificate and invoked `hvigorw assembleHap`. All ten web files and the exact bundled file set match current `dist`; the previous 0.1.2 HAP is unchanged. The temporary material-bearing signing configuration was removed.
+
+Installation on the connected device succeeded without uninstalling or clearing data. Bundle inspection confirms 0.1.3/code 4. Launch was rejected with `10106102` because the screen was locked; no visible UI, slideshow or draft/session acceptance is claimed. Developer-mode settings were not changed. Evidence: `releases/harmony/0.1.3-{debug-build.log,verification.json,install.log,installed-bundle.json,launch.log}`. This is an installed development candidate, not an AGC/public release. Desktop installers still require the presentation correction.
