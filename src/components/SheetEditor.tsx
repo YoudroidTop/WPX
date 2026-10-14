@@ -1,3 +1,9 @@
+import { copySheetRange, fillSheetRange } from '../../shared/sheet-fill';
+import {
+  SHEET_CLIPBOARD_TYPE,
+  encodeSheetClipboard,
+  decodeSheetClipboard,
+} from '../../shared/sheet-clipboard';
 import { frozenOffsets } from '../../shared/sheet-view';
 import type { CSSProperties } from 'react';
 import SheetFormatToolbar from './SheetFormatToolbar';
@@ -238,6 +244,11 @@ export default function SheetEditor({
       return;
     }
     const command = event.ctrlKey || event.metaKey;
+    if (command && !editing && ['d', 'r'].includes(event.key.toLowerCase())) {
+      event.preventDefault();
+      fill(event.key.toLowerCase() === 'd' ? 'down' : 'right');
+      return;
+    }
     if (command && event.key.toLowerCase() === 'z' && !editing) {
       event.preventDefault();
       travel(event.shiftKey ? 'redo' : 'undo');
@@ -292,7 +303,38 @@ export default function SheetEditor({
       focusCell(point);
     }
   }
+  function fill(direction: 'down' | 'right') {
+    if (direction === 'down' ? bounds.top === bounds.bottom : bounds.left === bounds.right) return;
+    try {
+      const next = fillSheetRange(sheet, selection, direction);
+      onChange({ ...content, sheets: content.sheets.map((s) => (s.id === sheet.id ? next : s)) });
+      setEditing(null);
+      setPasteError('');
+    } catch {
+      setPasteError('填充后公式超过单元格长度上限，原表格未修改。');
+    }
+  }
   function paste(event: React.ClipboardEvent<HTMLInputElement>, row: number, col: number) {
+    if (!editing) {
+      const copied = decodeSheetClipboard(event.clipboardData.getData(SHEET_CLIPBOARD_TYPE));
+      if (copied) {
+        event.preventDefault();
+        try {
+          const next = copySheetRange(copied.sheet, copied.selection, sheet, {
+            row: bounds.top,
+            col: bounds.left,
+          });
+          onChange({
+            ...content,
+            sheets: content.sheets.map((s) => (s.id === sheet.id ? next : s)),
+          });
+          setPasteError('');
+        } catch {
+          setPasteError('粘贴超出工作表或单元格长度上限，原表格未修改。');
+        }
+        return;
+      }
+    }
     const text = event.clipboardData.getData('text/plain');
     if (editing && !/[\t\r\n]/.test(text)) return;
     event.preventDefault();
@@ -419,6 +461,20 @@ export default function SheetEditor({
         </button>
         <button disabled={!history.current.redo.length} onClick={() => travel('redo')}>
           重做
+        </button>
+        <button
+          title="将选区首行填充到下方（Ctrl / ⌘ D）"
+          disabled={bounds.top === bounds.bottom}
+          onClick={() => fill('down')}
+        >
+          向下填充
+        </button>
+        <button
+          title="将选区首列填充到右侧（Ctrl / ⌘ R）"
+          disabled={bounds.left === bounds.right}
+          onClick={() => fill('right')}
+        >
+          向右填充
         </button>
         <select aria-label="冻结窗格" value="" onChange={(event) => freeze(event.target.value)}>
           <option value="" disabled>
@@ -550,6 +606,7 @@ export default function SheetEditor({
           if (editing) return;
           event.preventDefault();
           event.clipboardData.setData('text/plain', copySelection(sheet.cells, selection));
+          event.clipboardData.setData(SHEET_CLIPBOARD_TYPE, encodeSheetClipboard(sheet, selection));
         }}
         onCut={(event) => {
           if (editing) return;
