@@ -329,3 +329,11 @@ The workspace previously loaded local drafts only after a successful cloud libra
 The Electron regression creates a real cloud document, edits it offline, then injects persistent document-service 503 responses into the application's transport and reloads the renderer. It verifies that the pending draft remains visible and readable. Restoring the transport and reloading synchronizes the draft; the cloud document contains the exact pending text and normal quota display returns. Existing offline/conflict/backup and cache-cleanup/account-isolation tests also passed (3 tests total). Build and TypeScript checks passed through `npm run desktop:build`.
 
 Evidence: `releases/desktop/storage-outage-regression.log`, `test-results/desktop-storage-outage.png`. Reproduce with `npx playwright test --config playwright.desktop.config.ts --grep 'storage outage after reload|cache cleanup preserves|native window, authentication'`. This verifies the local Electron build; public installers and mobile packages have not been rebuilt with this fix.
+
+## Aggregate reference correction (2026-10-14)
+
+WPX-11 fixes direct blank/text cell arguments for SUM, AVERAGE, MIN, MAX and COUNT. Previously `COUNT(A2)` counted an empty A2 as one, `AVERAGE(A1,A2)` included a blank as zero, and a text reference caused SUM to fail. Direct references now use the same value collection as ranges; arithmetic arguments such as `A2+0` retain numeric coercion. Reference bounds and existing error propagation are preserved. This is a bounded correction, not a claim of complete Excel formula compatibility (including error-reference COUNT semantics).
+
+`tests/formula-references.test.ts` first reproduced incorrect calculation and XLSX cached results, then passed after the repair. It checks empty/text/zero/negative values, range equivalence, nested functions, arithmetic coercion, invalid references, malformed input and exported formula/cache pairs. All 91 unit/API tests, the application build and cloud TypeScript check passed. Reference: [Microsoft COUNT documentation](https://support.microsoft.com/en-us/excel/functions/count-function?nochrome=true).
+
+This evidence applies to source and the local web build. Production and existing native installers have not been refreshed with this correction.

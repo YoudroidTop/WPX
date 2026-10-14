@@ -63,6 +63,11 @@ export function createCalculator(cells: Record<string, string>) {
       if (['SUM', 'AVERAGE', 'MIN', 'MAX', 'COUNT'].includes(token)) {
         require('(');
         const values: number[] = [];
+        const addReference = (address: string) => {
+          const value = cell(address);
+          if (typeof value === 'string' && value.startsWith('#')) throw new Error(value);
+          if (typeof value === 'number') values.push(value);
+        };
         if (tokens[cursor] !== ')')
           do {
             if (tokens[cursor + 1] === ':') {
@@ -75,10 +80,16 @@ export function createCalculator(cells: Record<string, string>) {
                   col <= Math.max(from.col, to.col);
                   col++
                 ) {
-                  const value = cell(`${columnName(col)}${row}`);
-                  if (typeof value === 'string' && value.startsWith('#')) throw new Error(value);
-                  if (typeof value === 'number') values.push(value);
+                  addReference(`${columnName(col)}${row}`);
                 }
+            } else if (
+              /^[A-Z]+[1-9]\d*$/.test(tokens[cursor] ?? '') &&
+              [',', ')'].includes(tokens[cursor + 1])
+            ) {
+              // A direct reference ignores text/blank cells; arithmetic still coerces them.
+              const address = take();
+              reference(address);
+              addReference(address);
             } else values.push(expression());
             if (tokens[cursor] !== ',') break;
             take();
