@@ -337,3 +337,11 @@ WPX-11 fixes direct blank/text cell arguments for SUM, AVERAGE, MIN, MAX and COU
 `tests/formula-references.test.ts` first reproduced incorrect calculation and XLSX cached results, then passed after the repair. It checks empty/text/zero/negative values, range equivalence, nested functions, arithmetic coercion, invalid references, malformed input and exported formula/cache pairs. All 91 unit/API tests, the application build and cloud TypeScript check passed. Reference: [Microsoft COUNT documentation](https://support.microsoft.com/en-us/excel/functions/count-function?nochrome=true).
 
 This evidence applies to source and the local web build. Production and existing native installers have not been refreshed with this correction.
+
+## Production Safari aggregate acceptance (2026-10-14)
+
+The native Safari CUA connection provided a working UI fallback after the in-app browser timed out. A dedicated generated account and sheet were created through the API. In Safari, login and opening the sheet showed B1:B6 as `0, 12, 12, 12, -8, 1` for `COUNT(A3)`, `AVERAGE(A1,A2,A3)`, `SUM(A1,A2)`, `MIN(A1,A3)`, `MAX(-8,A3)` and `COUNT(A3+0)` respectively, with A1=12, A2=text and A3 empty. Editing A1 to 24 through the visible cell changed B2:B4 to 24 while preserving the other results. Save reported cloud success; a native screenshot and accessibility observations in the task transcript show those values.
+
+Independent authenticated API readback deeply matched the original content with only A1 changed to 24. Downloaded XLSX caches matched `0, 24, 24, 24, -8, 1`. Evidence: `releases/cloudflare/aggregate-safari-readback.json`; synthetic account credentials remain in the ignored owner-only fixture file. The generated document was removed, account usage returned to zero, both API sessions were logged out, and Safari visibly returned to the login page. Password saving was declined. Initial keyboard typing truncated the synthetic email; AX setValue corrected the fields before successful login. No user documents or existing browser tabs were modified.
+
+This closes the production rendered aggregate/edit/save acceptance gap for WPX-11. It does not establish native installer refresh or full cross-browser/editor regression.
