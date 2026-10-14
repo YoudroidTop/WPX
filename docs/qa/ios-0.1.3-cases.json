@@ -135,7 +135,7 @@
         ]
       }
     ],
-    "notes": "Focused portrait and landscape presentation acceptance only. Physical devices, keyboard navigation, full editor/file/offline regression and store distribution are not established. Landscape account-dialog scrolling remains inconclusive. Existing local server export behavior is not covered.",
+    "notes": "Focused portrait and landscape presentation acceptance only. Physical devices, keyboard navigation, full editor/file/offline regression and store distribution are not established. Landscape account-dialog scrolling remains inconclusive. Existing local server export behavior is not covered. Follow-up control drag activated a workspace card rather than scrolling; input reliability prevents a confirmed defect conclusion. Portrait logout was visibly verified again and the dedicated simulator shut down. Evidence: releases/mobile/ios-0.1.3-scroll-control-activation.png and releases/mobile/ios-0.1.3-scroll-followup-logout.png. No application changes or document edits.",
     "device": "Zhuole Docs iPad QA / iOS 26.1",
     "build": "0.1.3 (4)",
     "exclusions": [
