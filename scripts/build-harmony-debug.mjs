@@ -3,10 +3,11 @@ import { resolve, join, relative } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { X509Certificate } from 'node:crypto';
 
-const [referencePath, profilePath, toolPath] = process.argv.slice(2);
+const [referencePath, profilePath, toolPath, mode = 'debug', outputPath] = process.argv.slice(2);
+if (!['debug', 'release'].includes(mode)) throw new Error('Invalid build mode');
 if (!referencePath || !profilePath || !toolPath) {
   throw new Error(
-    'Usage: node scripts/build-harmony-debug.mjs <reference-build-profile> <debug-profile> <hvigorw>',
+    'Usage: node scripts/build-harmony-debug.mjs <reference-build-profile> <debug-profile> <hvigorw> [debug|release] [output-hap]',
   );
 }
 const source = resolve('harmony');
@@ -57,16 +58,16 @@ try {
   await chmod(configPath, 0o600);
   await writeFile(configPath, JSON.stringify(config), { mode: 0o600 });
   // Logs stay local because third-party build diagnostics may contain signing context.
-  const output = execFileSync(resolve(toolPath), ['assembleHap'], {
+  const output = execFileSync(resolve(toolPath), ['assembleHap', '-p', `buildMode=${mode}`], {
     cwd: workspace,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   await writeFile(join(workspace, 'build.log'), output, { mode: 0o600 });
   await cp(
     join(workspace, 'entry/build/default/outputs/default/entry-default-signed.hap'),
-    `releases/harmony/ZhuoleDocs-${app.app.versionName}-harmony-debug.hap`,
+    outputPath || `releases/harmony/ZhuoleDocs-${app.app.versionName}-harmony-debug.hap`,
   );
-  console.log('Signed development HAP ready in releases/harmony.');
+  console.log(`Signed development HAP ready: ${outputPath || 'releases/harmony'}`);
 } catch (error) {
   await writeFile(
     join(workspace, 'build.log'),

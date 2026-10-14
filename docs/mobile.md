@@ -302,3 +302,32 @@ Only the newly created test document was removed, restoring four documents and 8
 Gracefully replaced the stale task-local API on port 3173 with current source, preserving its database. Native Files selection and confirmed import now display two midnight-themed slides. Authenticated API deep comparison matches the source titles, bodies, notes, themes and order, excluding only generated slide IDs. This resolves the preceding stale-service theme discrepancy for the saved fixture. Both source notes are empty; nonempty notes, complex Office files and physical-device coverage are not implied.
 
 Removed only the newly imported document and verified four documents / 881 B remain. UI/API logout completed and the dedicated simulator was shut down. Seven focused catalog cases now pass. Evidence: `releases/mobile/ios-0.1.4-current-native-import.{json,png}` and `ios-0.1.4-current-import-logout.png`.
+
+## Interactive local installation
+
+Public/mobile distribution is deferred by the owner. Use the repository-root launcher for local builds and installation:
+
+```sh
+./run_release.sh
+```
+
+Choose Android, iOS or HarmonyOS, Debug or Release, then a listed device. Android lists authorized online devices/emulators; iOS lists connected iOS devices and available iOS simulators; HarmonyOS lists connected HDC targets. A stopped iOS simulator is booted after its build succeeds. Quit any menu with `q` or Ctrl-C. Explicit arguments support repeatable runs:
+
+```sh
+./run_release.sh --platform ios --device SIMULATOR_UDID --mode release
+./run_release.sh --platform harmony --device HDC_SERIAL --mode debug --dry-run
+```
+
+`--dry-run` performs device discovery and validates selections without building, booting, installing or launching. `--help` lists flags. Without an interactive terminal, all three selections are required. The launcher stops on the first failed step and never uninstalls the application or clears its data. Switching Android signing identities between Debug and Release may fail installation; the script deliberately does not uninstall to bypass that failure.
+
+Release selects optimized compilation for local installation, not publication. Android uses the existing dedicated release identity and verifier. iOS physical devices use Apple Development signing and must be registered in the existing profile. Both Harmony modes use the matching development profile; a distribution HAP is not substituted for a device build. Every invocation creates a separate directory under ignored `releases/run-release/`; published/versioned artifacts are not replaced. Android Debug uses Gradle's normal Debug output.
+
+Environment overrides:
+
+- Android: `JAVA_HOME` (JDK 21), `ANDROID_HOME`, `ADB`, and existing `ZHUOLE_ANDROID_SIGNING_DIR`. On this workstation the launcher also detects the task-local JDK 21 under `releases/mobile/toolchains`.
+- iOS: `APPLE_TEAM_ID` (defaults to this project's configured team). Xcode, CocoaPods and existing signing profiles must be installed.
+- HarmonyOS: `HARMONY_HOME`, `HDC`, `HVIGORW`, `HARMONY_SIGNING_REFERENCE`, `HARMONY_DEBUG_PROFILE`. The workstation defaults are Huawei CommandLineTools, the sibling Jimu Harmony signing reference and `~/zhuoledocs_debugDebug.p7b`. Only local paths are reused; signing material is not copied into tracked files. The temporary material-bearing build profile is removed by the existing helper.
+
+The launcher reports build/install/launch separately from visible UI acceptance. It performs no upload, store submission or publication.
+
+Validation on 2026-10-14: 113 unit/API tests and application TypeScript checks passed. A real terminal exercised all three menus through Harmony Release dry-run. iOS Release built, installed and launched on the dedicated iPad simulator; the simulator was shut down afterward. Harmony Release compiled with development signing and installed on the connected device, but launch was blocked by its lock screen (10106102). This exposed HDC returning exit code zero for a failed launch; output validation now rejects that result, with a regression test. Android installation and physical iOS installation were not exercised in this launcher validation. Evidence: `releases/run-release-tests.log`, `releases/mobile/run-release-ios.log`, `releases/mobile/run-release-harmony.log`. The Harmony log predates the output-check fix and its final success line is superseded by this explicit launch failure record.

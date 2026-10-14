@@ -106,7 +106,10 @@ const version = gradle.match(/versionName\s+"([\d.]+)"/)?.[1];
 const build = gradle.match(/versionCode\s+(\d+)/)?.[1];
 assert.ok(version && build, 'Native version is required');
 const tools = join(sdk, 'build-tools', process.env.ANDROID_BUILD_TOOLS || '36.0.0');
-const output = join(root, 'releases/mobile', `ZhuoleDocs-${version}-android-release.apk`);
+const outputDirectory = resolve(
+  process.env.ZHUOLE_ANDROID_OUTPUT_DIR || join(root, 'releases/mobile'),
+);
+const output = join(outputDirectory, `ZhuoleDocs-${version}-android-release.apk`);
 await mkdir(dirname(output), { recursive: true });
 try {
   await access(output);
@@ -191,7 +194,7 @@ const evidence = {
     'Release packaging, signature and asset verification; runtime and store acceptance are separate.',
 };
 await writeFile(
-  join(root, 'releases/mobile', `${version}-android-release-verification.json`),
+  join(outputDirectory, `${version}-android-release-verification.json`),
   JSON.stringify(evidence, null, 2) + '\n',
 );
 console.log(`Verified release APK: ${output}`);
