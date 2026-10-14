@@ -181,3 +181,13 @@ All 91 tests and the cloud build passed. Public installer verification passed co
 Live API smoke passed account login/password rotation/session revocation, all three document workflows, Office exports including corrected formula caches, private access, stale-write rejection and fixture cleanup. Only an empty generated account remains. This cutover does not claim a fresh whole-app browser regression; the preceding Safari and packaged arm64 formula UI acceptance is recorded separately. Windows user runtime acceptance, Intel runtime and mobile delivery remain open.
 
 Evidence under `releases/cloudflare/`: `0.1.4-{auth,upload,tests,build,before,deploy,after,download-readback,download-direct,history-links,api-smoke}.log`, `desktop-download-readback.json`, and `0.1.4-history-links.json`. The previous current-download readback is retained as `0.1.3-preserved-download-readback.json`.
+
+## Presentation aspect-ratio deployment (2026-10-14)
+
+Worker `635a465d-8995-4356-83a9-28a7cb2fd428` serves 100% of traffic on `wpx.youdroid.top`. The source delta from the previous deployment is limited to the presentation stage/frame and CSS sizing. Account/document bindings, migration declarations and desktop download metadata are unchanged. Code rollback target: `fa3f437a-7523-4936-a338-4a91976f1c1d`.
+
+All 92 tests and the Cloudflare build passed. All ten public static resources match the local build byte-for-byte. The production API smoke passed account/password/session checks, Word/sheet/presentation workflows, Office exports, private-access checks, stale-write rejection and generated-document cleanup. The resulting generated account is empty.
+
+The in-app browser timed out while creating and binding its production tab. A separate Safari private window successfully logged into the existing dedicated QA account, opened the specifically created presentation fixture, started playback, displayed the slide and controls, exited to the editor and logged out. Its window was closed without altering the user's existing Safari tabs. API readback confirmed the fixture content was unchanged; only that fixture was removed and account usage returned to zero. This verifies the live desktop Safari path; the previous four-viewport geometry measurements remain local browser evidence, not physical mobile acceptance. Existing client installers still need the layout correction.
+
+Evidence: `releases/cloudflare/presentation-{auth.log,before.json,tests.log,build.log,deploy.log,after.json,assets.json,api-smoke.log,safari.png,cleanup.json}`. Fixture credentials remain excluded from Git and reports.
