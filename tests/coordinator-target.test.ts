@@ -41,10 +41,12 @@ test('binding is immutable and account-specific even when object IDs are supplie
   const f = fixture();
   try {
     const target = f.open();
+    assert.throws(() => target.accountId(), /not bound/);
     assert.throws(() => target.require('account-a'), /not bound/);
     target.bind('account-a', objectA);
     target.bind('account-a', objectA);
     assert.equal(target.require('account-a'), objectA);
+    assert.equal(target.accountId(), 'account-a');
     assert.throws(() => target.bind('account-b', objectA), /conflicts/);
     assert.throws(() => target.bind('account-a', objectB), /conflicts/);
     assert.throws(() => target.require('account-b'), /not bound/);
@@ -83,6 +85,7 @@ test('target binding survives storage close and reopen without accepting a new t
     f.open().bind('account-a', objectA);
     f.db.close();
     f = fixture(path);
+    assert.equal(f.open().accountId(), 'account-a');
     assert.equal(f.open().require('account-a'), objectA);
     assert.throws(() => f.open().bind('account-a', objectB), /conflicts/);
   } finally {

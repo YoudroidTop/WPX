@@ -62,3 +62,7 @@ Simulator 0.1.1 (2) now has four fresh acceptance passes: installed asset identi
 ## Recovery concurrency follow-up (2026-10-14)
 
 Fixed a reproduced duplicate-acknowledgement race between HTTP writes and reconciliation. Account-scoped adapters now share execution while preserving durable pending commands on failure. All 85 unit/API tests and application/cloud type checks passed; isolated Worker `6726ce28-61d6-44fe-8a95-a5152396f587` passed deterministic concurrent replay after restart plus the existing restore/undo, 4 MB and read-isolation rehearsal. See `docs/recovery-protocol.md`. Production recovery remains incomplete: automatic scheduling, authenticated routing/bootstrap, operator authorization and ambiguous restore reconciliation are still required.
+
+## Recovery scheduling follow-up (2026-10-14)
+
+Automatic pending-mutation reconciliation now passes real Cloudflare alarm acceptance in the isolated namespace: atomic command/alarm scheduling, restart plus two consecutive simulated failures, exact replay without duplication, retained suspension and alarm cleanup. All 89 unit/API tests and application/cloud type checks passed. Worker `c6d924b9-b3db-4e90-8934-da4b962788ee`; evidence in `docs/recovery-protocol.md`. This advances the coordinator implementation; production authenticated routing, existing-account migration, operator approval, ambiguous PITR handling and client-level idempotency remain open.

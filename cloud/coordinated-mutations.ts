@@ -1,6 +1,6 @@
 import type { CloudDocument } from '../shared/documents';
 import { parseDocumentMutation } from './document-mutations';
-import type { AccountMutationDispatch, PendingMutation } from './mutation-dispatch';
+import type { MutationDispatch, PendingMutation } from './mutation-dispatch';
 import type { MutationReceipt } from './mutation-executor';
 
 interface MutationTransport {
@@ -19,7 +19,7 @@ export interface MutationFlight {
 // or permit headers are interpreted here.
 export class CoordinatedMutations {
   constructor(
-    private dispatch: AccountMutationDispatch,
+    private dispatch: MutationDispatch,
     private transport: MutationTransport,
     private flight: MutationFlight = {},
   ) {}
@@ -27,7 +27,7 @@ export class CoordinatedMutations {
   async handle(request: Request): Promise<Response | null> {
     const command = await parseDocumentMutation(request);
     if (!command) return null;
-    const pending = this.dispatch.enqueue(command);
+    const pending = await this.dispatch.enqueue(command);
     return this.finish(pending);
   }
 
@@ -93,7 +93,7 @@ export class CoordinatedMutations {
     }
     // Read/serialization failures leave the exact command pending. No finally
     // acknowledgement: a timeout is not proof of a durable terminal outcome.
-    this.dispatch.acknowledge(receipt);
+    await this.dispatch.acknowledge(receipt);
     return response;
   }
 }

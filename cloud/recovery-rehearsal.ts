@@ -9,7 +9,13 @@ import {
 import { ApiError } from '../server/errors';
 import { AccountWriteAdmission, type WritePermit } from './write-admission';
 import { AccountMutationExecutor, type MutationReceipt, type Mutation } from './mutation-executor';
-import { AccountMutationDispatch, type PendingMutation } from './mutation-dispatch';
+import {
+  AccountMutationDispatch,
+  type PendingMutation,
+  type MutationDispatch,
+} from './mutation-dispatch';
+import { ScheduledMutations } from './scheduled-mutations';
+import { rehearseScheduledMutations } from './recovery-scheduling-rehearsal';
 import { rehearseCoordination, rehearseLargeDispatch } from './recovery-coordination-rehearsal';
 import { RecoveryJournal, type RecoveryIntent } from './recovery-journal';
 import { completeVerifiedRecovery } from './recovery-completion';
@@ -149,10 +155,14 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
     ).require(accountId);
     return this.env.REHEARSAL.get(this.env.REHEARSAL.idFromString(dataId));
   }
-  private httpAdapter(accountId: string, loseResponse = false) {
+  private httpAdapter(
+    accountId: string,
+    loseResponse = false,
+    dispatch: MutationDispatch = this.dispatch(),
+  ) {
     const target = this.httpTarget(accountId);
     return new CoordinatedMutations(
-      this.dispatch(),
+      dispatch,
       {
         execute: (pending) => target.fixtureMutation(this.wireMutation(pending), loseResponse),
         read: async (id) => (await target.documentResponse(id)).json<CloudDocument>(),
@@ -195,6 +205,64 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
         })),
       ),
     );
+  }
+  private scheduledDispatch(failSchedule = false) {
+    return new ScheduledMutations(
+      this.ctx.storage.sql,
+      (fn) => this.ctx.storage.transaction(fn),
+      {
+        setAlarm: async (time) => {
+          await this.ctx.storage.setAlarm(time);
+          if (failSchedule) throw new Error('Injected alarm scheduling failure');
+        },
+        deleteAlarm: () => this.ctx.storage.deleteAlarm(),
+      },
+      Date.now,
+      2_000,
+      4_000,
+    );
+  }
+  initializeScheduledAccount(accountId: string, dataId: string) {
+    this.initializeHttpAccount(accountId, dataId);
+    this.ctx.storage.sql.exec(`CREATE TABLE IF NOT EXISTS rehearsal_alarm (
+      singleton INTEGER PRIMARY KEY, remaining INTEGER, runs INTEGER
+    )`);
+    this.ctx.storage.sql.exec('INSERT INTO rehearsal_alarm VALUES(1,2,0)');
+  }
+  scheduledRequest(
+    request: Request,
+    accountId: string,
+    loseResponse = false,
+    failSchedule = false,
+  ) {
+    return this.httpAdapter(accountId, loseResponse, this.scheduledDispatch(failSchedule)).handle(
+      request,
+    );
+  }
+  async scheduledStatus() {
+    return {
+      pending: this.dispatch().pending() !== null,
+      admission: this.admission().status(),
+      alarm: await this.ctx.storage.getAlarm(),
+      fixture: [...this.ctx.storage.sql.exec('SELECT remaining,runs FROM rehearsal_alarm')][0],
+    };
+  }
+  async alarm() {
+    const dispatch = this.scheduledDispatch();
+    if (!(await dispatch.prepareRetry())) return;
+    try {
+      const fixture = [...this.ctx.storage.sql.exec('SELECT remaining FROM rehearsal_alarm')][0];
+      this.ctx.storage.sql.exec('UPDATE rehearsal_alarm SET runs=runs+1');
+      if (Number(fixture.remaining) > 0) {
+        this.ctx.storage.sql.exec('UPDATE rehearsal_alarm SET remaining=remaining-1');
+        throw new Error('Injected scheduled transport failure');
+      }
+      const accountId = new CoordinatorTarget(this.ctx.storage.sql, (fn) => fn()).accountId();
+      await this.httpAdapter(accountId, false, dispatch).reconcile();
+    } catch {
+      // The successor alarm is already durable. Keep admission/command intact.
+      // The isolated fixture intentionally fails its first two alarm attempts.
+    }
   }
   private dispatch() {
     return new AccountMutationDispatch(this.ctx.storage.sql, (fn) =>
@@ -330,6 +398,7 @@ export default {
       coordination: await rehearseCoordination(env.REHEARSAL),
       largeDispatch: await rehearseLargeDispatch(env.REHEARSAL),
       httpMutations: await rehearseHttpMutations(env.REHEARSAL),
+      scheduledMutations: await rehearseScheduledMutations(env.REHEARSAL),
     });
   },
 } satisfies ExportedHandler<RecoveryEnv>;

@@ -12,6 +12,12 @@ export interface PendingMutation {
   command: Mutation;
 }
 
+export interface MutationDispatch {
+  enqueue(command: Mutation): PendingMutation | Promise<PendingMutation>;
+  pending(): PendingMutation | null;
+  acknowledge(receipt: MutationReceipt): void | Promise<void>;
+}
+
 // Private per-account coordinator storage; never restore this with documents.
 // Dispatch only the persisted command. Transport failures leave it pending so a
 // restarted coordinator can reconcile the exact operation with document receipts.

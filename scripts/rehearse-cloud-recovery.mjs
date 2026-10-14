@@ -90,6 +90,15 @@ try {
     concurrentReconciliation: true,
     suspensionPreserved: true,
   });
+  assert.deepEqual(result.scheduledMutations, {
+    passed: true,
+    atomicSchedulingRollback: true,
+    automaticReplayAfterRestart: true,
+    repeatedFailureRecovered: true,
+    noDuplicateDocument: true,
+    suspensionPreserved: true,
+    idleAlarmCleared: true,
+  });
   await mkdir('releases/cloudflare', { recursive: true });
   await writeFile('releases/cloudflare/recovery-result.json', JSON.stringify(result, null, 2));
   console.log('Remote recovery and undo passed; evidence saved without preview credentials.');

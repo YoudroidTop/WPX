@@ -36,6 +36,12 @@ export class CoordinatorTarget {
     return [...this.sql.exec('SELECT account_id,document_object_id FROM coordinator_target')][0];
   }
 
+  accountId(): string {
+    const current = this.row();
+    if (!current) throw new Error('Coordinator account target is not bound');
+    return current.account_id as string;
+  }
+
   require(accountId: string): string {
     const current = this.row();
     if (!current || current.account_id !== accountId)
