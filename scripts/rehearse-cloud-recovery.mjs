@@ -68,6 +68,7 @@ try {
     staleAfterUndoRejected: true,
     finalHighWaterMark: 5,
     journalSurvivedRestart: true,
+    schedulingRejectedUntilDrained: true,
     originalUndoPreserved: true,
     completionFailureKeptSuspended: true,
     completionRetryPreservedPending: true,

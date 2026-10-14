@@ -43,9 +43,7 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
   assert.ok('document' in receipt.result);
   const changed = await data().snapshot();
   assert.equal(changed.count, 2, 'Retry must not create a third document');
-  await control().completeMutation(receipt);
-  assert.equal(await control().pendingMutation(), null);
-  const ceiling = await control().drainedRevision('restore');
+  const ceiling = draining.highWaterMark;
   assert.equal(ceiling, 2);
   await control().journalBegin({
     id: 'restore',
@@ -60,6 +58,14 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
     expected: before,
     before: changed,
   });
+  await assert.rejects(() => control().journalStart('restore'), /not drained/);
+  assert.equal((await control().journalGet('restore')).phase, 'prepared');
+  await restart(controlId);
+  await assert.rejects(() => control().journalStart('restore'), /not drained/);
+  assert.equal((await control().pendingMutation())?.permit.token, second.permit.token);
+  await control().completeMutation(receipt);
+  assert.equal(await control().pendingMutation(), null);
+  assert.equal(await control().drainedRevision('restore'), ceiling);
   await control().journalStart('restore');
   await restart(controlId);
   assert.equal((await control().journalGet('restore')).phase, 'scheduling');
@@ -143,6 +149,7 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
     staleAfterUndoRejected: true,
     finalHighWaterMark: final.highWaterMark,
     journalSurvivedRestart: true,
+    schedulingRejectedUntilDrained: true,
     originalUndoPreserved: true,
     completionFailureKeptSuspended: true,
     completionRetryPreservedPending: true,
