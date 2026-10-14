@@ -1751,7 +1751,7 @@ hr {
 .spreadsheet thead {
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 8;
 }
 .spreadsheet th {
   background: #f3f6ef;
@@ -3071,4 +3071,10 @@ hr {
 .sheet-format-tools button[aria-pressed='true'] {
   background: #dcefe3;
   color: #176340;
+}
+
+.frozen-status {
+  font-size: 12px;
+  color: var(--green);
+  white-space: nowrap;
 }

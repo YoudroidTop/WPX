@@ -105,6 +105,14 @@ export async function exportOffice(content: DocumentContent): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     for (const sheet of content.sheets) {
       const ws = workbook.addWorksheet(sheet.name.replace(/[\\/*?:\[\]]/g, '_'));
+      if (sheet.frozenRows || sheet.frozenColumns)
+        ws.views = [
+          {
+            state: 'frozen',
+            xSplit: sheet.frozenColumns ?? 0,
+            ySplit: sheet.frozenRows ?? 0,
+          },
+        ];
       const calculate = createCalculator(sheet.cells);
       for (const [address, raw] of Object.entries(sheet.cells)) {
         if (raw.startsWith('=')) {
@@ -246,9 +254,16 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
         if (row.height)
           rowHeights[row.number] = Math.max(24, Math.min(300, Math.round(row.height / 0.75)));
       });
+      const frozen = ws.views?.find((view) => view.state === 'frozen');
       return {
         id: randomUUID(),
         name: ws.name,
+        ...(frozen?.state === 'frozen'
+          ? {
+              frozenRows: Math.max(0, Math.min(MAX_ROWS - 1, Math.floor(frozen.ySplit ?? 0))),
+              frozenColumns: Math.max(0, Math.min(MAX_COLUMNS - 1, Math.floor(frozen.xSplit ?? 0))),
+            }
+          : {}),
         cells,
         ...(Object.keys(styles).length ? { styles } : {}),
         ...(Object.keys(columnWidths).length ? { columnWidths } : {}),

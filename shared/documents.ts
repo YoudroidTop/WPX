@@ -32,6 +32,8 @@ export interface SheetPage {
   id: string;
   name: string;
   cells: Record<string, string>;
+  frozenRows?: number;
+  frozenColumns?: number;
   styles?: Record<string, SheetCellStyle>;
   rowHeights?: Record<string, number>;
   columnWidths?: Record<string, number>;
@@ -147,6 +149,18 @@ const nativeContentSchema = z.discriminatedUnion('type', [
           id: z.string().max(100),
           name: z.string().min(1).max(31),
           cells: z.record(z.string().regex(cellAddress), z.string().max(MAX_CELL_LENGTH)),
+          frozenRows: z
+            .number()
+            .int()
+            .min(0)
+            .max(MAX_ROWS - 1)
+            .optional(),
+          frozenColumns: z
+            .number()
+            .int()
+            .min(0)
+            .max(MAX_COLUMNS - 1)
+            .optional(),
           styles: z
             .record(
               z.string().regex(cellAddress),

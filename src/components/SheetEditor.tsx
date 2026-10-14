@@ -1,3 +1,5 @@
+import { frozenOffsets } from '../../shared/sheet-view';
+import type { CSSProperties } from 'react';
 import SheetFormatToolbar from './SheetFormatToolbar';
 import { formatSelection, formatCellValue } from '../../shared/sheet-format';
 import { useMemo, useState, useRef, useEffect, type PointerEvent, type KeyboardEvent } from 'react';
@@ -163,8 +165,41 @@ export default function SheetEditor({
       [...address.replace(/\d/g, '')].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0),
     ),
   );
-  const rows = Math.max(rowCount, usedRows),
-    columns = Math.max(colCount, usedCols);
+  const rows = Math.max(rowCount, usedRows, (sheet.frozenRows ?? 0) + 1),
+    columns = Math.max(colCount, usedCols, (sheet.frozenColumns ?? 0) + 1);
+  const frozenRows = sheet.frozenRows ?? 0,
+    frozenColumns = sheet.frozenColumns ?? 0;
+  const rowOffsets = frozenOffsets(frozenRows, 29, (index) => heightOf(index + 1));
+  const columnOffsets = frozenOffsets(frozenColumns, 44, widthOf);
+  function frozenCellStyle(row: number, col: number): CSSProperties {
+    const fixedRow = row <= frozenRows,
+      fixedColumn = col < frozenColumns;
+    if (!fixedRow && !fixedColumn) return {};
+    return {
+      position: 'sticky',
+      top: fixedRow ? rowOffsets.offsets[row - 1] : undefined,
+      left: fixedColumn ? columnOffsets.offsets[col] : undefined,
+      zIndex: fixedRow && fixedColumn ? 5 : fixedRow ? 4 : 3,
+      backgroundColor:
+        inSelection(selection, { row, col }) && selected !== cellAddress({ row, col })
+          ? '#e7f1eb'
+          : 'white',
+    };
+  }
+  function freeze(mode: string) {
+    const frozenRows =
+      mode === 'first-row' ? 1 : mode === 'selection' ? selection.anchor.row - 1 : 0;
+    const frozenColumns =
+      mode === 'first-column' ? 1 : mode === 'selection' ? selection.anchor.col : 0;
+    onChange({
+      ...content,
+      sheets: content.sheets.map((s) =>
+        s.id === sheet.id ? { ...s, frozenRows, frozenColumns } : s,
+      ),
+    });
+    setEditing(null);
+    grid.current?.scrollTo({ top: 0, left: 0 });
+  }
   function setCell(address: string, value: string) {
     setPasteError('');
     const cells = { ...sheet.cells };
@@ -385,6 +420,27 @@ export default function SheetEditor({
         <button disabled={!history.current.redo.length} onClick={() => travel('redo')}>
           重做
         </button>
+        <select aria-label="冻结窗格" value="" onChange={(event) => freeze(event.target.value)}>
+          <option value="" disabled>
+            冻结窗格
+          </option>
+          <option value="first-row">冻结首行</option>
+          <option value="first-column">冻结首列</option>
+          <option
+            value="selection"
+            disabled={selection.anchor.row === 1 && selection.anchor.col === 0}
+          >
+            冻结至当前单元格
+          </option>
+          <option value="none" disabled={!frozenRows && !frozenColumns}>
+            取消冻结
+          </option>
+        </select>
+        {!!(frozenRows || frozenColumns) && (
+          <span className="frozen-status">
+            已冻结 {frozenRows} 行 · {frozenColumns} 列
+          </span>
+        )}
         <select
           aria-label="行列操作"
           value=""
@@ -488,6 +544,7 @@ export default function SheetEditor({
       )}
       <div
         className="sheet-scroll"
+        style={{ scrollPaddingTop: rowOffsets.size, scrollPaddingLeft: columnOffsets.size }}
         ref={grid}
         onCopy={(event) => {
           if (editing) return;
@@ -528,6 +585,11 @@ export default function SheetEditor({
               {Array.from({ length: columns }, (_, col) => (
                 <th
                   key={col}
+                  style={
+                    col < frozenColumns
+                      ? { position: 'sticky', left: columnOffsets.offsets[col], zIndex: 1 }
+                      : undefined
+                  }
                   className={col >= bounds.left && col <= bounds.right ? 'selected-heading' : ''}
                 >
                   <button
@@ -554,6 +616,10 @@ export default function SheetEditor({
               return (
                 <tr key={row} style={{ height: heightOf(row) }}>
                   <th
+                    style={{
+                      top: row <= frozenRows ? rowOffsets.offsets[row - 1] : undefined,
+                      zIndex: row <= frozenRows ? 6 : 2,
+                    }}
                     className={`row-number ${row >= bounds.top && row <= bounds.bottom ? 'selected-heading' : ''}`}
                   >
                     <button
@@ -580,8 +646,9 @@ export default function SheetEditor({
                         key={address}
                         className={`${selected === address ? 'selected-cell' : ''} ${inSelection(selection, { row, col }) ? 'range-cell' : ''} ${typeof value === 'string' && value.startsWith('#') ? 'cell-error' : ''}`}
                         data-range={inSelection(selection, { row, col }) ? 'selected' : undefined}
-                        style={
-                          inSelection(selection, { row, col })
+                        style={{
+                          ...frozenCellStyle(row, col),
+                          ...(inSelection(selection, { row, col })
                             ? {
                                 boxShadow:
                                   [
@@ -593,8 +660,8 @@ export default function SheetEditor({
                                     .filter(Boolean)
                                     .join(', ') || undefined,
                               }
-                            : undefined
-                        }
+                            : {}),
+                        }}
                         onPointerDown={(event) => {
                           if (event.button !== 0 || editing === address) return;
                           if (event.pointerType === 'touch') {
@@ -641,6 +708,8 @@ export default function SheetEditor({
                                       col === bounds.right && 'inset -2px 0 var(--green)',
                                     ]
                                   : []),
+                                row === frozenRows && 'inset 0 -2px #8b9d92',
+                                col === frozenColumns - 1 && 'inset -2px 0 #8b9d92',
                                 style?.border && 'inset 0 0 0 1px #53645c',
                               ]
                                 .filter(Boolean)

@@ -1,5 +1,6 @@
 import { columnName, MAX_ROWS, MAX_COLUMNS, type SheetPage } from './documents';
 import { parseSelection, cellAddress } from './sheet-selection';
+import { shiftFrozenBoundary } from './sheet-view';
 
 type Axis = 'row' | 'col';
 type Operation = 'insert' | 'delete';
@@ -106,6 +107,22 @@ export function changeSheetStructure(
     ...sheet,
     cells,
     ...(sheet.styles ? { styles } : {}),
+    ...(axis === 'row' && sheet.frozenRows !== undefined
+      ? {
+          frozenRows: shiftFrozenBoundary(sheet.frozenRows, at - 1, count, operation, MAX_ROWS - 1),
+        }
+      : {}),
+    ...(axis === 'col' && sheet.frozenColumns !== undefined
+      ? {
+          frozenColumns: shiftFrozenBoundary(
+            sheet.frozenColumns,
+            at,
+            count,
+            operation,
+            MAX_COLUMNS - 1,
+          ),
+        }
+      : {}),
     ...(dimensions ? { [axis === 'row' ? 'rowHeights' : 'columnWidths']: shifted } : {}),
   };
 }
