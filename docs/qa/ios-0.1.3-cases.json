@@ -13,6 +13,13 @@
         "ios-013-playback",
         "ios-013-logout"
       ]
+    },
+    {
+      "title": "Focused landscape presentation regression",
+      "status": "passed",
+      "caseIds": [
+        "ios-013-landscape"
+      ]
     }
   ],
   "cases": [
@@ -56,6 +63,22 @@
       "assertions": [
         "Login page visible"
       ]
+    },
+    {
+      "id": "ios-013-landscape",
+      "title": "Present the retained fixture in landscape",
+      "steps": [
+        "Rotate the dedicated iPad simulator to landscape",
+        "Log in and open the retained slide fixture",
+        "Start playback and advance to page two",
+        "Close playback and return to the workspace"
+      ],
+      "assertions": [
+        "Slide surface remains 16:9 with visible controls",
+        "Page two title is 2201440 and count is 2/2",
+        "Close returns to the second-slide editor",
+        "Workspace retains four documents and 881 B usage"
+      ]
     }
   ],
   "lastRun": {
@@ -98,14 +121,26 @@
         "evidence": [
           "releases/mobile/ios-0.1.3-logout.png"
         ]
+      },
+      {
+        "caseId": "ios-013-landscape",
+        "status": "passed",
+        "mode": "native CUA",
+        "notes": "Landscape playback, next and close passed. Logout completed after returning to portrait. Landscape account-dialog scrolling did not produce an observable scroll using the available CUA gestures; it remains inconclusive, not accepted. No document edits or deletion. Dedicated simulator shut down.",
+        "evidence": [
+          "releases/mobile/ios-0.1.3-landscape-page1.png",
+          "releases/mobile/ios-0.1.3-landscape-page2.png",
+          "releases/mobile/ios-0.1.3-landscape-exit.png",
+          "releases/mobile/ios-0.1.3-landscape-followup-logout.png"
+        ]
       }
     ],
-    "notes": "Focused portrait simulator acceptance only. Physical devices, landscape, keyboard navigation, full editor/file/offline regression and store distribution are not established. Existing local server is suitable for playback; its historical export behavior is not covered.",
+    "notes": "Focused portrait and landscape presentation acceptance only. Physical devices, keyboard navigation, full editor/file/offline regression and store distribution are not established. Landscape account-dialog scrolling remains inconclusive. Existing local server export behavior is not covered.",
     "device": "Zhuole Docs iPad QA / iOS 26.1",
     "build": "0.1.3 (4)",
     "exclusions": [
       "Physical devices and store distribution",
-      "Landscape and keyboard navigation",
+      "Keyboard navigation and landscape account-dialog scrolling",
       "Complete current-build editor, file and offline regression",
       "Existing local server Office export behavior"
     ]
