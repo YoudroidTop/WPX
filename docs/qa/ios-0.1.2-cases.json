@@ -40,12 +40,12 @@
     {
       "area": "Current presentation edit and playback",
       "caseIds": ["ios-012-slides"],
-      "status": "not-run"
+      "status": "passed"
     },
     {
       "area": "Current Word edit and save",
       "caseIds": ["ios-012-word-edit"],
-      "status": "not-run"
+      "status": "passed"
     }
   ],
   "cases": [
@@ -148,8 +148,18 @@
       "preconditions": [
         "Task-owned simulator with local service 3173 and isolated existing fixture."
       ],
-      "steps": ["Requires dedicated current-build editor regression."],
-      "assertions": ["Current presentation edit and playback"],
+      "steps": [
+        "Create a dedicated local presentation fixture through the API.",
+        "Edit title to 1201440, body to 481216 and theme to midnight; save.",
+        "Duplicate the slide, change its title to 2201440, save and reopen.",
+        "Start playback, advance to page 2 and close playback.",
+        "Compare both slides through authenticated API readback."
+      ],
+      "assertions": [
+        "Reopening retains both titles, body and midnight theme.",
+        "Playback reaches page 2/2 and close returns to the second slide editor.",
+        "API revision 6 contains exactly two slides with distinct IDs and matching content."
+      ],
       "failureSignals": ["Expected UI or artifact mismatch."]
     },
     {
@@ -160,8 +170,15 @@
       "preconditions": [
         "Task-owned simulator with local service 3173 and isolated existing fixture."
       ],
-      "steps": ["Opening existing content does not prove editing or synchronization."],
-      "assertions": ["Current Word edit and save"],
+      "steps": [
+        "Create a dedicated blank local Word fixture through the API.",
+        "Enter 1201437 through native CUA, select the text, apply bold and centered alignment, then save.",
+        "Return to the workspace and reopen; inspect formatting and authenticated API readback."
+      ],
+      "assertions": [
+        "Reopened text is 1201437, bold and centered.",
+        "API revision 3 contains exactly one centered paragraph with the bold text."
+      ],
       "failureSignals": ["Expected UI or artifact mismatch."]
     }
   ],
@@ -220,24 +237,34 @@
       },
       {
         "caseId": "ios-012-slides",
-        "status": "not-run",
+        "status": "passed",
         "mode": "native CUA",
-        "notes": "Requires dedicated current-build editor regression.",
-        "evidence": []
+        "notes": "Native content/theme edit, duplicate, save/reopen, playback next and close passed. API revision 6 deeply matches both slides. One CUA connection expired before playback; rebinding the app restored control. Portrait playback aspect-ratio fidelity remains unverified.",
+        "evidence": [
+          "releases/mobile/ios-0.1.2-slides-reopened.png",
+          "releases/mobile/ios-0.1.2-slides-page2.png",
+          "releases/mobile/ios-0.1.2-slides-closed.png",
+          "releases/mobile/ios-0.1.2-word-slide-readback.json"
+        ]
       },
       {
         "caseId": "ios-012-word-edit",
-        "status": "not-run",
+        "status": "passed",
         "mode": "native CUA",
-        "notes": "Opening existing content does not prove editing or synchronization.",
-        "evidence": []
+        "notes": "Native edit, bold, center, save and reopen passed; API revision 3 deeply matches exact content. Numeric input does not cover Chinese IME.",
+        "evidence": [
+          "releases/mobile/ios-0.1.2-word-format-reopened.png",
+          "releases/mobile/ios-0.1.2-word-slide-readback.json",
+          "releases/mobile/ios-0.1.2-word-slide-logout.png"
+        ]
       }
     ],
     "exclusions": [
       "Physical devices, landscape, keyboard and IME regression.",
-      "Current-build three-editor edits, Office import/export, offline and 503 regression.",
+      "Full editor feature coverage, native Office import/export, offline and 503 regression.",
       "Public distribution and app-store acceptance.",
-      "Port-3173 process started before formula fix: its XLSX export failed; fresh-code conversion passed separately. No native share-sheet export pass claimed."
+      "Port-3173 process started before formula fix: its XLSX export failed; fresh-code conversion passed separately. No native share-sheet export pass claimed.",
+      "Portrait playback aspect-ratio fidelity; slide notes, reordering and deletion."
     ]
   }
 }
