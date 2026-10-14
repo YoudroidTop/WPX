@@ -64,7 +64,7 @@ try {
   await writeFile(join(workspace, 'build.log'), output, { mode: 0o600 });
   await cp(
     join(workspace, 'entry/build/default/outputs/default/entry-default-signed.hap'),
-    'releases/harmony/ZhuoleDocs-0.1.0-harmony-debug.hap',
+    `releases/harmony/ZhuoleDocs-${app.app.versionName}-harmony-debug.hap`,
   );
   console.log('Signed development HAP ready in releases/harmony.');
 } catch (error) {

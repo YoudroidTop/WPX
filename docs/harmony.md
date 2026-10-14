@@ -138,3 +138,7 @@ Artifact: `releases/harmony/ZhuoleDocs-0.1.0-harmony-debug-d73726a.hap`, SHA-256
 Installation on registered device `4UQ9K25530058677` succeeded without clearing data. Launch returned error 10106102 because the screen was locked. This establishes packaging, device signature acceptance and installation only. The existing case catalog describes the preceding `74128965...` HAP, not a fresh UI pass for this artifact. Current-build IME, Office picker and ZDOC regression require an unlocked device.
 
 Evidence: `releases/harmony/ime-web-sync.log`, `ime-build.log`, `ime-artifact.json`, `ime-install.log`, and `ime-launch.log`. The material-bearing temporary signing configuration was removed by the helper; signing details were not copied into the repository.
+
+## Development package 0.1.1 (2026-10-14)
+
+Native version 0.1.1/code 2 bundles the account availability and local draft discovery fixes. The debug build helper now derives the output filename from AppScope's version instead of overwriting the 0.1.0 artifact. `hvigorw assembleHap` succeeded with the existing matching development profile. All 10 embedded web files match `dist`; HAP SHA-256 is `b813a8de8c9274eae325aee29064f1f63155e1ab6bf2a5bdcc6a2752817608cb`, path `releases/harmony/ZhuoleDocs-0.1.1-harmony-debug.hap`. The connected device again returned screen-lock launch error 10106102. This new package has not been installed or visually accepted; earlier HAP results do not establish its runtime acceptance.

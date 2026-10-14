@@ -46,3 +46,7 @@ Local Windows x64/arm64 installers and notarized Mac arm64/x64 DMGs are built wi
 ## Desktop 0.1.3 public delivery (2026-10-14)
 
 Official downloads now serve the verified 0.1.3 installers. All four public files passed complete checksum/size, HEAD and range checks; all 12 historical links remain available. The production browser smoke also passed. Windows user acceptance, Intel Mac runtime, mobile refresh and production recovery orchestration remain open.
+
+## Mobile 0.1.1 development packages (2026-10-14)
+
+Android debug APK, iOS development IPA and Harmony debug HAP now include the shared account availability/draft fixes, with native version 0.1.1/build 2. All bundled web files match staging. Android's dedicated-emulator editor/export/offline/cache/account regression passed. iOS signature/profile checks passed but paired phones were offline. Harmony build/package checks passed; device launch remained locked, and the new HAP was not installed. See `docs/mobile.md` for exact hashes and logs. Mobile public distribution and current-build iOS/Harmony runtime acceptance remain open.
