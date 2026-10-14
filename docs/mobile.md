@@ -296,3 +296,9 @@ Evidence: `releases/mobile/ios-0.1.4-pptx-byte-readback.json`. The catalog now c
 Native CUA selected the saved PPTX, confirmed import and opened a two-slide editor. Authenticated API readback identified exactly one new document and verified both titles and bodies in order. The existing local API process predates the theme-preserving parser: both imported themes were paper rather than the source midnight. This establishes basic text import only; the earlier current-source parser check does not establish full fidelity through this stale running service. A fresh current-server native run remains required for theme fidelity.
 
 Only the newly created test document was removed, restoring four documents and 881 B. UI/API sessions were logged out and the task simulator shut down. Evidence: `releases/mobile/ios-0.1.4-pptx-imported.png`, `ios-0.1.4-native-import-readback.json`, `ios-0.1.4-native-import-logout.png`. The catalog now has six focused passes with the explicit fidelity limitation.
+
+### iOS 0.1.4 current-server native PPTX fidelity (2026-10-14)
+
+Gracefully replaced the stale task-local API on port 3173 with current source, preserving its database. Native Files selection and confirmed import now display two midnight-themed slides. Authenticated API deep comparison matches the source titles, bodies, notes, themes and order, excluding only generated slide IDs. This resolves the preceding stale-service theme discrepancy for the saved fixture. Both source notes are empty; nonempty notes, complex Office files and physical-device coverage are not implied.
+
+Removed only the newly imported document and verified four documents / 881 B remain. UI/API logout completed and the dedicated simulator was shut down. Seven focused catalog cases now pass. Evidence: `releases/mobile/ios-0.1.4-current-native-import.{json,png}` and `ios-0.1.4-current-import-logout.png`.

@@ -35,6 +35,13 @@
       "caseIds": [
         "ios-014-native-import"
       ]
+    },
+    {
+      "title": "Current-server native PPTX fidelity",
+      "status": "passed",
+      "caseIds": [
+        "ios-014-current-native-fidelity"
+      ]
     }
   ],
   "cases": [
@@ -123,6 +130,22 @@
         "Exactly one new document persisted",
         "Cleanup restores four documents and 881 B"
       ]
+    },
+    {
+      "id": "ios-014-current-native-fidelity",
+      "title": "Preserve supported PPTX content through native confirmed import",
+      "steps": [
+        "Restart task local API from current source",
+        "Select existing saved PPTX through Files and confirm import",
+        "Observe midnight-themed two-slide editor",
+        "Compare persisted content to source excluding generated IDs",
+        "Remove only newly imported fixture and log out"
+      ],
+      "assertions": [
+        "Titles, bodies, notes, themes and slide order match",
+        "Both slides retain midnight theme",
+        "Cleanup restores four documents and 881 B"
+      ]
     }
   ],
   "lastRun": {
@@ -188,12 +211,23 @@
           "releases/mobile/ios-0.1.4-native-import-readback.json",
           "releases/mobile/ios-0.1.4-native-import-logout.png"
         ]
+      },
+      {
+        "caseId": "ios-014-current-native-fidelity",
+        "status": "passed",
+        "mode": "Native CUA and authenticated API deep comparison",
+        "evidence": [
+          "releases/mobile/ios-0.1.4-current-native-import.json",
+          "releases/mobile/ios-0.1.4-current-native-import.png",
+          "releases/mobile/ios-0.1.4-current-import-logout.png"
+        ],
+        "notes": "Fresh local API on port 3173 replaces stale process. Only generated slide IDs excluded; source notes are empty, so nonempty notes coverage is not established."
       }
     ],
-    "notes": "First login attempt failed; re-entering the same password succeeded. No confirmed app defect. No files selected or documents changed. Logged out and shut down dedicated simulator. Follow-up saved the existing synthetic slide fixture as PPTX to On My iPad and selected it through Files; canceled confirmation without cloud import. Local sample retained; API count/usage unchanged, UI/API logout completed and simulator shut down. Saved PPTX, export cache and selected-file copy match exactly. Current-source parser matches both source slides at revision 6 except regenerated IDs. This does not establish native confirmed import. Follow-up confirmed native import and basic text persistence; only its new document was removed, restoring baseline. UI/API logout and simulator shutdown completed. Theme fidelity remains unverified against a fresh current server.",
+    "notes": "Seven focused cases across successive runs: installed identity, picker cancel/reopen, logout, native PPTX save/select, saved-byte/parser readback, basic confirmed import and current-server confirmed import fidelity. An early login retry succeeded with the same password. The first confirmed import used a stale API and lost themes; after restarting that task-local service from current source, native import preserved all supported fixture content excluding generated slide IDs. Only each newly imported test document was removed, restoring four documents and 881 B. UI/API logout and simulator shutdown completed. Original local PPTX remains available. See case-specific evidence and exclusions.",
     "exclusions": [
       "Real file-provider read failures and oversized selection",
-      "Current-server native theme fidelity; DOCX/XLSX and complex PPTX fidelity",
+      "Nonempty notes, DOCX/XLSX and complex PPTX fidelity",
       "Physical devices and store distribution",
       "Full editor/offline/keyboard regression"
     ]
