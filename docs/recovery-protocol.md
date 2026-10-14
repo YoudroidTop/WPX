@@ -241,3 +241,9 @@ The scheduling transaction now requires the journal account and document object 
 Focused tests cover all three rejection paths and verify the journal remains prepared with no undo bookmark, admission stays suspended and the revision ceiling is unchanged. The correct-target scheduling and existing binding-persistence tests also pass. This validates scheduling identity only; the eventual production PITR transport must resolve its destination from that binding, authenticate the operator and validate the approved target bookmark. No remote rehearsal or deployment of this follow-up has occurred.
 
 Validation: all 100 unit/API tests and cloud TypeScript checks passed; evidence `releases/recovery-target-tests.log`.
+
+## Remote recovery target rejection (2026-10-14)
+
+Isolated Worker `6e81e3a4-6dc1-459d-8b44-db76f5541a6b` passed six target-rejection checks: an unbound coordinator, wrong account and wrong document object each remain unable to schedule before and after coordinator restart. Every rejection preserves the full prepared journal and suspended admission state; the generated target snapshot is unchanged. Correctly bound restore/undo, revision fencing, large dispatch, HTTP reconciliation and alarm recovery also passed in the same run.
+
+Evidence: `releases/cloudflare/recovery-target-deploy.log`, `recovery-target-run.log`, and `recovery-result.json` (`recoveryTargets.rejected: 6`). Previous evidence is retained in `recovery-before-target-result.json`. Cloud TypeScript and formatting checks passed; the authenticated preview shut down cleanly. Only generated isolated fixture objects were used, with no production routes or customer data changes. Production operator authorization, binding-derived PITR transport, ambiguous scheduling reconciliation and existing-account migration remain open.

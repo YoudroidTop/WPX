@@ -15,6 +15,7 @@ import {
   type MutationDispatch,
 } from './mutation-dispatch';
 import { ScheduledMutations } from './scheduled-mutations';
+import { rehearseRecoveryTargets } from './recovery-target-rehearsal';
 import { rehearseScheduledMutations } from './recovery-scheduling-rehearsal';
 import { rehearseCoordination, rehearseLargeDispatch } from './recovery-coordination-rehearsal';
 import { RecoveryJournal, type RecoveryIntent } from './recovery-journal';
@@ -400,6 +401,7 @@ export default {
       restored,
       undone,
       revisionFencing: { restored: restoredFence, undone: undoFence },
+      recoveryTargets: await rehearseRecoveryTargets(env.REHEARSAL),
       coordination: await rehearseCoordination(env.REHEARSAL),
       largeDispatch: await rehearseLargeDispatch(env.REHEARSAL),
       httpMutations: await rehearseHttpMutations(env.REHEARSAL),

@@ -50,6 +50,12 @@ try {
     restored: { rejected: 3, highWaterMark: 2, nextRevision: 3 },
     undone: { rejected: 2, highWaterMark: 3, nextRevision: 4 },
   });
+  assert.deepEqual(result.recoveryTargets, {
+    passed: true,
+    rejected: 6,
+    restartPreservedRejection: true,
+    targetUnchanged: true,
+  });
   const { dataObjectId, coordinatorObjectId, ...coordination } = result.coordination;
   assert.match(dataObjectId, /^[a-f0-9]{64}$/);
   assert.match(coordinatorObjectId, /^[a-f0-9]{64}$/);
