@@ -129,3 +129,12 @@ Production Worker `384229a8-835a-424a-b4a1-c20e6aa70935` serves 100% of traffic 
 `npm run cloud:build` and all six cloud document tests passed. The production browser smoke passed registration, Word persistence, spreadsheet SUM, composing Enter/arrow/Tab event handling, normal Enter navigation, Chinese text readback after reload, slide presentation and logout. Only generated QA documents were removed. These synthetic keyboard events verify application interception, not native OS candidate selection. Client installers have not been rebuilt for this fix.
 
 Evidence: `releases/cloudflare/ime-build.log`, `ime-before-deploy.log`, `ime-deploy.log`, `ime-after-deploy.log`, and `ime-live-browser.log`. Reproduce browser acceptance with `SMOKE_PROXY=http://127.0.0.1:7897 node scripts/smoke-cloud-browser.mjs` in this configured environment.
+
+
+## Desktop 0.1.2 public cutover (2026-10-14)
+
+Worker `cb6f2753-63ad-49ae-ae5e-b6f65cde7fa9` serves the 0.1.2 desktop manifest on the production custom domain. All four installers were uploaded to content-addressed R2 keys before deployment. The explicit history now retains both 0.1.0 and 0.1.1; none of their records or published files were overwritten. Code rollback target: `384229a8-835a-424a-b4a1-c20e6aa70935`. Account/document bindings and migrations are unchanged.
+
+All four public 0.1.2 files passed full streaming SHA-256/size comparison, HEAD metadata, and first/last byte range checks. All eight historical links passed HEAD metadata and first/last byte comparisons against local artifacts. The production browser smoke passed registration, Word persistence, sheet formula/composition events/Chinese persistence, slideshow and logout; its generated documents were removed. All 53 unit/API tests and the cloud build passed before deployment.
+
+Evidence under `releases/cloudflare/`: `0.1.2-upload.log`, `0.1.2-deploy.log`, `0.1.2-after.log`, `desktop-download-readback.json`, `0.1.2-download-readback.log`, `0.1.2-history-links.json`, `0.1.2-browser-smoke.log`, `0.1.2-tests.log`, and `0.1.2-build.log`. Previous 0.1.1 readback is preserved in `0.1.1-preserved-download-readback.json`. Windows remains unsigned as requested; public delivery does not establish Windows or Intel Mac runtime acceptance.
