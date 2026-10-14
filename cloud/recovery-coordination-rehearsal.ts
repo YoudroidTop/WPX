@@ -11,7 +11,13 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
     await assert.rejects(() => namespace.get(id).restart(), /Recovery rehearsal restart/);
   };
   await assert.rejects(() => control().admitMutation());
+  await restart(controlId);
+  assert.equal((await control().admissionStatus()).phase, 'uninitialized');
+  await assert.rejects(() => control().admitMutation());
   await control().initializeAdmission();
+  await restart(controlId);
+  assert.equal((await control().admissionStatus()).phase, 'active');
+  assert.equal((await control().admissionStatus()).highWaterMark, 0);
   const first = await control().admitMutation();
   await control().completeMutation(await data().fixtureMutation(first, 'word'));
   const before = await data().snapshot();
@@ -26,6 +32,8 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
   const draining = await control().admissionStatus();
   assert.equal(draining.phase, 'draining');
   assert.equal(draining.pending, second.token);
+  await control().initializeAdmission();
+  assert.deepEqual(await control().admissionStatus(), draining);
   await assert.rejects(() => control().admitMutation());
   await assert.rejects(() => control().drainedRevision('restore'));
   const receipt = await data().fixtureMutation(second, 'sheet');
@@ -117,6 +125,8 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
   assert.equal((await control().journalGet('undo')).phase, 'complete');
   return {
     passed: true,
+    initializationSurvivedRestart: true,
+    initializationRetryPreservedPending: true,
     dataObjectId: dataId.toString(),
     coordinatorObjectId: controlId.toString(),
     responseLossReconciled: true,

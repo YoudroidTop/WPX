@@ -56,6 +56,8 @@ try {
   assert.notEqual(dataObjectId, coordinatorObjectId);
   assert.deepEqual(coordination, {
     passed: true,
+    initializationSurvivedRestart: true,
+    initializationRetryPreservedPending: true,
     responseLossReconciled: true,
     duplicateCreatePrevented: true,
     coordinatorRestartPreservedPending: true,
