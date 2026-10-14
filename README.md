@@ -78,9 +78,17 @@ See [Delivery status](docs/delivery-status.md) for the requirement-by-requiremen
 
 - **Phase 1 / WPX-1:** 卓乐云文档 Web MVP.
 - **Phase 2 / WPX-2:** 卓乐文档 for Windows and macOS; native file integration, offline editing/sync, signed installers and updates.
-- **Phase 3 / WPX-3:** mobile clients; touch editing, system files/share integration, offline sync, store distribution.
+- **Phase 3 / WPX-3:** iOS, Android and HarmonyOS clients; touch editing, system files/share integration and offline sync. Mobile distribution is deferred by the owner.
 
 Desktop 0.1.5 installers are publicly available with manual update checking; platform-specific acceptance limits remain in the delivery report. Mobile delivery is in progress, with local Android 0.1.4, iOS 0.1.4 and HarmonyOS 0.1.3 candidates. iOS, Android and HarmonyOS projects bundle the editors and native cloud/file adapters; see [Mobile clients](docs/mobile.md). They reuse the account, quota, and document API. See [Architecture](docs/architecture.md) for the implementation boundaries.
+
+For local mobile installation, run from the repository root:
+
+```sh
+./run_release.sh
+```
+
+Choose the platform, device and Debug/Release mode from the interactive menus. The launcher builds, installs and starts the app; Release selects an optimized local build and does not publish it. Use `./run_release.sh --help` for explicit selection and dry-run options. Toolchain and development-signing prerequisites are documented in [Mobile clients](docs/mobile.md).
 
 ```text
 desktop/             Sandboxed Electron main process, preload and packaging assets
