@@ -82,6 +82,20 @@ export class AccountWriteAdmission {
     return row.revision;
   }
 
+  // The caller must fence legacy writers and establish the highest revision ever
+  // issued, including deleted documents and abandoned restore timelines. A scan
+  // of current documents alone is not sufficient. This never reopens admission.
+  registerHistoricalCeiling(recovery: string, revision: number): number {
+    return this.atomic(() => {
+      const previous = this.requireDrained(recovery);
+      if (!Number.isSafeInteger(revision) || revision < 0 || revision >= Number.MAX_SAFE_INTEGER)
+        throw new Error('Historical revision ceiling must be within the safe range');
+      const ceiling = Math.max(previous, revision);
+      this.sql.exec('UPDATE write_admission SET revision=?', ceiling);
+      return ceiling;
+    });
+  }
+
   // Persist the revision assigned by recovery before reopening. The outer
   // coordinator is responsible for verification and authorization, not this API.
   resumeAfterVerification(recovery: string, revision: number): void {

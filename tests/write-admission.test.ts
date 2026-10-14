@@ -162,3 +162,50 @@ test('a delayed admitted operation keeps recovery draining until its durable out
     f.db.close();
   }
 });
+
+test('historical ceiling requires exclusive drained ownership and never reopens admission', () => {
+  const f = fixture();
+  try {
+    const gate = f.open();
+    assert.throws(() => gate.registerHistoricalCeiling('migration', 900));
+    const pending = gate.admit();
+    gate.suspend('migration');
+    assert.throws(() => gate.registerHistoricalCeiling('migration', 900));
+    assert.equal(gate.status().highWaterMark, pending.revision);
+    gate.complete(pending);
+    assert.throws(() => gate.registerHistoricalCeiling('other', 900));
+    for (const revision of [-1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER])
+      assert.throws(() => gate.registerHistoricalCeiling('migration', revision));
+    assert.equal(gate.registerHistoricalCeiling('migration', 900), 900);
+    assert.equal(gate.registerHistoricalCeiling('migration', 12), 900);
+    assert.equal(gate.registerHistoricalCeiling('migration', 900), 900);
+    assert.equal(f.open().status().phase, 'suspended');
+    assert.throws(() => f.open().admit(), { status: 503 });
+    assert.throws(() => gate.resumeAfterVerification('migration', 900));
+    gate.resumeAfterVerification('migration', 901);
+    assert.equal(f.open().admit().revision, 902);
+  } finally {
+    f.db.close();
+  }
+});
+
+test('historical ceiling survives storage reopen and an exhausted ceiling remains closed', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'zhuole-history-'));
+  const path = join(directory, 'coordinator.sqlite');
+  let f = fixture(path);
+  try {
+    f.open().suspend('migration');
+    f.open().registerHistoricalCeiling('migration', 5000);
+    f.db.close();
+    f = fixture(path);
+    assert.equal(f.open().requireDrained('migration'), 5000);
+    assert.equal(f.open().registerHistoricalCeiling('migration', 0), 5000);
+    f.open().registerHistoricalCeiling('migration', Number.MAX_SAFE_INTEGER - 1);
+    assert.throws(() => f.open().resumeAfterVerification('migration', Number.MAX_SAFE_INTEGER));
+    assert.throws(() => f.open().admit(), { status: 503 });
+    assert.equal(f.open().status().phase, 'suspended');
+  } finally {
+    f.db.close();
+    rmSync(directory, { recursive: true });
+  }
+});
