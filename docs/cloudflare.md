@@ -171,3 +171,13 @@ Production Worker `97f9b16f-7dd3-4398-9644-a081fbb99d9d` serves 100% of traffic 
 Cloud build passed. The expanded live API smoke passed account/password/session checks, all three document types, private access, revision conflicts and generated-document cleanup. The downloaded XLSX retains the exact formulas and corrected numeric caches for COUNT, AVERAGE, SUM, MIN and MAX with blank/text references. All ten production static resources match the local build byte-for-byte. Browser inventory found the page, but both tab creation/binding timed out; no fresh rendered UI or browser calculation acceptance is claimed. Native installers have not been rebuilt.
 
 Evidence: `releases/cloudflare/aggregate-{auth,before,build,deploy,after,live-api}.log` and `aggregate-assets.json`. The API smoke leaves only an empty generated test account; documents and session were removed. Source regression evidence remains in `docs/verification.md`.
+
+## Desktop 0.1.4 public cutover (2026-10-14)
+
+Worker `fa3f437a-7523-4936-a338-4a91976f1c1d` serves 100% traffic with the 0.1.4 desktop manifest. All four files were uploaded to content-addressed R2 keys before deployment. Prior 0.1.3 metadata was appended unchanged to history, retaining sixteen links across 0.1.0–0.1.3. Rollback target: `97f9b16f-7dd3-4398-9644-a081fbb99d9d`. Account/document bindings and migrations did not change.
+
+All 91 tests and the cloud build passed. Public installer verification passed complete file SHA-256/size, HEAD and first/last range bytes for all four targets. All sixteen historical links passed HEAD/checksum metadata and boundary-byte comparison. The first full download run through the local proxy timed out; the terminal failure was recorded before a direct-connection retry passed. No partial download result was treated as acceptance.
+
+Live API smoke passed account login/password rotation/session revocation, all three document workflows, Office exports including corrected formula caches, private access, stale-write rejection and fixture cleanup. Only an empty generated account remains. This cutover does not claim a fresh whole-app browser regression; the preceding Safari and packaged arm64 formula UI acceptance is recorded separately. Windows user runtime acceptance, Intel runtime and mobile delivery remain open.
+
+Evidence under `releases/cloudflare/`: `0.1.4-{auth,upload,tests,build,before,deploy,after,download-readback,download-direct,history-links,api-smoke}.log`, `desktop-download-readback.json`, and `0.1.4-history-links.json`. The previous current-download readback is retained as `0.1.3-preserved-download-readback.json`.
