@@ -118,9 +118,12 @@ export async function rehearseHttpMutations(namespace: DurableObjectNamespace<Re
     503,
   );
   await assert.rejects(() => control().restart(), /Recovery rehearsal restart/);
-  const reconciled = await control().reconcileRequest(accountId);
-  assert.equal(reconciled.status, 201);
-  assert.equal((await reconciled.json<CloudDocument>()).name, 'Lost response');
+  const reconciled = await control().reconcileConcurrentRequests(accountId);
+  const replies = await reconciled.json<{ status: number; document: CloudDocument }[]>();
+  assert.equal(replies.length, 2);
+  assert.equal(replies[0].status, 201);
+  assert.equal(replies[0].document.name, 'Lost response');
+  assert.deepEqual(replies[0], replies[1]);
   assert.equal((await data().snapshot()).count, beforeLost.count + 1);
   assert.equal(await control().pendingMutation(), null);
   assert.equal((await control().admissionStatus()).phase, 'suspended');
@@ -139,6 +142,7 @@ export async function rehearseHttpMutations(namespace: DurableObjectNamespace<Re
     mutationRoutes: true,
     nativeImport: true,
     restartReconciled: true,
+    concurrentReconciliation: true,
     suspensionPreserved: true,
   };
 }

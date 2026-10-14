@@ -87,6 +87,7 @@ try {
     mutationRoutes: true,
     nativeImport: true,
     restartReconciled: true,
+    concurrentReconciliation: true,
     suspensionPreserved: true,
   });
   await mkdir('releases/cloudflare', { recursive: true });

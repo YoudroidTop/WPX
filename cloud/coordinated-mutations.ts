@@ -8,6 +8,12 @@ interface MutationTransport {
   read(id: string): Promise<CloudDocument>;
 }
 
+// One flight holder per account coordinator lifetime, shared by its request and
+// reconciliation adapters. Durable dispatch remains authoritative after restart.
+export interface MutationFlight {
+  current?: { token: string; revision: number; result: Promise<Response> };
+}
+
 // Private coordinator adapter. Authentication selects this account before entry;
 // transport must address only that account's document object. No public recovery
 // or permit headers are interpreted here.
@@ -15,6 +21,7 @@ export class CoordinatedMutations {
   constructor(
     private dispatch: AccountMutationDispatch,
     private transport: MutationTransport,
+    private flight: MutationFlight = {},
   ) {}
 
   async handle(request: Request): Promise<Response | null> {
@@ -31,7 +38,31 @@ export class CoordinatedMutations {
     return pending ? this.finish(pending) : null;
   }
 
-  private async finish(pending: PendingMutation): Promise<Response> {
+  private finish(pending: PendingMutation): Promise<Response> {
+    let current = this.flight.current;
+    if (current) {
+      if (current.token !== pending.permit.token || current.revision !== pending.permit.revision)
+        throw new Error('Concurrent execution belongs to a different permit');
+    } else {
+      const entry = {
+        token: pending.permit.token,
+        revision: pending.permit.revision,
+        // Defer transport entry until the holder is set, including when a
+        // transport throws synchronously or triggers another reconciliation.
+        result: Promise.resolve()
+          .then(() => this.execute(pending))
+          .finally(() => {
+            if (this.flight.current === entry) delete this.flight.current;
+          }),
+      };
+      this.flight.current = current = entry;
+    }
+    // A response body is single-use. Each HTTP caller receives its own clone;
+    // neither a reconciler nor another caller can consume the shared template.
+    return current.result.then((response) => response.clone());
+  }
+
+  private async execute(pending: PendingMutation): Promise<Response> {
     const receipt = await this.transport.execute(pending);
     if (receipt.token !== pending.permit.token || receipt.revision !== pending.permit.revision)
       throw new Error('Executor receipt does not match dispatched permit');

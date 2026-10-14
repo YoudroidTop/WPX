@@ -13,7 +13,7 @@ import { AccountMutationDispatch, type PendingMutation } from './mutation-dispat
 import { rehearseCoordination, rehearseLargeDispatch } from './recovery-coordination-rehearsal';
 import { RecoveryJournal, type RecoveryIntent } from './recovery-journal';
 import { completeVerifiedRecovery } from './recovery-completion';
-import { CoordinatedMutations } from './coordinated-mutations';
+import { CoordinatedMutations, type MutationFlight } from './coordinated-mutations';
 import { CoordinatedReads } from './coordinated-reads';
 import { readDocumentRequest } from './document-reads';
 import { CoordinatorTarget } from './coordinator-target';
@@ -26,6 +26,7 @@ interface RecoveryEnv {
 // A separate namespace with generated fixtures only; never bind this to customer objects.
 export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   private documents: AccountDocuments;
+  private readonly httpMutationFlight: MutationFlight = {};
   constructor(ctx: DurableObjectState, env: RecoveryEnv) {
     super(ctx, env);
     this.documents = new AccountDocuments(ctx.storage.sql, (fn) => ctx.storage.transactionSync(fn));
@@ -150,10 +151,14 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   }
   private httpAdapter(accountId: string, loseResponse = false) {
     const target = this.httpTarget(accountId);
-    return new CoordinatedMutations(this.dispatch(), {
-      execute: (pending) => target.fixtureMutation(this.wireMutation(pending), loseResponse),
-      read: async (id) => (await target.documentResponse(id)).json<CloudDocument>(),
-    });
+    return new CoordinatedMutations(
+      this.dispatch(),
+      {
+        execute: (pending) => target.fixtureMutation(this.wireMutation(pending), loseResponse),
+        read: async (id) => (await target.documentResponse(id)).json<CloudDocument>(),
+      },
+      this.httpMutationFlight,
+    );
   }
   async coordinatedRequest(request: Request, accountId: string, loseResponse = false) {
     try {
@@ -175,6 +180,21 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   }
   async reconcileRequest(accountId: string) {
     return (await this.httpAdapter(accountId).reconcile()) ?? new Response(null, { status: 204 });
+  }
+  async reconcileConcurrentRequests(accountId: string) {
+    // Enter both adapters before awaiting transport, making overlap deterministic.
+    const responses = await Promise.all([
+      this.reconcileRequest(accountId),
+      this.reconcileRequest(accountId),
+    ]);
+    return Response.json(
+      await Promise.all(
+        responses.map(async (response) => ({
+          status: response.status,
+          document: await response.json<CloudDocument>(),
+        })),
+      ),
+    );
   }
   private dispatch() {
     return new AccountMutationDispatch(this.ctx.storage.sql, (fn) =>

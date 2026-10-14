@@ -7,7 +7,7 @@ import { AccountWriteAdmission } from '../cloud/write-admission';
 import { blankContent } from '../shared/documents';
 
 import { AccountMutationDispatch } from '../cloud/mutation-dispatch';
-import { CoordinatedMutations } from '../cloud/coordinated-mutations';
+import { CoordinatedMutations, type MutationFlight } from '../cloud/coordinated-mutations';
 
 function database() {
   const db = new DatabaseSync(':memory:');
@@ -67,12 +67,14 @@ function fixture() {
       executor.execute(pending.permit, pending.command),
     read: async (id: string) => documents.get(id),
   };
+  const flight: MutationFlight = {};
   return {
     gate,
     dispatch,
     transport,
+    flight,
     documents,
-    adapter: new CoordinatedMutations(dispatch, transport),
+    adapter: new CoordinatedMutations(dispatch, transport, flight),
     close: () => {
       c.db.close();
       d.db.close();
@@ -85,6 +87,14 @@ const request = (path: string, method: string, data?: unknown) =>
     body: data === undefined ? undefined : JSON.stringify(data),
   });
 const createRequest = () => request('/api/documents', 'POST', { name: 'HTTP QA', kind: 'word' });
+
+function deferred() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 
 test('coordinated responses preserve full-document create/update and empty deletion contracts', async () => {
   const f = fixture();
@@ -118,6 +128,82 @@ test('coordinated responses preserve full-document create/update and empty delet
     assert.equal(f.dispatch.pending(), null);
     assert.equal(await f.adapter.handle(request('/api/documents', 'GET')), null);
   } finally {
+    f.close();
+  }
+});
+
+test('request and concurrent reconciliation share execution and independently readable responses', async () => {
+  const f = fixture();
+  const entered = deferred();
+  const release = deferred();
+  let executions = 0;
+  const execute = f.transport.execute;
+  f.transport.execute = async (pending) => {
+    executions++;
+    const receipt = await execute(pending);
+    entered.resolve();
+    await release.promise;
+    return receipt;
+  };
+  try {
+    const initial = f.adapter.handle(createRequest());
+    await entered.promise;
+    const otherAdapter = new CoordinatedMutations(f.dispatch, f.transport, f.flight);
+    const recovered = otherAdapter.reconcile();
+    const duplicate = f.adapter.reconcile();
+    f.gate.suspend('concurrent-restore');
+    assert.throws(() => f.gate.requireDrained('concurrent-restore'));
+    release.resolve();
+    const responses = await Promise.all([initial, recovered, duplicate]);
+    assert.equal(executions, 1);
+    const bodies = await Promise.all(responses.map((response) => response!.json()));
+    assert.deepEqual(bodies[0], bodies[1]);
+    assert.deepEqual(bodies[1], bodies[2]);
+    assert.equal(f.documents.list().length, 1);
+    assert.equal(f.dispatch.pending(), null);
+    assert.equal(f.gate.status().phase, 'suspended');
+    assert.equal(f.gate.requireDrained('concurrent-restore'), bodies[0].revision);
+  } finally {
+    release.resolve();
+    f.close();
+  }
+});
+
+test('shared response loss preserves the command and releases the flight for a later retry', async () => {
+  const f = fixture();
+  const entered = deferred();
+  const release = deferred();
+  const execute = f.transport.execute;
+  let executions = 0;
+  f.transport.execute = async (pending) => {
+    executions++;
+    await execute(pending);
+    entered.resolve();
+    await release.promise;
+    throw new Error('Lost concurrent response');
+  };
+  try {
+    const initial = f.adapter.handle(createRequest());
+    await entered.promise;
+    const pending = f.dispatch.pending();
+    const retry = f.adapter.reconcile();
+    const settled = Promise.allSettled([initial, retry]);
+    release.resolve();
+    const failures = await settled;
+    assert.equal(executions, 1);
+    for (const result of failures) {
+      assert.equal(result.status, 'rejected');
+      if (result.status === 'rejected') assert.match(result.reason.message, /Lost concurrent/);
+    }
+    assert.deepEqual(f.dispatch.pending(), pending);
+    f.transport.execute = execute;
+    assert.equal((await f.adapter.reconcile())!.status, 201);
+    assert.equal(f.documents.list().length, 1);
+    assert.equal(f.dispatch.pending(), null);
+    assert.equal((await f.adapter.handle(createRequest()))!.status, 201);
+    assert.equal(f.documents.list().length, 2);
+  } finally {
+    release.resolve();
     f.close();
   }
 });

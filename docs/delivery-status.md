@@ -58,3 +58,7 @@ Mobile 0.1.1 (2) now has native HTTP storage-outage acceptance on the dedicated 
 ## iOS native 503 follow-up (2026-10-14)
 
 Simulator 0.1.1 (2) now has four fresh acceptance passes: installed asset identity, login/session/account access during native HTTP 503, pending Word draft discovery/opening after process restart, and recovery synchronization with exact authenticated API readback. One catalog case, registration during 503, remains not-run. See `docs/qa/ios-availability-cases.json` and `docs/mobile.md`. This closes the tested iOS simulator outage path, not physical-device acceptance, a full editor regression or public mobile distribution. No application code was changed in this follow-up.
+
+## Recovery concurrency follow-up (2026-10-14)
+
+Fixed a reproduced duplicate-acknowledgement race between HTTP writes and reconciliation. Account-scoped adapters now share execution while preserving durable pending commands on failure. All 85 unit/API tests and application/cloud type checks passed; isolated Worker `6726ce28-61d6-44fe-8a95-a5152396f587` passed deterministic concurrent replay after restart plus the existing restore/undo, 4 MB and read-isolation rehearsal. See `docs/recovery-protocol.md`. Production recovery remains incomplete: automatic scheduling, authenticated routing/bootstrap, operator authorization and ambiguous restore reconciliation are still required.
