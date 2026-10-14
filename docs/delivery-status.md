@@ -54,3 +54,7 @@ Android debug APK, iOS development IPA and Harmony debug HAP now include the sha
 ## Android native 503 follow-up (2026-10-14)
 
 Mobile 0.1.1 (2) now has native HTTP storage-outage acceptance on the dedicated Android emulator: account/session retention, process restart, local draft access and recovery synchronization passed against a loopback fault proxy. This closes the Android-specific 503 check; it does not establish iOS/Harmony runtime behavior or production recovery orchestration. Evidence and stale-emulator-snapshot safeguards are documented in `docs/mobile.md`.
+
+## iOS native 503 follow-up (2026-10-14)
+
+Simulator 0.1.1 (2) now has four fresh acceptance passes: installed asset identity, login/session/account access during native HTTP 503, pending Word draft discovery/opening after process restart, and recovery synchronization with exact authenticated API readback. One catalog case, registration during 503, remains not-run. See `docs/qa/ios-availability-cases.json` and `docs/mobile.md`. This closes the tested iOS simulator outage path, not physical-device acceptance, a full editor regression or public mobile distribution. No application code was changed in this follow-up.

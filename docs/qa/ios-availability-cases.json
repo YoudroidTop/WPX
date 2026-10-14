@@ -1,0 +1,242 @@
+{
+  "app": "Zhuole Docs",
+  "runner": {
+    "platform": "iPadOS Simulator",
+    "bundleId": "com.youdroid.zhuoledocs",
+    "udid": "6E217ADC-EDFD-498B-85D3-A69475D3382F",
+    "evidenceTypes": [
+      "native screenshots",
+      "native process restart",
+      "authenticated API readback",
+      "installed artifact inspection"
+    ]
+  },
+  "coverageAreas": [
+    {
+      "area": "Installed build and editor asset identity",
+      "caseIds": [
+        "ios-availability-build"
+      ],
+      "status": "passed"
+    },
+    {
+      "area": "Login and account retention during native HTTP 503",
+      "caseIds": [
+        "ios-availability-session"
+      ],
+      "status": "passed"
+    },
+    {
+      "area": "Pending Word draft survives restart during 503",
+      "caseIds": [
+        "ios-availability-draft"
+      ],
+      "status": "passed"
+    },
+    {
+      "area": "Recovery synchronization and session cleanup",
+      "caseIds": [
+        "ios-availability-recovery"
+      ],
+      "status": "passed"
+    },
+    {
+      "area": "Registration during native HTTP 503",
+      "caseIds": [
+        "ios-availability-register"
+      ],
+      "status": "not-run"
+    }
+  ],
+  "cases": [
+    {
+      "id": "ios-availability-build",
+      "title": "Installed build and editor asset identity",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS Simulator"
+      ],
+      "tags": [
+        "native-http",
+        "storage-availability"
+      ],
+      "preconditions": [
+        "Task-owned iPad Air 11-inch (M3), iOS 26.1 simulator; local API 3173 and loopback QA proxy 3174.",
+        "Install simulator 0.1.1 (2); use only the dedicated local QA fixture."
+      ],
+      "steps": [
+        "Read the installed simulator bundle version/platform and compare its public resources against the built app and dist."
+      ],
+      "assertions": [
+        "Version 0.1.1 (2), iPhoneSimulator, all ten files byte-identical."
+      ],
+      "failureSignals": [
+        "A stale installed build or differing editor assets."
+      ]
+    },
+    {
+      "id": "ios-availability-session",
+      "title": "Login and account retention during native HTTP 503",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS Simulator"
+      ],
+      "tags": [
+        "native-http",
+        "storage-availability"
+      ],
+      "preconditions": [
+        "Task-owned iPad Air 11-inch (M3), iOS 26.1 simulator; local API 3173 and loopback QA proxy 3174.",
+        "Install simulator 0.1.1 (2); use only the dedicated local QA fixture."
+      ],
+      "steps": [
+        "Use storage-unavailable mode, sign in, terminate and launch the app, and open account settings."
+      ],
+      "assertions": [
+        "Authenticated workspace, unavailable usage instead of zero, unavailable document list instead of empty-account claim; correct QA profile remains accessible."
+      ],
+      "failureSignals": [
+        "Login is discarded, usage is reported as zero, or account settings cannot open."
+      ]
+    },
+    {
+      "id": "ios-availability-draft",
+      "title": "Pending Word draft survives restart during 503",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS Simulator"
+      ],
+      "tags": [
+        "native-http",
+        "storage-availability"
+      ],
+      "preconditions": [
+        "Task-owned iPad Air 11-inch (M3), iOS 26.1 simulator; local API 3173 and loopback QA proxy 3174.",
+        "Install simulator 0.1.1 (2); use only the dedicated local QA fixture."
+      ],
+      "steps": [
+        "Open the fixture online, switch proxy offline, replace the body with numeric marker 5031213, confirm input, switch to storage-unavailable, terminate/relaunch, and open the local draft row."
+      ],
+      "assertions": [
+        "Pending draft row remains visible while the cloud list is unavailable; opening it shows 5031213."
+      ],
+      "failureSignals": [
+        "No draft entry, missing text, or a required cloud read prevents opening."
+      ]
+    },
+    {
+      "id": "ios-availability-recovery",
+      "title": "Recovery synchronization and session cleanup",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS Simulator"
+      ],
+      "tags": [
+        "native-http",
+        "storage-availability"
+      ],
+      "preconditions": [
+        "Task-owned iPad Air 11-inch (M3), iOS 26.1 simulator; local API 3173 and loopback QA proxy 3174.",
+        "Install simulator 0.1.1 (2); use only the dedicated local QA fixture."
+      ],
+      "steps": [
+        "Restore online mode, terminate/relaunch, reopen the document, independently read its API content, then log out and restore endpoint 3173."
+      ],
+      "assertions": [
+        "Draft entry clears, quota and document list return, exact Word content matches the visible marker, and logout returns to login."
+      ],
+      "failureSignals": [
+        "Pending data is lost, stale text overwrites the draft, or logout fails."
+      ]
+    },
+    {
+      "id": "ios-availability-register",
+      "title": "Registration during native HTTP 503",
+      "priority": "P1",
+      "platforms": [
+        "iPadOS Simulator"
+      ],
+      "tags": [
+        "native-http",
+        "storage-availability"
+      ],
+      "preconditions": [
+        "Task-owned iPad Air 11-inch (M3), iOS 26.1 simulator; local API 3173 and loopback QA proxy 3174.",
+        "Install simulator 0.1.1 (2); use only the dedicated local QA fixture."
+      ],
+      "steps": [
+        "Create a fresh isolated account through the native app while the proxy is storage-unavailable."
+      ],
+      "assertions": [
+        "New session remains usable while cloud usage is unavailable."
+      ],
+      "failureSignals": [
+        "Account creation loses the session or reports successful empty storage."
+      ]
+    }
+  ],
+  "lastRun": {
+    "date": "2026-10-14",
+    "device": "Task-owned iPad Air 11-inch (M3), iOS 26.1 simulator",
+    "build": "0.1.1 (2), source 164b5f6, IMEDerivedData Debug-iphonesimulator/App.app",
+    "authSource": "Dedicated synthetic local QA fixture; no production data or credentials used.",
+    "results": [
+      {
+        "caseId": "ios-availability-build",
+        "status": "passed",
+        "mode": "native simulator UI and local fault proxy",
+        "notes": "Installed and built app resources match dist. Native version was also visible in the connection dialog.",
+        "evidence": [
+          "releases/mobile/ios-0.1.1-simulator-identity.json"
+        ]
+      },
+      {
+        "caseId": "ios-availability-session",
+        "status": "passed",
+        "mode": "native simulator UI and local fault proxy",
+        "notes": "Native Capacitor HTTP proxy failures, not WebView fetch interception. Login performed with the dedicated local account; process restart retained identity.",
+        "evidence": [
+          "releases/mobile/ios-0.1.1-storage-unavailable.png",
+          "releases/mobile/ios-0.1.1-outage-account.png"
+        ]
+      },
+      {
+        "caseId": "ios-availability-draft",
+        "status": "passed",
+        "mode": "native simulator UI and local fault proxy",
+        "notes": "Native input was committed before termination. The initial Latin phrase entered through the active Pinyin input method was replaced with an unambiguous numeric marker; this case makes no IME fidelity claim.",
+        "evidence": [
+          "releases/mobile/ios-0.1.1-offline-draft.png",
+          "releases/mobile/ios-0.1.1-outage-draft-list.png",
+          "releases/mobile/ios-0.1.1-outage-draft-open.png"
+        ]
+      },
+      {
+        "caseId": "ios-availability-recovery",
+        "status": "passed",
+        "mode": "native simulator UI and local fault proxy",
+        "notes": "Independent authenticated API readback deeply matches the recovered Word document. Initial pre-recovery readback lacked Origin and returned 403; no pre-recovery server-content assertion is claimed. Final successful readback used the required Origin and logged out its API session. Test account/document retained locally; native app logged out, endpoint restored, proxy/mirror stopped and only the task simulator shut down.",
+        "evidence": [
+          "releases/mobile/ios-0.1.1-recovered-workspace.png",
+          "releases/mobile/ios-0.1.1-recovered-document.png",
+          "releases/mobile/ios-0.1.1-recovery-readback.json",
+          "releases/mobile/ios-0.1.1-connection-restored.png"
+        ]
+      },
+      {
+        "caseId": "ios-availability-register",
+        "status": "not-run",
+        "mode": "native simulator UI and local fault proxy",
+        "notes": "The account was prepared through the local API before login QA; native registration during 503 was not exercised.",
+        "evidence": []
+      }
+    ],
+    "exclusions": [
+      "Physical iPhone/iPad and HarmonyOS acceptance.",
+      "Native registration during storage outage; password changes and expired-session handling.",
+      "Real production storage failure, PITR recovery and production maintenance isolation.",
+      "Full three-editor regression, IME fidelity and public mobile distribution.",
+      "serve-sim accessibility overlay showed stale historical labels; assertions use live native frames and independent API/artifact evidence."
+    ]
+  }
+}
