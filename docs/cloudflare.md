@@ -163,3 +163,11 @@ Worker `7c787cea-6184-4071-9f6f-a1bf9e4ca45d` serves 100% of traffic and adverti
 All four public installer files passed complete SHA-256/size comparison, HEAD metadata and first/last byte ranges. All 12 historical links passed HEAD metadata and boundary-byte comparison with their local artifacts. The production browser smoke passed registration, Word persistence, spreadsheet formula/composition-event/Chinese persistence, slideshow, reload and logout; browser-only outage injection verified the deployed unavailable-usage UI. Generated QA documents and session were removed. All 83 unit/API tests and the cloud build passed before deployment.
 
 Evidence: `releases/cloudflare/0.1.3-{auth,before,upload,tests,build,deploy,after,download-readback,history-links,browser-smoke}.log`, `desktop-download-readback.json`, and `0.1.3-history-links.json`. Previous 0.1.2 readback remains in `0.1.2-preserved-download-readback.json`. Windows is unsigned as requested. Public delivery does not establish Windows or Intel Mac runtime acceptance. Mobile packages are unchanged.
+
+## Aggregate formula deployment (2026-10-14)
+
+Production Worker `97f9b16f-7dd3-4398-9644-a081fbb99d9d` serves 100% of traffic with the direct blank/text reference correction from `a10eb6f`. Rollback target: `7c787cea-6184-4071-9f6f-a1bf9e4ca45d`. Account/document bindings, migrations and desktop manifests are unchanged. Recovery coordinator code remains disconnected from production.
+
+Cloud build passed. The expanded live API smoke passed account/password/session checks, all three document types, private access, revision conflicts and generated-document cleanup. The downloaded XLSX retains the exact formulas and corrected numeric caches for COUNT, AVERAGE, SUM, MIN and MAX with blank/text references. All ten production static resources match the local build byte-for-byte. Browser inventory found the page, but both tab creation/binding timed out; no fresh rendered UI or browser calculation acceptance is claimed. Native installers have not been rebuilt.
+
+Evidence: `releases/cloudflare/aggregate-{auth,before,build,deploy,after,live-api}.log` and `aggregate-assets.json`. The API smoke leaves only an empty generated test account; documents and session were removed. Source regression evidence remains in `docs/verification.md`.

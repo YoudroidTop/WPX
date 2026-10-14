@@ -117,6 +117,12 @@ for (const kind of ['word', 'sheet', 'slide']) {
       B1: '120',
       B2: '80',
       C1: '=SUM(B1:B2)',
+      D1: 'label',
+      E1: '=COUNT(D2)',
+      E2: '=AVERAGE(B1,D2,D1)',
+      E3: '=SUM(B1,D1)',
+      E4: '=MIN(B1,D2)',
+      E5: '=MAX(-8,D2)',
     };
     const saved = await request(`/api/documents/${doc.id}`, 'PATCH', {
       revision: doc.revision,
@@ -153,6 +159,16 @@ for (const kind of ['word', 'sheet', 'slide']) {
     assert.equal(sheet.getCell('B1').value, 120);
     assert.equal(sheet.getCell('C1').formula, 'SUM(B1:B2)');
     assert.equal(sheet.getCell('C1').result, 200);
+    for (const [address, expected] of Object.entries({
+      E1: 0,
+      E2: 120,
+      E3: 120,
+      E4: 120,
+      E5: -8,
+    })) {
+      assert.equal(sheet.getCell(address).formula, doc.content.sheets[0].cells[address].slice(1));
+      assert.equal(sheet.getCell(address).result, expected, address);
+    }
   }
   if (kind === 'word' || kind === 'slide') {
     const response = await request('/api/documents/import', 'POST', bytes, true, {
