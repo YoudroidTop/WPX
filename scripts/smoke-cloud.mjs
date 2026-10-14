@@ -29,15 +29,44 @@ const health = await request('/api/health');
 assert.equal(health.status, 200);
 assert.equal((await health.json()).service, 'zhuole-docs');
 assert.equal((await request('/api/me', 'GET', undefined, false)).status, 401);
-const accountResponse = await request('/api/auth/register', 'POST', {
+const credentials = {
   email: `deployment-${randomUUID()}@example.com`,
   name: 'Deployment smoke',
   password: randomBytes(24).toString('base64url'),
-});
+};
+const accountResponse = await request('/api/auth/register', 'POST', credentials);
 assert.equal(accountResponse.status, 201, await accountResponse.clone().text());
 const account = await accountResponse.json();
 assert.equal(account.limitBytes, 3_000_000_000);
 assert.equal(account.usedBytes, 0);
+assert.equal((await request('/api/auth/logout', 'POST')).status, 204);
+assert.equal((await request('/api/auth/login', 'POST', credentials)).status, 200);
+assert.equal((await (await request('/api/me')).json()).id, account.id);
+const previousCookie = cookie;
+const newPassword = randomBytes(24).toString('base64url');
+assert.equal(
+  (
+    await request('/api/me/password', 'POST', {
+      currentPassword: credentials.password,
+      newPassword,
+    })
+  ).status,
+  204,
+);
+assert.notEqual(cookie, previousCookie);
+assert.equal(
+  (await request('/api/me', 'GET', undefined, false, { Cookie: previousCookie })).status,
+  401,
+);
+assert.equal((await (await request('/api/me')).json()).id, account.id);
+assert.equal((await request('/api/auth/logout', 'POST')).status, 204);
+assert.equal(
+  (await request('/api/auth/login', 'POST', { ...credentials, password: newPassword })).status,
+  200,
+);
+console.log(
+  'Account login, password rotation, old-session revocation and new-password login passed.',
+);
 for (const kind of ['word', 'sheet', 'slide']) {
   const created = await request('/api/documents', 'POST', { kind, name: `Deployment ${kind}` });
   assert.equal(created.status, 201, await created.clone().text());

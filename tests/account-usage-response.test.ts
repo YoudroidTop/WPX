@@ -35,7 +35,7 @@ test('usage rejection preserves the committed session without claiming a quota v
   assert.deepEqual(await response.json(), { error: 'Storage suspended' });
 });
 
-test('transport and malformed usage failures keep the newly rotated password session', async () => {
+test('transport and malformed usage failures keep the newly issued session', async () => {
   for (const load of [
     async (): Promise<Response> => {
       throw new Error('Transport failed');

@@ -1,4 +1,4 @@
-// Authentication may already have committed (including invalidating old sessions)
+// Registration or login may already have committed a new session
 // before document usage fails. Preserve its cookie even on a storage error so the
 // next retry can authenticate; never invent an accurate-looking quota value.
 export async function accountUsageResponse(
