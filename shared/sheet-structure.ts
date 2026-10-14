@@ -83,6 +83,16 @@ export function changeSheetStructure(
     if (next > limit) throw new Error('occupied-edge');
     cells[cellAddress({ ...point, [axis]: next })] = shiftFormula(raw, axis, at, count, operation);
   }
+  const styles: NonNullable<SheetPage['styles']> = {};
+  for (const [address, style] of Object.entries(sheet.styles ?? {})) {
+    const point = parseSelection(address)!.anchor,
+      coordinate = point[axis];
+    if (operation === 'delete' && coordinate >= at && coordinate < at + count) continue;
+    const next =
+      coordinate >= at ? coordinate + (operation === 'insert' ? count : -count) : coordinate;
+    if (next > limit) throw new Error('occupied-edge');
+    styles[cellAddress({ ...point, [axis]: next })] = style;
+  }
   const dimensions = axis === 'row' ? sheet.rowHeights : sheet.columnWidths;
   const shifted: Record<string, number> = {};
   for (const [key, value] of Object.entries(dimensions ?? {})) {
@@ -95,6 +105,7 @@ export function changeSheetStructure(
   return {
     ...sheet,
     cells,
+    ...(sheet.styles ? { styles } : {}),
     ...(dimensions ? { [axis === 'row' ? 'rowHeights' : 'columnWidths']: shifted } : {}),
   };
 }

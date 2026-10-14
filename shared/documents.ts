@@ -18,10 +18,21 @@ export interface WordContent {
   type: 'word';
   doc: RichNode;
 }
+export interface SheetCellStyle {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  color?: string;
+  fill?: string;
+  align?: 'left' | 'center' | 'right';
+  numberFormat?: 'general' | 'number' | 'percent' | 'currency';
+  border?: boolean;
+}
 export interface SheetPage {
   id: string;
   name: string;
   cells: Record<string, string>;
+  styles?: Record<string, SheetCellStyle>;
   rowHeights?: Record<string, number>;
   columnWidths?: Record<string, number>;
 }
@@ -136,6 +147,27 @@ const nativeContentSchema = z.discriminatedUnion('type', [
           id: z.string().max(100),
           name: z.string().min(1).max(31),
           cells: z.record(z.string().regex(cellAddress), z.string().max(MAX_CELL_LENGTH)),
+          styles: z
+            .record(
+              z.string().regex(cellAddress),
+              z.object({
+                bold: z.boolean().optional(),
+                italic: z.boolean().optional(),
+                underline: z.boolean().optional(),
+                border: z.boolean().optional(),
+                color: z
+                  .string()
+                  .regex(/^#[0-9a-f]{6}$/i)
+                  .optional(),
+                fill: z
+                  .string()
+                  .regex(/^#[0-9a-f]{6}$/i)
+                  .optional(),
+                align: z.enum(['left', 'center', 'right']).optional(),
+                numberFormat: z.enum(['general', 'number', 'percent', 'currency']).optional(),
+              }),
+            )
+            .optional(),
           rowHeights: z
             .record(z.string().regex(/^(?:[1-9]\d?|[1-4]\d{2}|500)$/), z.number().min(24).max(300))
             .optional(),

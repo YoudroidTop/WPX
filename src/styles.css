@@ -3050,3 +3050,25 @@ hr {
   background: var(--green);
   opacity: 0.45;
 }
+
+.sheet-format-tools {
+  flex-wrap: wrap;
+}
+.sheet-format-tools label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+}
+.sheet-format-tools input[type='color'] {
+  width: 28px;
+  height: 25px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+}
+.sheet-format-tools button[aria-pressed='true'] {
+  background: #dcefe3;
+  color: #176340;
+}

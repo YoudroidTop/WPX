@@ -1,3 +1,5 @@
+import SheetFormatToolbar from './SheetFormatToolbar';
+import { formatSelection, formatCellValue } from '../../shared/sheet-format';
 import { useMemo, useState, useRef, useEffect, type PointerEvent, type KeyboardEvent } from 'react';
 import { Plus, FunctionSquare, Eraser } from 'lucide-react';
 import {
@@ -151,11 +153,13 @@ export default function SheetEditor({
 
   const usedRows = Math.max(
     1,
-    ...Object.keys(sheet.cells).map((address) => Number(address.match(/\d+/)?.[0] || 1)),
+    ...Object.keys({ ...sheet.cells, ...sheet.styles }).map((address) =>
+      Number(address.match(/\d+/)?.[0] || 1),
+    ),
   );
   const usedCols = Math.max(
     1,
-    ...Object.keys(sheet.cells).map((address) =>
+    ...Object.keys({ ...sheet.cells, ...sheet.styles }).map((address) =>
       [...address.replace(/\d/g, '')].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0),
     ),
   );
@@ -363,6 +367,17 @@ export default function SheetEditor({
           <Plus size={14} />5 列
         </button>
       </div>
+      <SheetFormatToolbar
+        style={sheet.styles?.[selected] ?? {}}
+        onChange={(patch) =>
+          onChange({
+            ...content,
+            sheets: content.sheets.map((s) =>
+              s.id === sheet.id ? formatSelection(s, selection, patch) : s,
+            ),
+          })
+        }
+      />
       <div className="editor-toolbar sheet-structure-tools">
         <button disabled={!history.current.undo.length} onClick={() => travel('undo')}>
           撤销
@@ -558,7 +573,8 @@ export default function SheetEditor({
                   </th>
                   {Array.from({ length: columns }, (_, col) => {
                     const address = `${columnName(col)}${row}`,
-                      value = calculate(address);
+                      value = calculate(address),
+                      style = sheet.styles?.[address];
                     return (
                       <td
                         key={address}
@@ -605,11 +621,39 @@ export default function SheetEditor({
                           id={`cell-${address}`}
                           aria-label={address}
                           style={{
+                            fontWeight: style?.bold ? 700 : undefined,
+                            fontStyle: style?.italic ? 'italic' : undefined,
+                            textDecoration: style?.underline ? 'underline' : undefined,
+                            color: style?.color,
+                            backgroundColor: style?.fill,
+                            backgroundImage:
+                              inSelection(selection, { row, col }) && selected !== address
+                                ? 'linear-gradient(#1b784d22, #1b784d22)'
+                                : undefined,
+                            textAlign: style?.align,
+                            boxShadow:
+                              [
+                                ...(inSelection(selection, { row, col })
+                                  ? [
+                                      row === bounds.top && 'inset 0 2px var(--green)',
+                                      row === bounds.bottom && 'inset 0 -2px var(--green)',
+                                      col === bounds.left && 'inset 2px 0 var(--green)',
+                                      col === bounds.right && 'inset -2px 0 var(--green)',
+                                    ]
+                                  : []),
+                                style?.border && 'inset 0 0 0 1px #53645c',
+                              ]
+                                .filter(Boolean)
+                                .join(', ') || undefined,
                             width: widthOf(col) - 1,
                             height: heightOf(row) - 1,
                           }}
                           maxLength={MAX_CELL_LENGTH}
-                          value={editing === address ? (sheet.cells[address] ?? '') : value}
+                          value={
+                            editing === address
+                              ? (sheet.cells[address] ?? '')
+                              : formatCellValue(value, style)
+                          }
                           readOnly={editing !== address}
                           onCompositionStart={() => {
                             select({ row, col });

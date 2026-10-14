@@ -1,3 +1,5 @@
+import { readCellStyle, writeCellStyle } from './sheet-style';
+import type { SheetCellStyle } from '../shared/documents';
 import JSZip from 'jszip';
 import ExcelJS from 'exceljs';
 import PptxGenJS from 'pptxgenjs';
@@ -113,6 +115,8 @@ export async function exportOffice(content: DocumentContent): Promise<Buffer> {
           };
         } else ws.getCell(address).value = spreadsheetValue(raw);
       }
+      for (const [address, style] of Object.entries(sheet.styles ?? {}))
+        writeCellStyle(ws.getCell(address), style);
       ws.columns?.forEach((column) => {
         column.width = 18;
       });
@@ -222,6 +226,7 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
       if (ws.rowCount > MAX_ROWS || ws.columnCount > MAX_COLUMNS)
         throw new ApiError(400, '基础版每张工作表最多支持 500 行、52 列');
       const cells: Record<string, string> = {};
+      const styles: Record<string, SheetCellStyle> = {};
       ws.eachRow((row) =>
         row.eachCell((cell) => {
           cells[cell.address] = cell.formula ? `=${cell.formula}` : cell.text;
@@ -234,6 +239,10 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
           columnWidths[index] = Math.max(48, Math.min(600, Math.round(column.width * 7 + 5)));
       });
       ws.eachRow({ includeEmpty: true }, (row) => {
+        row.eachCell({ includeEmpty: true }, (cell) => {
+          const style = readCellStyle(cell);
+          if (Object.keys(style).length) styles[cell.address] = style;
+        });
         if (row.height)
           rowHeights[row.number] = Math.max(24, Math.min(300, Math.round(row.height / 0.75)));
       });
@@ -241,6 +250,7 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
         id: randomUUID(),
         name: ws.name,
         cells,
+        ...(Object.keys(styles).length ? { styles } : {}),
         ...(Object.keys(columnWidths).length ? { columnWidths } : {}),
         ...(Object.keys(rowHeights).length ? { rowHeights } : {}),
       };
