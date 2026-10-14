@@ -35,7 +35,7 @@
     {
       "area": "Current aggregate formula edit and save",
       "caseIds": ["ios-012-sheet"],
-      "status": "not-run"
+      "status": "passed"
     },
     {
       "area": "Current presentation edit and playback",
@@ -127,8 +127,17 @@
       "preconditions": [
         "Task-owned simulator with local service 3173 and isolated existing fixture."
       ],
-      "steps": ["Requires dedicated current-build editor regression."],
-      "assertions": ["Current aggregate formula edit and save"],
+      "steps": [
+        "Seed only the dedicated local sheet with numeric, text and blank references.",
+        "Open the sheet and check six aggregate results.",
+        "Set A1=48 and C1 =SUM(A1,A2,A3) through the native formula bar; save and reopen.",
+        "Read the document through authenticated API, compare exact cells and export using fresh current code.",
+        "Log out native and API sessions; retain isolated fixture for inspection."
+      ],
+      "assertions": [
+        "B1:B6 are 0,48,48,48,-8,1 after editing and reopening; C1 is 48.",
+        "API cells preserve exact formula strings."
+      ],
       "failureSignals": ["Expected UI or artifact mismatch."]
     },
     {
@@ -199,10 +208,15 @@
       },
       {
         "caseId": "ios-012-sheet",
-        "status": "not-run",
+        "status": "passed",
         "mode": "native CUA",
-        "notes": "Requires dedicated current-build editor regression.",
-        "evidence": []
+        "notes": "Dedicated local fixture initially renders B1:B6 as 0,12,12,12,-8,1. Native formula-bar edit changed A1 to 48 and added C1 =SUM(A1,A2,A3); save and reopen render 0,48,48,48,-8,1 and C1=48. Authenticated API deeply matches all cells, revision 4. Current-code XLSX conversion of readback passes seven cached results; running port-3173 server predates the formula fix and its API export failed. Native share sheet not tested. Fixture retained; UI/API sessions logged out.",
+        "evidence": [
+          "releases/mobile/ios-0.1.2-sheet-initial.png",
+          "releases/mobile/ios-0.1.2-sheet-reopened.png",
+          "releases/mobile/ios-0.1.2-sheet-readback.json",
+          "releases/mobile/ios-0.1.2-sheet-logout.png"
+        ]
       },
       {
         "caseId": "ios-012-slides",
@@ -222,7 +236,8 @@
     "exclusions": [
       "Physical devices, landscape, keyboard and IME regression.",
       "Current-build three-editor edits, Office import/export, offline and 503 regression.",
-      "Public distribution and app-store acceptance."
+      "Public distribution and app-store acceptance.",
+      "Port-3173 process started before formula fix: its XLSX export failed; fresh-code conversion passed separately. No native share-sheet export pass claimed."
     ]
   }
 }
