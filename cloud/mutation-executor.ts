@@ -4,7 +4,7 @@ import type { DocumentContent, DocumentSummary } from '../shared/documents';
 import { AccountDocuments, type DocumentPatch, type SqlDatabase, type SqlValue } from './documents';
 import type { WritePermit } from './write-admission';
 
-type Mutation =
+export type Mutation =
   | { kind: 'create'; name: string; content: DocumentContent }
   | { kind: 'update'; id: string; revision: number; patch: DocumentPatch }
   | { kind: 'remove'; id: string; revision: number };
