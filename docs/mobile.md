@@ -290,3 +290,9 @@ Catalog `docs/qa/ios-0.1.4-cases.json` now has four focused passes; evidence `re
 Read the actual Files provider file saved in the preceding native run, the export-cache original and the WebKit selected-file copy. All three are byte-identical: 51,919 bytes, SHA-256 `25a871965ca9fb8b05127269b73d679561965f1b3ce994debefbf70ce45025db`. Parsing the saved file with current `importOffice` deeply matches the authenticated source document at revision 6: both slides, order, titles, bodies, notes and themes. Only freshly generated slide IDs are excluded from comparison. No file was regenerated for this check, no document was changed, and the API session was logged out.
 
 Evidence: `releases/mobile/ios-0.1.4-pptx-byte-readback.json`. The catalog now contains five focused passes. This closes byte/content fidelity for this actual PPTX fixture; native confirmed cloud import, DOCX/XLSX, complex Office fidelity and physical-device acceptance remain open.
+
+### iOS 0.1.4 confirmed basic PPTX import (2026-10-14)
+
+Native CUA selected the saved PPTX, confirmed import and opened a two-slide editor. Authenticated API readback identified exactly one new document and verified both titles and bodies in order. The existing local API process predates the theme-preserving parser: both imported themes were paper rather than the source midnight. This establishes basic text import only; the earlier current-source parser check does not establish full fidelity through this stale running service. A fresh current-server native run remains required for theme fidelity.
+
+Only the newly created test document was removed, restoring four documents and 881 B. UI/API sessions were logged out and the task simulator shut down. Evidence: `releases/mobile/ios-0.1.4-pptx-imported.png`, `ios-0.1.4-native-import-readback.json`, `ios-0.1.4-native-import-logout.png`. The catalog now has six focused passes with the explicit fidelity limitation.
