@@ -6,7 +6,7 @@ The table is the current summary. Dated entries below are historical checkpoints
 
 | Requirement / delivery gate | Authoritative evidence | Current boundary |
 | --- | --- | --- |
-| Web on the requested Cloudflare domain | `wrangler.jsonc`, `releases/cloudflare/current-delivery-deployments.json`, `0.1.5-api-smoke.log`, `0.1.5-safari-*.png` | `https://wpx.youdroid.top`, Worker `df4e9887-a12d-47ac-9c30-5c7b290468a2` at 100%. Live health and deployment confirmed this audit; latest recorded API and Safari smoke passed. |
+| Web on the requested Cloudflare domain | `wrangler.jsonc`, `releases/cloudflare/current-delivery-deployments.json`, `0.1.5-api-smoke.log`, `0.1.5-safari-*.png` | `https://wpx.youdroid.top`, Worker `3663f0cc-3f58-4a24-abd5-dac1d23cf5eb` at 100%. Absolute-reference follow-up passed production API/XLSX and Safari edit/save readback; see `docs/cloudflare.md` and `absolute-*` evidence. |
 | Accounts and private 3 GB space | `shared/documents.ts`, `tests/api.test.ts`, `tests/cloud-documents.test.ts`, `releases/current-baseline-tests.log` | Registration/login/profile/password/logout, isolation and transactional exact-byte quota including trash implemented and tested. Email verification/password recovery channels remain unconfigured. |
 | Basic Word, Excel and PPT | `README.md`, `tests/core.test.ts`, `docs/verification.md`, latest production smoke | Editors, save/reopen, bounded formulas, slides, native backups and basic Office conversion delivered. Complex compatibility remains explicitly excluded. Historical native editor results are version-specific. |
 | macOS | `releases/desktop/mac-distribution-manifest.json`, `docs/desktop.md` | Public 0.1.5 arm64/x64 installers signed/notarized/stapled and verified. Apple Silicon packaged UI accepted; Intel hardware runtime remains unverified. |
@@ -20,7 +20,7 @@ The table is the current summary. Dated entries below are historical checkpoints
 ## Remaining delivery work
 
 1. Complete current native mobile workflows, especially real file selection/import after the picker correction, and physical-device acceptance when devices are available. Do not repeatedly rebuild unrelated platforms solely to equalize version numbers.
-2. Finish mobile distribution according to the tracked phase-three plan; local development IPA/HAP and signed APK are not store publication.
+2. Mobile distribution is deferred by the owner. Use `run_release.sh` for selectable local platform/device/Debug/Release builds and installation; store publication is not currently requested.
 3. Preserve the Windows/Intel runtime and upgrade evidence gaps; do not infer full architecture coverage from the user's Windows report.
 4. Continue the tracked production recovery work in isolation before any production cutover. Deployment health alone does not prove data recovery.
 5. Keep IME and formula issues open until their recorded remaining native acceptance gates are resolved. Store publication, advanced Office parity and extra operational hardening must not be silently treated as already completed basic editing.

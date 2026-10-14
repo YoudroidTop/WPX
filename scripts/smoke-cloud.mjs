@@ -123,6 +123,9 @@ for (const kind of ['word', 'sheet', 'slide']) {
       E3: '=SUM(B1,D1)',
       E4: '=MIN(B1,D2)',
       E5: '=MAX(-8,D2)',
+      F1: '=$B$1+B$2',
+      F2: '=SUM($B$1:$B$2)',
+      F3: '=AVERAGE($B1,$D$2,$D1)',
     };
     const saved = await request(`/api/documents/${doc.id}`, 'PATCH', {
       revision: doc.revision,
@@ -165,6 +168,9 @@ for (const kind of ['word', 'sheet', 'slide']) {
       E3: 120,
       E4: 120,
       E5: -8,
+      F1: 200,
+      F2: 200,
+      F3: 120,
     })) {
       assert.equal(sheet.getCell(address).formula, doc.content.sheets[0].cells[address].slice(1));
       assert.equal(sheet.getCell(address).result, expected, address);
