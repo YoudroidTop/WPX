@@ -1,4 +1,5 @@
 import type { SqlDatabase, SqlValue } from './documents';
+import { ApiError } from '../server/errors';
 import type { Mutation, MutationReceipt } from './mutation-executor';
 import { AccountWriteAdmission, type WritePermit } from './write-admission';
 
@@ -56,7 +57,7 @@ export class AccountMutationDispatch {
     // gate in the transaction after every asynchronous parsing step completes.
     const serialized = JSON.stringify(command);
     return this.atomic(() => {
-      if (this.pending()) throw new Error('A mutation is already pending');
+      if (this.pending()) throw new ApiError(503, '文档写入暂不可用，当前修改尚未保存，请稍后重试');
       const permit = this.admission().admit();
       this.sql.exec('INSERT INTO mutation_dispatch VALUES(1,?,?)', permit.token, permit.revision);
       // Bound each SQLite row below the Durable Objects row-size limit even for
