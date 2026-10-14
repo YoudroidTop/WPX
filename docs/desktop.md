@@ -250,3 +250,7 @@ Returned to the workspace, confirmed four documents and 881 B usage, logged out 
 ### Windows user acceptance (2026-10-14)
 
 The user reported successful installation and normal operation of the word processor, spreadsheet and presentation document types. This is user-reported runtime acceptance, separate from local packaging verification. The tested installer version, CPU architecture and Windows version were not specified. Login was included in the question but was not separately confirmed in the answer. Do not infer both architecture targets, full regression, update installation or current 0.1.5 acceptance from this report. Windows signing remains deferred by explicit user decision.
+
+### Official 0.1.5 distribution (2026-10-14)
+
+The official release manifest serves the 0.1.5 Mac arm64/x64 DMGs and unsigned Windows x64/arm64 installers. Full public checksum/size and HEAD/range checks passed for all four files; twenty historical links remain available. Production API smoke and a fresh Safari private-window save/playback/exit/logout workflow passed. The isolated browser fixture was verified through API readback and removed, with account usage returning to zero. See `docs/cloudflare.md` for deployment identity and evidence. Windows user acceptance remains version/architecture-unspecified; Intel hardware and complete mobile acceptance remain separate gates.

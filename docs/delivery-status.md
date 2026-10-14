@@ -70,3 +70,7 @@ Automatic pending-mutation reconciliation now passes real Cloudflare alarm accep
 ## Android release signing follow-up (2026-10-14)
 
 A local non-debuggable 0.1.1 (2) release APK is now signed with the dedicated project identity and verified for signatures, alignment, native version and ten editor assets. Fresh isolated emulator installation/cold Activity start passed; visible login/editor checks remain unverified because the UI controller could not bind that window. The original debug environment is preserved. See `docs/mobile.md` for artifact identity, signing-material backup and evidence. This is a local release candidate, not public download or app-store publication.
+
+## Desktop 0.1.5 public delivery (2026-10-14)
+
+All four current Mac/Windows installers are published and passed complete public hash/size plus HEAD/range verification. All twenty historical links passed post-deployment checks. Production API and fresh Safari UI smoke passed; dedicated test documents were removed. See `docs/cloudflare.md`. Windows installation and three-document operation are user-reported passes without a specified build or architecture. iOS 0.1.3 portrait and landscape presentation passes remain simulator-only; landscape account-dialog scrolling, physical devices and remaining native workflows are still open.
