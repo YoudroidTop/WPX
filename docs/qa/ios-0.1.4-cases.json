@@ -42,6 +42,13 @@
       "caseIds": [
         "ios-014-current-native-fidelity"
       ]
+    },
+    {
+      "title": "Native DOCX basic round trip",
+      "status": "passed",
+      "caseIds": [
+        "ios-014-docx-roundtrip"
+      ]
     }
   ],
   "cases": [
@@ -146,6 +153,23 @@
         "Both slides retain midnight theme",
         "Cleanup restores four documents and 881 B"
       ]
+    },
+    {
+      "id": "ios-014-docx-roundtrip",
+      "title": "Save and reimport a DOCX through native Files",
+      "steps": [
+        "Export existing iPad word QA fixture",
+        "Save to On My iPad and select through import picker",
+        "Confirm basic import and inspect editor",
+        "Compare persisted paragraphs and three actual file copies",
+        "Remove only the newly imported fixture and log out"
+      ],
+      "assertions": [
+        "Two English/Chinese paragraphs match in order",
+        "Export cache, Files provider and selected upload bytes match (9581 bytes)",
+        "Original three documents and 547 B remain",
+        "Empty login form visible"
+      ]
     }
   ],
   "lastRun": {
@@ -222,12 +246,25 @@
           "releases/mobile/ios-0.1.4-current-import-logout.png"
         ],
         "notes": "Fresh local API on port 3173 replaces stale process. Only generated slide IDs excluded; source notes are empty, so nonempty notes coverage is not established."
+      },
+      {
+        "caseId": "ios-014-docx-roundtrip",
+        "status": "passed",
+        "mode": "Native CUA, actual file hashes and authenticated API readback",
+        "notes": "Separate ipad-layout QA account with three original documents. Basic paragraph text only; rich formatting and complex DOCX fidelity are not asserted. API and UI logged out; task simulator shut down.",
+        "evidence": [
+          "releases/mobile/ios-014-docx-picker.png",
+          "releases/mobile/ios-014-docx-confirm.png",
+          "releases/mobile/ios-014-docx-imported.png",
+          "releases/mobile/ios-014-docx-readback.json",
+          "releases/mobile/ios-014-docx-logout.png"
+        ]
       }
     ],
-    "notes": "Seven focused cases across successive runs: installed identity, picker cancel/reopen, logout, native PPTX save/select, saved-byte/parser readback, basic confirmed import and current-server confirmed import fidelity. An early login retry succeeded with the same password. The first confirmed import used a stale API and lost themes; after restarting that task-local service from current source, native import preserved all supported fixture content excluding generated slide IDs. Only each newly imported test document was removed, restoring four documents and 881 B. UI/API logout and simulator shutdown completed. Original local PPTX remains available. See case-specific evidence and exclusions.",
+    "notes": "Seven focused cases across successive runs: installed identity, picker cancel/reopen, logout, native PPTX save/select, saved-byte/parser readback, basic confirmed import and current-server confirmed import fidelity. An early login retry succeeded with the same password. The first confirmed import used a stale API and lost themes; after restarting that task-local service from current source, native import preserved all supported fixture content excluding generated slide IDs. Only each newly imported test document was removed, restoring four documents and 881 B. UI/API logout and simulator shutdown completed. Original local PPTX remains available. See case-specific evidence and exclusions. Additional DOCX round trip passed in the separate ipad-layout account; cleanup restored its three documents and 547 B. See case-specific scope.",
     "exclusions": [
       "Real file-provider read failures and oversized selection",
-      "Nonempty notes, DOCX/XLSX and complex PPTX fidelity",
+      "Nonempty notes, XLSX native round trip, rich DOCX formatting and complex PPTX fidelity",
       "Physical devices and store distribution",
       "Full editor/offline/keyboard regression"
     ]
