@@ -15,6 +15,7 @@ import { desktopDownload } from './desktop-downloads';
 import { body } from './request-body';
 import { parseDocumentMutation } from './document-mutations';
 import { readDocumentRequest } from './document-reads';
+import { accountUsageResponse } from './account-usage-response';
 
 interface Env {
   ACCOUNTS: DurableObjectNamespace;
@@ -252,12 +253,9 @@ export default {
       const account = (await accountResponse.json()) as { id: string; email: string; name: string };
       const documents = env.DOCUMENTS.get(env.DOCUMENTS.idFromName(account.id));
       if (isAuth || url.pathname === '/api/me') {
-        const usage = await documents.fetch(new Request(new URL('/usage', url)));
-        if (!usage.ok) return usage;
-        return new Response(JSON.stringify({ ...account, ...((await usage.json()) as object) }), {
-          status: accountResponse.status,
-          headers: accountResponse.headers,
-        });
+        return accountUsageResponse(accountResponse, account, () =>
+          documents.fetch(new Request(new URL('/usage', url))),
+        );
       }
       const result = await documents.fetch(request);
       if (url.pathname === '/api/documents' && request.method === 'GET' && result.ok) {
