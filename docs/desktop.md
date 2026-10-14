@@ -205,3 +205,12 @@ Official downloads now serve 0.1.4 for all four Mac/Windows architectures. Full 
 The release helper now acquires an exclusive owner-only `releases/desktop/notarization.lock` before reading submission records. Submission and status operations use the same lock, preventing overlapping processes from submitting the same unrecorded artifact or overwriting one another's record updates. The lock records PID/start time without credentials and is removed on normal completion or a caught tool failure. A process killed before cleanup leaves a fail-closed lock: verify both the recorded owner and any child notarytool process are no longer active before manually removing that specific lock. The helper never guesses that an existing lock is stale.
 
 `tests/notarization-lock.test.ts` uses separate real Node processes and a local fake xcrun, with no Apple credentials/network calls. Before the repair, the concurrent process entered the tool instead of refusing the operation; after the repair it was rejected before any second tool invocation. The test also checks successful record persistence and lock removal after success and tool failure. All 92 tests passed. This guard does not resolve an unknown remote submission outcome after network loss; reconcile Apple history before retrying such an artifact. Published binaries were not rebuilt or changed.
+
+### Windows 0.1.5 candidate (2026-10-14)
+
+Both NSIS installers include the presentation aspect-ratio correction. The TypeScript/Vite/desktop build and x64/ARM64 packaging succeeded. Both unpacked targets match all 13 staged files exactly; installer-extracted ASAR and executable hashes match their unpacked counterparts. PE machine types match the intended architecture. Certificate table offsets/sizes are zero for both installers and application executables, consistent with the user's unsigned-Windows requirement. Prior 0.1.4 installer hashes remain unchanged.
+
+- `releases/desktop/ZhuoleDocs-0.1.5-win-x64.exe`: SHA-256 `30da411ca4b8cfcc43bea87a818bcb8e74afe1bcd9a48a86c673c6afdf3e9c75`.
+- `releases/desktop/ZhuoleDocs-0.1.5-win-arm64.exe`: SHA-256 `bb41ea6612bc036732dac81b186a981fcfef140effad58960c18e509114b971a`.
+
+Evidence: `releases/desktop/0.1.5-windows-{build.log,payload.log,payload.json,signature.json,SHA256SUMS}`. These are local candidates; the public download manifest remains 0.1.4. Windows installer execution and editor acceptance remain with the user. Mac 0.1.5 signing/notarization and the subsequent public cutover remain open.
