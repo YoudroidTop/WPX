@@ -30,6 +30,29 @@ export async function rehearseHttpMutations(namespace: DurableObjectNamespace<Re
     assert.deepEqual(await (await data().documentResponse(doc.id)).json(), doc);
     docs.push(doc);
   }
+  const listing = await send('/api/documents', 'GET');
+  assert.equal(listing.status, 200);
+  assert.equal((await listing.json<{ documents: unknown[] }>()).documents.length, 3);
+  const usage = await (
+    await send('/usage', 'GET')
+  ).json<{ usedBytes: number; limitBytes: number }>();
+  assert.equal(usage.usedBytes, (await data().snapshot()).usedBytes);
+  assert.equal(usage.limitBytes, 3_000_000_000);
+  for (const document of docs) {
+    assert.deepEqual(await (await send(`/api/documents/${document.id}`, 'GET')).json(), document);
+    const backup = await send(`/api/documents/${document.id}/export?format=zdoc`, 'GET');
+    assert.equal(backup.status, 200);
+    assert.deepEqual(await backup.json(), document.content);
+    const office = await send(`/api/documents/${document.id}/export`, 'GET');
+    assert.equal(office.status, 200);
+    assert.ok(office.headers.get('content-disposition')?.includes('attachment'));
+    assert.equal(
+      Buffer.from(await office.arrayBuffer())
+        .subarray(0, 2)
+        .toString(),
+      'PK',
+    );
+  }
   let doc = docs[0];
   for (const patch of [
     { name: 'Renamed' },
@@ -80,6 +103,7 @@ export async function rehearseHttpMutations(namespace: DurableObjectNamespace<Re
     /Simulated response loss/,
   );
   await control().suspendMutations('http-recovery');
+  assert.equal((await send('/api/documents', 'GET')).status, 200);
   assert.equal(
     (await send('/api/documents', 'POST', { name: 'Blocked', kind: 'word' })).status,
     503,
@@ -91,9 +115,18 @@ export async function rehearseHttpMutations(namespace: DurableObjectNamespace<Re
   assert.equal((await data().snapshot()).count, beforeLost.count + 1);
   assert.equal(await control().pendingMutation(), null);
   assert.equal((await control().admissionStatus()).phase, 'suspended');
+  for (const path of [
+    '/usage',
+    '/api/documents',
+    `/api/documents/${docs[1].id}`,
+    `/api/documents/${docs[1].id}/export`,
+  ])
+    assert.equal((await send(path, 'GET')).status, 503);
   return {
     passed: true,
     fullDocumentResponses: true,
+    readRoutes: true,
+    suspendedReadsRejected: true,
     mutationRoutes: true,
     nativeImport: true,
     restartReconciled: true,

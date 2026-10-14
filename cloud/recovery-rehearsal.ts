@@ -14,6 +14,8 @@ import { rehearseCoordination, rehearseLargeDispatch } from './recovery-coordina
 import { RecoveryJournal, type RecoveryIntent } from './recovery-journal';
 import { completeVerifiedRecovery } from './recovery-completion';
 import { CoordinatedMutations } from './coordinated-mutations';
+import { CoordinatedReads } from './coordinated-reads';
+import { readDocumentRequest } from './document-reads';
 import { rehearseHttpMutations } from './recovery-http-rehearsal';
 
 interface RecoveryEnv {
@@ -129,6 +131,9 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   documentResponse(id: string) {
     return Response.json(this.documents.get(id));
   }
+  readRequest(request: Request) {
+    return readDocumentRequest(request, this.documents);
+  }
   private httpAdapter(dataId: string, loseResponse = false) {
     const target = this.env.REHEARSAL.get(this.env.REHEARSAL.idFromString(dataId));
     return new CoordinatedMutations(this.dispatch(), {
@@ -138,6 +143,12 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   }
   async coordinatedRequest(request: Request, dataId: string, loseResponse = false) {
     try {
+      if (request.method === 'GET') {
+        const target = this.env.REHEARSAL.get(this.env.REHEARSAL.idFromString(dataId));
+        return await new CoordinatedReads(this.admission()).response(() =>
+          target.readRequest(request),
+        );
+      }
       return (
         (await this.httpAdapter(dataId, loseResponse).handle(request)) ??
         new Response(null, { status: 404 })

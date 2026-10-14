@@ -82,6 +82,8 @@ try {
   assert.deepEqual(result.httpMutations, {
     passed: true,
     fullDocumentResponses: true,
+    readRoutes: true,
+    suspendedReadsRejected: true,
     mutationRoutes: true,
     nativeImport: true,
     restartReconciled: true,

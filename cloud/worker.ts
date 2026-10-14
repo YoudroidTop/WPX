@@ -9,12 +9,12 @@ import {
   type UserRow,
 } from '../server/auth';
 import { ApiError } from '../server/errors';
-import { exportOffice } from '../server/office';
-import { extensions, STORAGE_LIMIT } from '../shared/documents';
+import { STORAGE_LIMIT } from '../shared/documents';
 import { AccountDocuments } from './documents';
 import { desktopDownload } from './desktop-downloads';
 import { body } from './request-body';
 import { parseDocumentMutation } from './document-mutations';
+import { readDocumentRequest } from './document-reads';
 
 interface Env {
   ACCOUNTS: DurableObjectNamespace;
@@ -202,12 +202,8 @@ export class Documents extends DurableObject<Env> {
   }
   async fetch(request: Request): Promise<Response> {
     return guarded(async () => {
-      const url = new URL(request.url),
-        path = url.pathname,
-        store = this.documents;
-      if (path === '/usage') return json({ usedBytes: store.used(), limitBytes: STORAGE_LIMIT });
-      if (path === '/api/documents' && request.method === 'GET')
-        return json({ documents: store.list(), usedBytes: store.used() });
+      const store = this.documents;
+      if (request.method === 'GET') return readDocumentRequest(request, store);
       const mutation = await parseDocumentMutation(request);
       if (mutation?.kind === 'create')
         return json(store.create(mutation.name, mutation.content), 201);
@@ -217,31 +213,6 @@ export class Documents extends DurableObject<Env> {
         store.remove(mutation.id, mutation.revision);
         return new Response(null, { status: 204 });
       }
-      const match = path.match(/^\/api\/documents\/([^/]+)(\/export)?$/);
-      if (!match) throw new ApiError(404, '接口不存在');
-      const id = match[1];
-      if (match[2] && request.method === 'GET') {
-        const doc = store.get(id),
-          native = url.searchParams.get('format') === 'zdoc';
-        const extension = native ? 'zdoc' : extensions[doc.kind];
-        const bytes = native
-          ? Buffer.from(JSON.stringify(doc.content, null, 2))
-          : await exportOffice(doc.content);
-        return new Response(new Uint8Array(bytes), {
-          headers: {
-            'Content-Type': native
-              ? 'application/json'
-              : {
-                  word: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-                  sheet: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                  slide:
-                    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-                }[doc.kind],
-            'Content-Disposition': `attachment; filename="document.${extension}"; filename*=UTF-8''${encodeURIComponent(doc.name)}.${extension}`,
-          },
-        });
-      }
-      if (!match[2] && request.method === 'GET') return json(store.get(id));
       throw new ApiError(404, '接口不存在');
     });
   }
