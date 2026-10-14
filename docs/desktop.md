@@ -142,3 +142,11 @@ Windows x64 and arm64 NSIS installers are available locally as `releases/desktop
 Mac arm64 signed packaging and local launch/upgrade tests passed; Intel signing and Apple notarization are still in progress at this checkpoint. Do not promote 0.1.2 to the public manifest until both Mac architectures complete signing/notarization, tickets are attached, distribution validation passes, and all public artifacts pass readback. The production download channel remains 0.1.1.
 
 Evidence: `releases/desktop/0.1.2-desktop-tests.log`, `0.1.2-packaged-tests.log`, `0.1.2-windows-payload.json`, `0.1.2-windows-payload.log`, and `0.1.2-windows-signature.json`. The Windows-only verification reused the existing payload verifier with a target filter in the ignored `verify-windows-candidate.mjs`; it does not replace the eventual full release manifest. Mac build/submission logs are `0.1.2-mac-build.log` and `0.1.2-arm64-notarization.log`.
+
+### Version 0.1.2 arm64 notarization checkpoint (2026-10-14)
+
+Apple accepted the arm64 ZIP submission `ca766375-c23c-4259-a24d-98aed34065ee` and DMG submission `3883b518-15cf-43ce-aef4-fbbe9b2dd3cf`. An initial status query timed out; polling the same recorded submissions succeeded without uploading duplicates. Tickets were attached to the arm64 app and DMG, and the app was repacked as `ZhuoleDocs-0.1.2-mac-arm64-stapled.zip`. Both distribution files passed strict signature, ticket and Gatekeeper verification. The arm64 app matches all 13 staged files; DMG and original ZIP payload comparisons passed.
+
+Evidence: `releases/desktop/0.1.2-arm64-notarization-retry.log`, `0.1.2-arm64-staple.log`, `0.1.2-arm64-distribution.json`, `0.1.2-arm64-distribution.log`, and `0.1.2-arm64-payload.json`. Architecture-filtered copies of the existing verifiers produced these scoped records under ignored `releases/desktop/`; the full release manifests remain pending.
+
+The original Intel packaging process terminated because Apple's timestamp service was unavailable while signing a framework resource. A single x64-only retry is running, logged in `releases/desktop/0.1.2-mac-x64-retry.log`. It has not yet established a signed Intel artifact or notarization. Do not repeat the completed arm64 submissions or rebuild its accepted artifacts. Public release remains 0.1.1 until the remaining architecture and full release validation complete.
