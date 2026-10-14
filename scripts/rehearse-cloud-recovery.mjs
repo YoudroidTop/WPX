@@ -75,6 +75,7 @@ try {
     finalHighWaterMark: 5,
     journalSurvivedRestart: true,
     schedulingRejectedUntilDrained: true,
+    boundTransportScheduledUndo: true,
     originalUndoPreserved: true,
     completionFailureKeptSuspended: true,
     completionRetryPreservedPending: true,

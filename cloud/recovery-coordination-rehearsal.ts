@@ -115,9 +115,10 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
     expected: changed,
     before: await data().snapshot(),
   });
-  await control().journalStart('undo');
-  const undoOfUndo = await data().scheduleRestore(savedUndo);
-  await control().journalScheduled('undo', undoOfUndo);
+  const scheduledUndo = await control().scheduleBound('undo');
+  assert.equal(scheduledUndo.phase, 'scheduled');
+  assert.ok(scheduledUndo.undoBookmark);
+  await assert.rejects(() => control().scheduleBound('undo'), /already started/);
   await restart(dataId);
   assert.deepEqual(await data().snapshot(), changed);
   await control().journalRestored('undo');
@@ -150,6 +151,7 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
     finalHighWaterMark: final.highWaterMark,
     journalSurvivedRestart: true,
     schedulingRejectedUntilDrained: true,
+    boundTransportScheduledUndo: true,
     originalUndoPreserved: true,
     completionFailureKeptSuspended: true,
     completionRetryPreservedPending: true,

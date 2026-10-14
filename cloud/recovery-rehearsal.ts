@@ -21,6 +21,7 @@ import { rehearseCoordination, rehearseLargeDispatch } from './recovery-coordina
 import { RecoveryJournal, type RecoveryIntent } from './recovery-journal';
 import { completeVerifiedRecovery } from './recovery-completion';
 import { startDrainedRecovery } from './recovery-start';
+import { scheduleBoundRecovery } from './recovery-scheduler';
 import { CoordinatedMutations, type MutationFlight } from './coordinated-mutations';
 import { CoordinatedReads } from './coordinated-reads';
 import { readDocumentRequest } from './document-reads';
@@ -117,6 +118,19 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   }
   journalScheduled(id: string, undo: string) {
     return this.journal().recordScheduled(id, undo);
+  }
+  scheduleBound(id: string) {
+    return scheduleBoundRecovery(
+      this.ctx.storage.sql,
+      (fn) => this.ctx.storage.transactionSync(fn),
+      id,
+      {
+        schedule: (objectId, bookmark) =>
+          this.env.REHEARSAL.get(this.env.REHEARSAL.idFromString(objectId)).scheduleRestore(
+            bookmark,
+          ),
+      },
+    );
   }
   journalRestored(id: string) {
     return this.journal().recordRestored(id);

@@ -6,6 +6,7 @@ import { AccountWriteAdmission } from '../cloud/write-admission';
 import { RecoveryJournal } from '../cloud/recovery-journal';
 import { startDrainedRecovery } from '../cloud/recovery-start';
 import { CoordinatorTarget } from '../cloud/coordinator-target';
+import { scheduleBoundRecovery, type RecoveryTransport } from '../cloud/recovery-scheduler';
 
 function fixture(ceiling = 0, binding: [string, string] | null = ['fixture', 'a'.repeat(64)]) {
   const db = new DatabaseSync(':memory:');
@@ -52,6 +53,8 @@ function fixture(ceiling = 0, binding: [string, string] | null = ['fixture', 'a'
     gate,
     journal,
     start: () => startDrainedRecovery(sql, atomic, 'restore'),
+    schedule: (transport: RecoveryTransport) =>
+      scheduleBoundRecovery(sql, atomic, 'restore', transport),
     fail: (value: boolean) => {
       fail = value;
     },
@@ -128,5 +131,81 @@ test('unbound and mismatched account targets cannot start recovery even when dra
     } finally {
       f.db.close();
     }
+  }
+});
+
+test('bound scheduling derives both transport arguments from the journal and refuses concurrent replay', async () => {
+  const f = fixture();
+  let release!: (undo: string) => void;
+  const calls: string[][] = [];
+  const transport = {
+    schedule: (object: string, bookmark: string) => {
+      calls.push([object, bookmark]);
+      return new Promise<string>((resolve) => {
+        release = resolve;
+      });
+    },
+  };
+  try {
+    f.gate.suspend('restore');
+    const first = f.schedule(transport);
+    assert.equal(f.journal.get('restore').phase, 'scheduling');
+    await assert.rejects(() => f.schedule(transport), /already started/);
+    release('original-undo');
+    assert.equal((await first).undoBookmark, 'original-undo');
+    await assert.rejects(() => f.schedule(transport), /already started/);
+    assert.deepEqual(calls, [['a'.repeat(64), 'target']]);
+    assert.equal(f.gate.status().phase, 'suspended');
+  } finally {
+    f.db.close();
+  }
+});
+
+test('ambiguous transport or receipt persistence failure never schedules twice', async () => {
+  for (const failure of ['transport', 'persistence']) {
+    const f = fixture();
+    let calls = 0;
+    const transport = {
+      schedule: async () => {
+        calls++;
+        if (failure === 'transport') throw new Error('Reply lost');
+        f.fail(true);
+        return 'undo';
+      },
+    };
+    try {
+      f.gate.suspend('restore');
+      await assert.rejects(() => f.schedule(transport), /Reply lost|Storage failure/);
+      f.fail(false);
+      assert.equal(f.journal.get('restore').phase, 'scheduling');
+      assert.equal(f.journal.get('restore').undoBookmark, null);
+      assert.equal(f.gate.status().phase, 'suspended');
+      await assert.rejects(() => f.schedule(transport), /already started/);
+      assert.equal(calls, 1);
+    } finally {
+      f.db.close();
+    }
+  }
+});
+
+test('an invalid binding rejects before the restore transport is called', async () => {
+  const f = fixture(0, ['fixture', 'b'.repeat(64)]);
+  let calls = 0;
+  try {
+    f.gate.suspend('restore');
+    await assert.rejects(
+      () =>
+        f.schedule({
+          schedule: async () => {
+            calls++;
+            return 'undo';
+          },
+        }),
+      /does not match/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(f.journal.get('restore').phase, 'prepared');
+  } finally {
+    f.db.close();
   }
 });
