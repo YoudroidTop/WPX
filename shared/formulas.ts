@@ -1,5 +1,7 @@
 import { columnName, MAX_COLUMNS, MAX_ROWS } from './documents';
 
+const cellReference = /^\$?([A-Z]+)\$?([1-9]\d*)$/;
+
 // A bounded parser, never JavaScript evaluation. References are local to one sheet.
 export function createCalculator(cells: Record<string, string>) {
   const cache = new Map<string, number | string>();
@@ -32,19 +34,21 @@ export function createCalculator(cells: Record<string, string>) {
     const tokens =
       source
         .toUpperCase()
-        .match(/(?:\d+(?:\.\d*)?|\.\d+)(?:E[+-]?\d+)?|[A-Z]+[0-9]*|[+\-*/^():,]|\S/g) ?? [];
+        .match(
+          /(?:\d+(?:\.\d*)?|\.\d+)(?:E[+-]?\d+)?|\$?[A-Z]+\$?[0-9]+|[A-Z]+|[+\-*/^():,]|\S/g,
+        ) ?? [];
     let cursor = 0;
     const take = () => tokens[cursor++];
     const require = (token: string) => {
       if (take() !== token) throw new Error('#ERROR!');
     };
     function reference(ref: string) {
-      const match = /^([A-Z]+)([1-9]\d*)$/.exec(ref);
+      const match = cellReference.exec(ref);
       if (!match) throw new Error('#REF!');
       const col = [...match[1]].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
       const row = Number(match[2]);
       if (col >= MAX_COLUMNS || row > MAX_ROWS) throw new Error('#REF!');
-      return { col, row };
+      return { col, row, address: `${match[1]}${match[2]}` };
     }
     function atom(): number {
       const token = take();
@@ -56,9 +60,8 @@ export function createCalculator(cells: Record<string, string>) {
         return n;
       }
       if (/^(?:\d|\.)/.test(token ?? '')) return numeric(token);
-      if (/^[A-Z]+[1-9]\d*$/.test(token ?? '')) {
-        reference(token);
-        return numeric(cell(token));
+      if (cellReference.test(token ?? '')) {
+        return numeric(cell(reference(token).address));
       }
       if (['SUM', 'AVERAGE', 'MIN', 'MAX', 'COUNT'].includes(token)) {
         require('(');
@@ -83,13 +86,11 @@ export function createCalculator(cells: Record<string, string>) {
                   addReference(`${columnName(col)}${row}`);
                 }
             } else if (
-              /^[A-Z]+[1-9]\d*$/.test(tokens[cursor] ?? '') &&
+              cellReference.test(tokens[cursor] ?? '') &&
               [',', ')'].includes(tokens[cursor + 1])
             ) {
               // A direct reference ignores text/blank cells; arithmetic still coerces them.
-              const address = take();
-              reference(address);
-              addReference(address);
+              addReference(reference(take()).address);
             } else values.push(expression());
             if (tokens[cursor] !== ',') break;
             take();
