@@ -58,7 +58,7 @@ Unit/API tests use isolated in-memory databases. Browser tests create disposable
 
 The web application is deployed on Cloudflare at [卓乐云文档](https://wpx.youdroid.top). See [Operations](docs/operations.md) and the recorded checks in [Verification](docs/verification.md) for deployment and recovery boundaries. A local development server stores data only on its host.
 
-## Desktop client (phase two, in progress)
+## Desktop client (phase two)
 
 The Electron client bundles the editors locally and connects to the same cloud API. It includes native file open/save, menus and keyboard shortcuts, a validated service connection screen, and per-account local drafts. Cached documents remain editable offline. Drafts survive process restarts, synchronize when the library reconnects, and never overwrite a newer cloud revision; conflicts can be saved as a separate cloud copy.
 
@@ -80,7 +80,7 @@ See [Delivery status](docs/delivery-status.md) for the requirement-by-requiremen
 - **Phase 2 / WPX-2:** 卓乐文档 for Windows and macOS; native file integration, offline editing/sync, signed installers and updates.
 - **Phase 3 / WPX-3:** mobile clients; touch editing, system files/share integration, offline sync, store distribution.
 
-Desktop distribution and mobile delivery are in progress. iOS, Android and HarmonyOS projects bundle the editors and native cloud/file adapters; see [Mobile clients](docs/mobile.md). They reuse the account, quota, and document API. See [Architecture](docs/architecture.md) for the implementation boundaries.
+Desktop 0.1.5 installers are publicly available with manual update checking; platform-specific acceptance limits remain in the delivery report. Mobile delivery is in progress, with local Android 0.1.4, iOS 0.1.4 and HarmonyOS 0.1.3 candidates. iOS, Android and HarmonyOS projects bundle the editors and native cloud/file adapters; see [Mobile clients](docs/mobile.md). They reuse the account, quota, and document API. See [Architecture](docs/architecture.md) for the implementation boundaries.
 
 ```text
 desktop/             Sandboxed Electron main process, preload and packaging assets
