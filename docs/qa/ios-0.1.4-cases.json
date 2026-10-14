@@ -1,0 +1,98 @@
+{
+  "app": "Zhuole Docs",
+  "runner": {
+    "appName": "Zhuole Docs",
+    "platformName": "iOS Simulator",
+    "bundleId": "com.youdroid.zhuoledocs"
+  },
+  "coverageAreas": [
+    {
+      "title": "System picker cancellation",
+      "status": "passed",
+      "caseIds": [
+        "ios-014-identity",
+        "ios-014-picker-cancel",
+        "ios-014-logout"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "ios-014-identity",
+      "title": "Verify installed build and resources",
+      "steps": [
+        "Install without clearing data",
+        "Compare installed version and ten web assets"
+      ],
+      "assertions": [
+        "Version 0.1.4 build 5; all staged bytes match"
+      ]
+    },
+    {
+      "id": "ios-014-picker-cancel",
+      "title": "Open, cancel and reopen the system picker",
+      "steps": [
+        "Log in to isolated local account",
+        "Open file picker",
+        "Cancel",
+        "Open picker again",
+        "Cancel again"
+      ],
+      "assertions": [
+        "System picker visibly opens twice",
+        "Four existing documents and 881 B remain visible"
+      ]
+    },
+    {
+      "id": "ios-014-logout",
+      "title": "Log out after picker cancellation",
+      "steps": [
+        "Open account settings",
+        "Log out"
+      ],
+      "assertions": [
+        "Empty login form visible"
+      ]
+    }
+  ],
+  "lastRun": {
+    "date": "2026-10-14",
+    "device": "Zhuole Docs iPad QA / iOS 26.1",
+    "build": "0.1.4 (5)",
+    "authSource": "Existing isolated local QA account; credentials excluded",
+    "results": [
+      {
+        "caseId": "ios-014-identity",
+        "status": "passed",
+        "mode": "Native CUA and installed artifact inspection",
+        "evidence": [
+          "releases/mobile/ios-0.1.4-installed-identity.json"
+        ]
+      },
+      {
+        "caseId": "ios-014-picker-cancel",
+        "status": "passed",
+        "mode": "Native CUA and installed artifact inspection",
+        "evidence": [
+          "releases/mobile/ios-0.1.4-picker-first.png",
+          "releases/mobile/ios-0.1.4-picker-reopened.png"
+        ]
+      },
+      {
+        "caseId": "ios-014-logout",
+        "status": "passed",
+        "mode": "Native CUA and installed artifact inspection",
+        "evidence": [
+          "releases/mobile/ios-0.1.4-picker-logout.png"
+        ]
+      }
+    ],
+    "notes": "First login attempt failed; re-entering the same password succeeded. No confirmed app defect. No files selected or documents changed. Logged out and shut down dedicated simulator.",
+    "exclusions": [
+      "Real file-provider read failures and oversized selection",
+      "Office import content and export",
+      "Physical devices and store distribution",
+      "Full editor/offline/keyboard regression"
+    ]
+  }
+}
