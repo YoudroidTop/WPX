@@ -109,10 +109,14 @@ function requireFile(path, name) {
   if (!existsSync(path)) throw new Error(`${name} not found: ${path}`);
   return path;
 }
+export function requireJava21(output) {
+  if (!/version\s+"21(?:[."])/.test(output))
+    throw new Error('Android builds require JDK 21; set JAVA_HOME to a JDK 21 installation');
+}
 function configureAndroid() {
   process.env.ANDROID_HOME ||= join(homedir(), 'Library/Android/sdk');
   if (!process.env.JAVA_HOME) {
-    const probe = spawnSync('/usr/libexec/java_home', ['-v', '21'], { encoding: 'utf8' });
+    const probe = spawnSync('/usr/libexec/java_home', ['-F', '-v', '21'], { encoding: 'utf8' });
     if (probe.status === 0) process.env.JAVA_HOME = probe.stdout.trim();
     else {
       const local = join(root, 'releases/mobile/toolchains');
@@ -200,6 +204,12 @@ async function main() {
     console.log(`Build output: ${output}`);
     if (platform === 'android') {
       if (!process.env.JAVA_HOME) throw new Error('Set JAVA_HOME to JDK 21');
+      const java = spawnSync(join(process.env.JAVA_HOME, 'bin/java'), ['-version'], {
+        encoding: 'utf8',
+      });
+      if (java.error || java.status !== 0)
+        throw new Error('JAVA_HOME does not contain a working Java runtime');
+      requireJava21((java.stdout || '') + (java.stderr || ''));
       if (mode === 'release') {
         run(process.execPath, ['scripts/build-android-release.mjs'], {
           env: { ...process.env, ZHUOLE_ANDROID_OUTPUT_DIR: output },

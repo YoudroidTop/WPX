@@ -85,3 +85,17 @@ test('zero-exit device failures cannot be reported as successful launches', asyn
     /install bundle successfully/i,
   );
 });
+
+test('Android rejects a successful java_home fallback to an incompatible JDK', async () => {
+  // @ts-expect-error Operational script has no declaration file.
+  const { requireJava21 } = await import('../scripts/run-release.mjs');
+  requireJava21('openjdk version "21.0.12" 2026-07-21 LTS');
+  requireJava21('java version "21"');
+  for (const output of [
+    'openjdk version "17.0.9"',
+    'java version "1.8.0_302"',
+    '',
+    'openjdk version "22.0.1"',
+  ])
+    assert.throws(() => requireJava21(output), /require JDK 21/);
+});

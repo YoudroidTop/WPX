@@ -331,3 +331,15 @@ Environment overrides:
 The launcher reports build/install/launch separately from visible UI acceptance. It performs no upload, store submission or publication.
 
 Validation on 2026-10-14: 113 unit/API tests and application TypeScript checks passed. A real terminal exercised all three menus through Harmony Release dry-run. iOS Release built, installed and launched on the dedicated iPad simulator; the simulator was shut down afterward. Harmony Release compiled with development signing and installed on the connected device, but launch was blocked by its lock screen (10106102). This exposed HDC returning exit code zero for a failed launch; output validation now rejects that result, with a regression test. Android installation and physical iOS installation were not exercised in this launcher validation. Evidence: `releases/run-release-tests.log`, `releases/mobile/run-release-ios.log`, `releases/mobile/run-release-harmony.log`. The Harmony log predates the output-check fix and its final success line is superseded by this explicit launch failure record.
+
+### Android launcher acceptance (2026-10-14)
+
+The Release launcher built and verified APK 0.1.4/code 5, installed it on the dedicated `Zhuole_Docs_Release_API35` emulator (`emulator-5580`) and launched the application successfully. The package SHA-256 remains `3083194277be5ea3a3dae1392bb0e677b79187987c4487c62d87abc22af98c1a`; package metadata and a running process were checked separately. This proves the launcher build/install/launch chain, not visible editor acceptance. The task-started emulator was stopped afterward without saving its snapshot.
+
+The workstation exposes JDK 17 in `JAVA_HOME`, and `java_home -v 21` can also silently fall back to JDK 17. Automatic discovery now uses fail-fast lookup, while the selected Java executable must report version 21 before Gradle runs. An explicit incompatible `JAVA_HOME` is rejected rather than silently changed. This run explicitly selected the existing task-local JDK 21:
+
+```sh
+JAVA_HOME="$PWD/releases/mobile/toolchains/jdk-21.0.12.1+1/Contents/Home" ./run_release.sh --platform android --device emulator-5580 --mode release
+```
+
+All 114 unit/API tests and application TypeScript validation passed, including regression coverage for successful but incompatible Java discovery. Evidence: `releases/mobile/run-release-android.log` and `releases/run-release-tests.log`. No release version, public artifact or distribution state changed.
