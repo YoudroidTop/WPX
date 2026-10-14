@@ -1,0 +1,114 @@
+{
+  "runner": {
+    "appName": "Zhuole Docs",
+    "platformName": "iOS Simulator",
+    "bundleId": "com.youdroid.zhuoledocs"
+  },
+  "coverageAreas": [
+    {
+      "title": "Focused portrait presentation regression",
+      "status": "passed",
+      "caseIds": [
+        "ios-013-identity",
+        "ios-013-playback",
+        "ios-013-logout"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "ios-013-identity",
+      "title": "Install and verify the 0.1.3 simulator application",
+      "steps": [
+        "Install without clearing data",
+        "Read installed bundle version and compare all web assets"
+      ],
+      "assertions": [
+        "Version 0.1.3 build 4",
+        "Ten web assets exactly match staging"
+      ]
+    },
+    {
+      "id": "ios-013-playback",
+      "title": "Log in and present the retained two-slide fixture in portrait",
+      "steps": [
+        "Use the retained local service and isolated QA account",
+        "Open the existing slide fixture",
+        "Start playback",
+        "Advance to page two",
+        "Close playback"
+      ],
+      "assertions": [
+        "Workspace shows four documents and 881 B",
+        "Slide is 16:9 with reachable controls",
+        "Page two title is 2201440",
+        "Close returns to second-slide editor"
+      ]
+    },
+    {
+      "id": "ios-013-logout",
+      "title": "Log out after playback",
+      "steps": [
+        "Return to workspace",
+        "Open account settings",
+        "Log out"
+      ],
+      "assertions": [
+        "Login page visible"
+      ]
+    }
+  ],
+  "lastRun": {
+    "date": "2026-10-14",
+    "target": {
+      "name": "Zhuole Docs iPad QA",
+      "id": "6E217ADC-EDFD-498B-85D3-A69475D3382F",
+      "runtime": "iOS 26.1"
+    },
+    "appBuild": {
+      "version": "0.1.3 (4)"
+    },
+    "authSource": "Existing local isolated QA account; credentials excluded from reports",
+    "results": [
+      {
+        "caseId": "ios-013-identity",
+        "status": "passed",
+        "mode": "native CUA and installed artifact inspection",
+        "notes": "Installed on the dedicated iPad simulator; version and all ten files verified from the installed app container.",
+        "evidence": [
+          "releases/mobile/ios-0.1.3-installed-identity.json"
+        ]
+      },
+      {
+        "caseId": "ios-013-playback",
+        "status": "passed",
+        "mode": "native CUA and installed artifact inspection",
+        "notes": "Native CUA screenshots show portrait playback page one and page two, unobstructed controls, and return to the second-slide editor. Existing local fixture only; no content edits.",
+        "evidence": [
+          "releases/mobile/ios-0.1.3-presentation-page1.png",
+          "releases/mobile/ios-0.1.3-presentation-page2.png",
+          "releases/mobile/ios-0.1.3-presentation-exit.png"
+        ]
+      },
+      {
+        "caseId": "ios-013-logout",
+        "status": "passed",
+        "mode": "native CUA and installed artifact inspection",
+        "notes": "Native CUA shows the login page after logout. No fixture deletion or credential changes.",
+        "evidence": [
+          "releases/mobile/ios-0.1.3-logout.png"
+        ]
+      }
+    ],
+    "notes": "Focused portrait simulator acceptance only. Physical devices, landscape, keyboard navigation, full editor/file/offline regression and store distribution are not established. Existing local server is suitable for playback; its historical export behavior is not covered.",
+    "device": "Zhuole Docs iPad QA / iOS 26.1",
+    "build": "0.1.3 (4)",
+    "exclusions": [
+      "Physical devices and store distribution",
+      "Landscape and keyboard navigation",
+      "Complete current-build editor, file and offline regression",
+      "Existing local server Office export behavior"
+    ]
+  },
+  "app": "Zhuole Docs"
+}
