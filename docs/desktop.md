@@ -214,3 +214,9 @@ Both NSIS installers include the presentation aspect-ratio correction. The TypeS
 - `releases/desktop/ZhuoleDocs-0.1.5-win-arm64.exe`: SHA-256 `bb41ea6612bc036732dac81b186a981fcfef140effad58960c18e509114b971a`.
 
 Evidence: `releases/desktop/0.1.5-windows-{build.log,payload.log,payload.json,signature.json,SHA256SUMS}`. These are local candidates; the public download manifest remains 0.1.4. Windows installer execution and editor acceptance remain with the user. Mac 0.1.5 signing/notarization and the subsequent public cutover remain open.
+
+### Mac 0.1.5 build checkpoint (2026-10-14)
+
+Apple Silicon DMG/ZIP packaging completed with the existing Developer ID identity. Strict deep application signing and strict DMG signing checks passed; the unpacked application matches all 13 staged files exactly. Intel signing remains in progress. The same build process continues; do not start a second build against these output directories.
+
+The arm64 notarization helper is running, with a live `notarytool` submission process observed but no 0.1.5 submission ID persisted yet. This is an outstanding submission, not an accepted job or a failed upload. Preserve its live process and exclusive lock, observe it to completion, and reconcile Apple history before retrying any ambiguous submission. Logs: `releases/desktop/0.1.5-{mac-build,arm64-notarization}.log`. Installer payload checks, Apple acceptance, stapling, Gatekeeper and public cutover remain open. Public downloads stay on 0.1.4.
