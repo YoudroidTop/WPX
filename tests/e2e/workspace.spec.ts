@@ -354,3 +354,50 @@ test('PPTX download and import preserve blank title, notes and selected theme', 
   );
   await page.screenshot({ path: 'test-results/presentation-roundtrip.png' });
 });
+
+test('authenticated storage outage keeps account settings available and never displays zero usage', async ({
+  page,
+}) => {
+  const unavailable = async (route: import('@playwright/test').Route) => {
+    const response = await route.fetch();
+    const account = await response.json();
+    await route.fulfill({
+      response,
+      status: 503,
+      json: {
+        error: 'Storage suspended',
+        code: 'ACCOUNT_STORAGE_UNAVAILABLE',
+        account: { ...account, usedBytes: null },
+      },
+    });
+  };
+  await page.route('**/api/auth/register', unavailable);
+  await page.route('**/api/me', unavailable);
+  await page.route('**/api/documents', (route) =>
+    route.fulfill({ status: 503, json: { error: 'Storage suspended' } }),
+  );
+  await register(page);
+  await expect(page.getByText('云空间用量暂不可用', { exact: true })).toBeVisible();
+  await expect(page.getByText('云空间暂时不可用', { exact: true })).toBeVisible();
+  await expect(page.getByRole('progressbar', { name: '云空间用量' })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByText('云空间用量暂不可用', { exact: true })).toBeVisible();
+  await expect(page.getByText('云空间暂时不可用', { exact: true })).toBeVisible();
+  await expect(page.locator('.nav-count')).toHaveCount(0);
+  await expect(page.locator('.count-pill')).toHaveCount(0);
+  await page.screenshot({
+    path: 'test-results/web/storage-unavailable.png',
+    animations: 'disabled',
+  });
+  await page.locator('.profile-button').click();
+  await expect(page.getByLabel('显示名称')).toBeVisible();
+  await page.getByLabel('显示名称').fill('恢复期间改名');
+  await page.getByRole('button', { name: '保存', exact: true }).click();
+  await expect(page.getByText('个人资料已更新', { exact: true })).toBeVisible();
+  await page.getByLabel('当前密码', { exact: true }).fill('browser-test-password');
+  await page.getByLabel('新密码', { exact: true }).fill('outage-updated-password');
+  await page.getByRole('button', { name: '更新密码', exact: true }).click();
+  await expect(page.getByText('密码已修改，其他设备的登录已退出', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '退出登录', exact: true }).click();
+  await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible();
+});

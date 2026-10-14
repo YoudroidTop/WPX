@@ -19,6 +19,14 @@ This audit reconciles current source, recorded test evidence, release manifests 
 
 ## Next executable work
 
+### Account availability follow-up (2026-10-14, local verification)
+
+Authenticated storage failures now include an explicit `ACCOUNT_STORAGE_UNAVAILABLE` payload while retaining the original error status and session cookie. Updated clients retain account settings and display unknown quota usage instead of zero. Existing successful responses remain unchanged; older clients continue to receive an error. Document failures are not presented as an empty workspace.
+
+Verification: 83 unit/API tests, TypeScript checks and the web build passed. The browser outage case verifies registration, reload, unavailable usage and counts, profile editing, password rotation and logout; screenshot: `test-results/web/storage-unavailable.png`. This follow-up is not deployed and is not included in existing native installers.
+
+The connected Harmony device again returned launch error `10106102` (screen locked) after the user's ready message. No fresh ZDOC open/restore acceptance was performed in this run; previous build evidence remains separate.
+
 1. Collect the user's Windows installation/runtime result and retain the separate Intel Mac runtime gate. Official downloads, manual update checking, signed Mac delivery and Apple Silicon profile upgrade are verified.
 2. Implement a controlled production recovery workflow with per-account write isolation, pre-restore snapshot/bookmark, explicit target approval, undo preservation, and stale-client protection. Validate first in isolated storage; do not restore customer data as a test.
 3. Resume current-build Harmony scenarios when the user unlocks the device. No lock bypass, developer-mode change or unrelated foreground-app interruption is authorized by this audit.

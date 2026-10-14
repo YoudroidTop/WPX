@@ -57,7 +57,7 @@ export interface Account {
   id: string;
   email: string;
   name: string;
-  usedBytes: number;
+  usedBytes: number | null;
   limitBytes: number;
 }
 export const kindLabels: Record<DocumentKind, string> = {

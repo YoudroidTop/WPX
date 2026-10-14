@@ -32,7 +32,11 @@ test('usage rejection preserves the committed session without claiming a quota v
   assert.equal(response.status, 503);
   assert.equal(response.headers.get('Set-Cookie'), cookie);
   assert.equal(response.headers.get('Retry-After'), '30');
-  assert.deepEqual(await response.json(), { error: 'Storage suspended' });
+  assert.deepEqual(await response.json(), {
+    error: 'Storage suspended',
+    code: 'ACCOUNT_STORAGE_UNAVAILABLE',
+    account: { ...account, usedBytes: null, limitBytes: 3_000_000_000 },
+  });
 });
 
 test('transport and malformed usage failures keep the newly issued session', async () => {

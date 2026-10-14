@@ -1,3 +1,5 @@
+import { STORAGE_LIMIT } from '../shared/documents';
+
 // Registration or login may already have committed a new session
 // before document usage fails. Preserve its cookie even on a storage error so the
 // next retry can authenticate; never invent an accurate-looking quota value.
@@ -25,5 +27,17 @@ export async function accountUsageResponse(
   headers.delete('Set-Cookie');
   const cookie = authenticated.headers.get('Set-Cookie');
   if (cookie) headers.set('Set-Cookie', cookie);
+  if (usage.status >= 500) {
+    const failure = (await usage.json().catch(() => ({}))) as { error?: string };
+    headers.delete('Content-Length');
+    return Response.json(
+      {
+        error: failure.error || '云空间暂时不可用，请稍后重试',
+        code: 'ACCOUNT_STORAGE_UNAVAILABLE',
+        account: { ...account, usedBytes: null, limitBytes: STORAGE_LIMIT },
+      },
+      { status: usage.status, headers },
+    );
+  }
   return new Response(usage.body, { status: usage.status, statusText: usage.statusText, headers });
 }

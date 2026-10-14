@@ -1,3 +1,4 @@
+import { accountDuringStorageFailure } from '../shared/account-availability';
 import { isMobile, mobileRequest } from './mobile';
 import { cacheRead, cacheResponse, forgetAccount, offlineAccount, setOffline } from './cache';
 import { isNative, nativeBridge } from './platform';
@@ -26,6 +27,14 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     });
     if (!response.ok) {
       const body = await response.json().catch(() => ({ error: '网络请求失败' }));
+      const account = accountDuringStorageFailure(path, response.status, body);
+      if (account) {
+        setOffline(false);
+        if (path === '/auth/login' || path === '/auth/register')
+          await nativeBridge?.persistSession?.();
+        await cacheResponse(path, account, method).catch(() => {});
+        return account as T;
+      }
       if (response.status === 401 && path !== '/auth/login') await forgetAccount();
       throw new RequestError(
         body.error || '请求失败',

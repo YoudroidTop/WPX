@@ -104,7 +104,11 @@ export default function App() {
         setAccount(null);
         setDocuments([]);
         setLocalDrafts([]);
-      } else notify((error as Error).message);
+      } else {
+        if (error instanceof RequestError && error.status >= 500)
+          setAccount((current) => (current ? { ...current, usedBytes: null } : null));
+        notify((error as Error).message);
+      }
     } finally {
       setLoading(false);
       refreshing.current = false;
@@ -308,7 +312,9 @@ export default function App() {
             >
               <item.icon size={19} />
               {item.label}
-              {item.id === 'all' && <span className="nav-count">{active.length}</span>}
+              {item.id === 'all' && account.usedBytes !== null && (
+                <span className="nav-count">{active.length}</span>
+              )}
             </button>
           ))}
         </nav>
@@ -321,8 +327,18 @@ export default function App() {
               </span>
               <span>3 GB</span>
             </div>
-            <progress max={account.limitBytes} value={account.usedBytes} aria-label="云空间用量" />
-            <p>已使用 {formatBytes(account.usedBytes)} / 3 GB</p>
+            {account.usedBytes === null ? (
+              <p role="status">云空间用量暂不可用</p>
+            ) : (
+              <>
+                <progress
+                  max={account.limitBytes}
+                  value={account.usedBytes}
+                  aria-label="云空间用量"
+                />
+                <p>已使用 {formatBytes(account.usedBytes)} / 3 GB</p>
+              </>
+            )}
             <span className="storage-note">每一份灵感，都妥善安放。</span>
           </div>
           <button className="profile-button" onClick={() => setDialog({ type: 'account' })}>
@@ -514,7 +530,9 @@ export default function App() {
             <div className="section-heading">
               <h2>
                 {section === 'trash' ? '回收站' : section === 'starred' ? '星标文档' : '我的文档'}
-                <span className="count-pill">{visible.length}</span>
+                {account.usedBytes !== null && (
+                  <span className="count-pill">{visible.length}</span>
+                )}
               </h2>
               <div className="view-toggle">
                 <button
@@ -585,32 +603,39 @@ export default function App() {
                   <FolderOpen size={33} strokeWidth={1.3} />
                 </span>
                 <h3>
-                  {query
-                    ? '没有找到匹配的文档'
-                    : section === 'trash'
-                      ? '回收站空空的，很清爽'
-                      : section === 'starred'
-                        ? '把重要文档标个星吧'
-                        : '第一份好想法，从这里开始'}
+                  {account.usedBytes === null
+                    ? '云空间暂时不可用'
+                    : query
+                      ? '没有找到匹配的文档'
+                      : section === 'trash'
+                        ? '回收站空空的，很清爽'
+                        : section === 'starred'
+                          ? '把重要文档标个星吧'
+                          : '第一份好想法，从这里开始'}
                 </h3>
                 <p>
-                  {query
-                    ? '试试其他关键词，或者切换文档类型。'
-                    : section === 'starred'
-                      ? '点击文档旁的星标，让它随时触手可及。'
-                      : section === 'trash'
-                        ? '移入回收站的文档会显示在这里。'
-                        : '新建一份文档，或导入已有的 Office 文件。'}
+                  {account.usedBytes === null
+                    ? '账号功能仍可使用，请稍后刷新文档列表。'
+                    : query
+                      ? '试试其他关键词，或者切换文档类型。'
+                      : section === 'starred'
+                        ? '点击文档旁的星标，让它随时触手可及。'
+                        : section === 'trash'
+                          ? '移入回收站的文档会显示在这里。'
+                          : '新建一份文档，或导入已有的 Office 文件。'}
                 </p>
-                {!query && section !== 'trash' && section !== 'starred' && (
-                  <button
-                    className="text-button"
-                    disabled={busy}
-                    onClick={() => void create('word')}
-                  >
-                    新建第一份文档 <Plus size={15} />
-                  </button>
-                )}
+                {account.usedBytes !== null &&
+                  !query &&
+                  section !== 'trash' &&
+                  section !== 'starred' && (
+                    <button
+                      className="text-button"
+                      disabled={busy}
+                      onClick={() => void create('word')}
+                    >
+                      新建第一份文档 <Plus size={15} />
+                    </button>
+                  )}
               </div>
             ) : (
               <div className={grid ? 'file-grid' : 'file-list'}>
