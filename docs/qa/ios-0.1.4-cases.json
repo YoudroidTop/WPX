@@ -49,6 +49,13 @@
       "caseIds": [
         "ios-014-docx-roundtrip"
       ]
+    },
+    {
+      "title": "Native XLSX basic round trip",
+      "status": "passed",
+      "caseIds": [
+        "ios-014-xlsx-roundtrip"
+      ]
     }
   ],
   "cases": [
@@ -170,6 +177,24 @@
         "Original three documents and 547 B remain",
         "Empty login form visible"
       ]
+    },
+    {
+      "id": "ios-014-xlsx-roundtrip",
+      "title": "Save and reimport an XLSX with formula and multilingual cells",
+      "steps": [
+        "Export existing iPad sheet QA through the native share sheet",
+        "Save to On My iPad and select from import picker",
+        "Confirm basic import and inspect formula bar and cells",
+        "Compare API sheet names and cells excluding generated IDs",
+        "Compare actual export, Files and upload bytes and inspect formula cache",
+        "Remove only imported fixture, log out and shut down task simulator"
+      ],
+      "assertions": [
+        "A1 retains =120+80 and displays 200; B2 and B3 retain ni and Chinese text",
+        "All sheet names and cells match the source",
+        "Three file copies match at 6520 bytes; XLSX formula cache is 200",
+        "Original three documents and 547 B remain; empty login form visible"
+      ]
     }
   ],
   "lastRun": {
@@ -259,12 +284,26 @@
           "releases/mobile/ios-014-docx-readback.json",
           "releases/mobile/ios-014-docx-logout.png"
         ]
+      },
+      {
+        "caseId": "ios-014-xlsx-roundtrip",
+        "status": "passed",
+        "mode": "Native CUA, authenticated API deep comparison and ExcelJS file readback",
+        "notes": "Separate ipad-layout QA account. Initial simulator input focus issue resolved by clearing password and typing in separate observed steps. First readback assertion incorrectly expected a cell object; corrected to the actual string schema. No application changes. Only generated worksheet IDs excluded. Single worksheet and arithmetic formula scope; complex workbook fidelity not asserted.",
+        "evidence": [
+          "releases/mobile/ios-014-xlsx-source.png",
+          "releases/mobile/ios-014-xlsx-picker.png",
+          "releases/mobile/ios-014-xlsx-confirm.png",
+          "releases/mobile/ios-014-xlsx-imported.png",
+          "releases/mobile/ios-014-xlsx-readback.json",
+          "releases/mobile/ios-014-xlsx-logout.png"
+        ]
       }
     ],
-    "notes": "Seven focused cases across successive runs: installed identity, picker cancel/reopen, logout, native PPTX save/select, saved-byte/parser readback, basic confirmed import and current-server confirmed import fidelity. An early login retry succeeded with the same password. The first confirmed import used a stale API and lost themes; after restarting that task-local service from current source, native import preserved all supported fixture content excluding generated slide IDs. Only each newly imported test document was removed, restoring four documents and 881 B. UI/API logout and simulator shutdown completed. Original local PPTX remains available. See case-specific evidence and exclusions. Additional DOCX round trip passed in the separate ipad-layout account; cleanup restored its three documents and 547 B. See case-specific scope.",
+    "notes": "Seven focused cases across successive runs: installed identity, picker cancel/reopen, logout, native PPTX save/select, saved-byte/parser readback, basic confirmed import and current-server confirmed import fidelity. An early login retry succeeded with the same password. The first confirmed import used a stale API and lost themes; after restarting that task-local service from current source, native import preserved all supported fixture content excluding generated slide IDs. Only each newly imported test document was removed, restoring four documents and 881 B. UI/API logout and simulator shutdown completed. Original local PPTX remains available. See case-specific evidence and exclusions. Additional DOCX round trip passed in the separate ipad-layout account; cleanup restored its three documents and 547 B. See case-specific scope. Native XLSX save/select/import also passed for the ipad-layout account, including formula cache readback, exact cells and cleanup to three documents / 547 B.",
     "exclusions": [
       "Real file-provider read failures and oversized selection",
-      "Nonempty notes, XLSX native round trip, rich DOCX formatting and complex PPTX fidelity",
+      "Nonempty notes, complex XLSX fidelity, rich DOCX formatting and complex PPTX fidelity",
       "Physical devices and store distribution",
       "Full editor/offline/keyboard regression"
     ]
