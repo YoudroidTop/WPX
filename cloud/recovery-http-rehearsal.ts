@@ -14,13 +14,22 @@ export async function rehearseHttpMutations(namespace: DurableObjectNamespace<Re
       headers: { 'content-type': 'application/json', 'x-permit': 'forged', 'x-revision': '999999' },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
+  const accountId = 'generated-http-account';
   const send = (path: string, method: string, body?: unknown) =>
-    control().coordinatedRequest(request(path, method, body), dataId.toString());
-  assert.equal(
-    (await send('/api/documents', 'POST', { name: 'Blocked', kind: 'word' })).status,
-    503,
+    control().coordinatedRequest(request(path, method, body), accountId);
+  await assert.rejects(
+    () => send('/api/documents', 'POST', { name: 'Blocked', kind: 'word' }),
+    /not bound/,
   );
-  await control().initializeAdmission();
+  await control().initializeHttpAccount(accountId, dataId.toString());
+  await assert.rejects(
+    () => control().initializeHttpAccount(accountId, namespace.newUniqueId().toString()),
+    /conflicts/,
+  );
+  await assert.rejects(
+    () => control().coordinatedRequest(request('/api/documents', 'GET'), 'another-account'),
+    /not bound/,
+  );
   const docs: CloudDocument[] = [];
   for (const kind of ['word', 'sheet', 'slide'] as const) {
     const response = await send('/api/documents', 'POST', { name: `HTTP ${kind}`, kind });
@@ -86,7 +95,7 @@ export async function rehearseHttpMutations(namespace: DurableObjectNamespace<Re
       headers: { 'x-filename': encodeURIComponent('中文.zdoc') },
       body: JSON.stringify(backup),
     }),
-    dataId.toString(),
+    accountId,
   );
   assert.equal(imported.status, 201);
   const importedDoc = await imported.json<CloudDocument>();
@@ -97,7 +106,7 @@ export async function rehearseHttpMutations(namespace: DurableObjectNamespace<Re
     () =>
       control().coordinatedRequest(
         request('/api/documents', 'POST', { name: 'Lost response', kind: 'word' }),
-        dataId.toString(),
+        accountId,
         true,
       ),
     /Simulated response loss/,
@@ -109,7 +118,7 @@ export async function rehearseHttpMutations(namespace: DurableObjectNamespace<Re
     503,
   );
   await assert.rejects(() => control().restart(), /Recovery rehearsal restart/);
-  const reconciled = await control().reconcileRequest(dataId.toString());
+  const reconciled = await control().reconcileRequest(accountId);
   assert.equal(reconciled.status, 201);
   assert.equal((await reconciled.json<CloudDocument>()).name, 'Lost response');
   assert.equal((await data().snapshot()).count, beforeLost.count + 1);

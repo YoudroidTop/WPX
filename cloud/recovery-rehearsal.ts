@@ -16,6 +16,7 @@ import { completeVerifiedRecovery } from './recovery-completion';
 import { CoordinatedMutations } from './coordinated-mutations';
 import { CoordinatedReads } from './coordinated-reads';
 import { readDocumentRequest } from './document-reads';
+import { CoordinatorTarget } from './coordinator-target';
 import { rehearseHttpMutations } from './recovery-http-rehearsal';
 
 interface RecoveryEnv {
@@ -134,23 +135,36 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   readRequest(request: Request) {
     return readDocumentRequest(request, this.documents);
   }
-  private httpAdapter(dataId: string, loseResponse = false) {
-    const target = this.env.REHEARSAL.get(this.env.REHEARSAL.idFromString(dataId));
+  initializeHttpAccount(accountId: string, dataId: string) {
+    // Generated-account bootstrap only; production needs directory-backed proof.
+    this.ctx.storage.transactionSync(() => {
+      new CoordinatorTarget(this.ctx.storage.sql, (fn) => fn()).bind(accountId, dataId);
+      new AccountWriteAdmission(this.ctx.storage.sql, (fn) => fn()).initialize(0);
+    });
+  }
+  private httpTarget(accountId: string) {
+    const dataId = new CoordinatorTarget(this.ctx.storage.sql, (fn) =>
+      this.ctx.storage.transactionSync(fn),
+    ).require(accountId);
+    return this.env.REHEARSAL.get(this.env.REHEARSAL.idFromString(dataId));
+  }
+  private httpAdapter(accountId: string, loseResponse = false) {
+    const target = this.httpTarget(accountId);
     return new CoordinatedMutations(this.dispatch(), {
       execute: (pending) => target.fixtureMutation(this.wireMutation(pending), loseResponse),
       read: async (id) => (await target.documentResponse(id)).json<CloudDocument>(),
     });
   }
-  async coordinatedRequest(request: Request, dataId: string, loseResponse = false) {
+  async coordinatedRequest(request: Request, accountId: string, loseResponse = false) {
     try {
       if (request.method === 'GET') {
-        const target = this.env.REHEARSAL.get(this.env.REHEARSAL.idFromString(dataId));
+        const target = this.httpTarget(accountId);
         return await new CoordinatedReads(this.admission()).response(() =>
           target.readRequest(request),
         );
       }
       return (
-        (await this.httpAdapter(dataId, loseResponse).handle(request)) ??
+        (await this.httpAdapter(accountId, loseResponse).handle(request)) ??
         new Response(null, { status: 404 })
       );
     } catch (error) {
@@ -159,8 +173,8 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
       throw error;
     }
   }
-  async reconcileRequest(dataId: string) {
-    return (await this.httpAdapter(dataId).reconcile()) ?? new Response(null, { status: 204 });
+  async reconcileRequest(accountId: string) {
+    return (await this.httpAdapter(accountId).reconcile()) ?? new Response(null, { status: 204 });
   }
   private dispatch() {
     return new AccountMutationDispatch(this.ctx.storage.sql, (fn) =>
