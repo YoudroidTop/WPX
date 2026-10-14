@@ -161,3 +161,13 @@ The full `scripts/verify-desktop-release.mjs` run passed: four unpacked CPU targ
 ### Version 0.1.2 public release (2026-10-14)
 
 The official manifest now serves 0.1.2 for Mac arm64/x64 and Windows x64/arm64. All four public installer files passed complete hash/size readback plus HEAD/range checks. Both prior versions retain their eight immutable links, verified with HEAD and boundary bytes. Production Worker: `cb6f2753-63ad-49ae-ae5e-b6f65cde7fa9`. Publication evidence is recorded in `docs/cloudflare.md`. Windows remains unsigned and awaits user runtime acceptance; Intel Mac physical runtime is also unverified.
+
+### Version 0.1.3 verified candidate (2026-10-14)
+
+Desktop 0.1.3 includes authenticated storage-outage account access, unknown usage/count display and local draft discovery when cloud library reads fail. New immutable installer filenames preserve all published 0.1.2 artifacts.
+
+Nine source desktop tests passed, including storage-failure reload and subsequent draft synchronization. Two packaged Apple Silicon tests passed: bundled UI/sandboxing and 0.1.2-to-0.1.3 upgrade with the same profile, retained session and saved document. Windows x64/arm64 installers and app executables have empty PE certificate tables as requested. Both NSIS payloads match their unpacked apps; Windows runtime acceptance remains with the user.
+
+Apple accepted all four ZIP/DMG submissions. Tickets were attached to both Mac apps and DMGs; separate `-stapled.zip` files contain the stapled applications. Strict signature, ticket validation and Gatekeeper checks passed for both architectures and both distribution formats. Intel runtime acceptance remains unverified. The final full payload verifier compared all four CPU targets against the 13 staged files and all six original DMG/ZIP/NSIS containers against their applications.
+
+Evidence under `releases/desktop/`: `0.1.3-client-tests.log`, `0.1.3-packaged-tests.log`, `0.1.3-windows-signature.json`, `0.1.3-arm64-status-final.log`, `0.1.3-x64-status-final.log`, `0.1.3-mac-distribution.log`, `0.1.3-payload-verification-final.log`, `release-manifest.json`, and `mac-distribution-manifest.json`. Prior 0.1.2 manifests/checksums are retained with the `0.1.2-preserved-` prefix. The official download manifest still serves 0.1.2; 0.1.3 upload, public readback and manifest cutover remain pending. Mobile packages are unchanged.

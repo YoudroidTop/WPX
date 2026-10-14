@@ -504,7 +504,7 @@ test('native update menu uses official source and requires confirmation before d
 
 test('packaged upgrade preserves the previous version session and saved document', async () => {
   test.skip(process.platform !== 'darwin', 'macOS upgrade acceptance');
-  const previousZip = resolve('releases/desktop/ZhuoleDocs-0.1.1-mac-arm64-stapled.zip');
+  const previousZip = resolve('releases/desktop/ZhuoleDocs-0.1.2-mac-arm64-stapled.zip');
   const currentExecutable = resolve(
     'releases/desktop/mac-arm64/卓乐文档.app/Contents/MacOS/卓乐文档',
   );
@@ -522,7 +522,7 @@ test('packaged upgrade preserves the previous version session and saved document
   });
   try {
     let page = await app.firstWindow();
-    expect(await app.evaluate(({ app }) => app.getVersion())).toBe('0.1.1');
+    expect(await app.evaluate(({ app }) => app.getVersion())).toBe('0.1.2');
     await page.getByRole('button', { name: '创建免费账号' }).click();
     await page.getByLabel('怎么称呼你').fill('升级验收');
     await page.getByLabel('邮箱地址').fill(`upgrade-${crypto.randomUUID()}@example.com`);
@@ -530,7 +530,7 @@ test('packaged upgrade preserves the previous version session and saved document
     await page.getByRole('button', { name: '创建账号', exact: true }).click();
     await page.getByRole('button', { name: /新建文字文档 落笔/ }).click();
     await page.getByRole('textbox', { name: '文档名称', exact: true }).fill('Upgrade persistence');
-    await page.getByRole('textbox', { name: '文档正文' }).fill('Saved with version 0.1.1');
+    await page.getByRole('textbox', { name: '文档正文' }).fill('Saved with version 0.1.2');
     await expect(page.getByText('已保存到云端', { exact: true })).toBeVisible();
     await app.close();
     app = await electron.launch({
@@ -543,7 +543,7 @@ test('packaged upgrade preserves the previous version session and saved document
     await expect(page.getByText('升级验收，开启今天的好想法。')).toBeVisible();
     await page.locator('button.recent-card').filter({ hasText: 'Upgrade persistence' }).click();
     await expect(page.getByRole('textbox', { name: '文档正文' })).toContainText(
-      'Saved with version 0.1.1',
+      'Saved with version 0.1.2',
     );
     await page.screenshot({ path: 'test-results/desktop-upgrade.png' });
   } finally {

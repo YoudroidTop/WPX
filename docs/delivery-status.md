@@ -38,3 +38,7 @@ The connected Harmony device again returned launch error `10106102` (screen lock
 The current Harmony HAP SHA-256 is `74128965bc102873919e4766e86a0af0cb756dbaad429b8df5c5d42332cb77f1`. Its installation succeeded before the launch block. Current Mac artifacts and their hashes are in `MAC-SHA256SUMS` and `mac-distribution-manifest.json`; Windows artifacts are `ZhuoleDocs-0.1.2-win-x64.exe` and `ZhuoleDocs-0.1.2-win-arm64.exe` under `releases/desktop/`.
 
 Recent Office conversion fixes are server-side and require no client installer refresh for clients connected to the production domain. A self-hosted older server must be updated separately. Do not treat source HEAD as the build identity of every existing installer.
+
+## Desktop 0.1.3 candidate follow-up (2026-10-14)
+
+Local Windows x64/arm64 installers and notarized Mac arm64/x64 DMGs are built with the account availability and draft discovery fixes. All four packaged payloads match staging. Nine source-client tests plus two packaged Apple Silicon tests passed, including a 0.1.2 profile upgrade. Both Mac architectures passed signature, ticket and Gatekeeper validation; Windows remains unsigned as requested. See `docs/desktop.md` for evidence. Public downloads remain 0.1.2 until upload/readback/cutover; mobile artifacts remain on their earlier builds.
