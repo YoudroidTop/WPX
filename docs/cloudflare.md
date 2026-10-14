@@ -146,3 +146,12 @@ Production Worker `151776aa-dbd9-4782-b217-05776fb9d27f` serves 100% of traffic 
 The cloud build and focused session regression checks passed; the preceding full suite contained 82 passing tests. The expanded public API smoke now verifies logout/login, password rotation, old-session revocation and login with the new password, followed by three Office round trips, private access, revision conflicts, trash/removal and final logout. Browser smoke passed registration, Word persistence, sheet SUM/composition-event/Chinese persistence, slideshow, reload and logout. Generated QA documents and sessions were removed; empty QA accounts remain. Usage-failure injection is covered by local tests, not induced against production.
 
 Evidence: `releases/cloudflare/session-fix-{auth,before,build,deploy,after,live-api,live-browser}.log`. Recovery components remain isolated; production recovery and migration acceptance are still open.
+
+
+## Account availability deployment (2026-10-14)
+
+Worker `892b37f4-3f77-430f-8dbf-dc403fb53997` serves 100% of production traffic. It includes the authenticated storage-unavailable payload and account UI from `75edcd6`. Successful account responses, bindings, migration declarations and desktop manifests are unchanged. Rollback target: `151776aa-dbd9-4782-b217-05776fb9d27f`. Native installers have not been refreshed for this frontend change.
+
+Cloud build passed. Live API checks passed account login, password rotation, old-session revocation, new-password login and all three document types with private access, Office exports, stale-write rejection and cleanup. Browser checks passed Word persistence, spreadsheet formula/composition events/Chinese persistence, slideshow, reload and logout. An optional `SMOKE_STORAGE_OUTAGE=1` browser-only response injection verifies that the deployed bundle retains account access and shows unavailable usage without false zero counts. This is not a production server outage test; the server error payload is covered by local unit tests. Only generated QA documents/sessions were removed; empty QA accounts remain.
+
+Evidence: `releases/cloudflare/availability-{auth,before,build,deploy,after,live-api,live-browser}.log` and `live-storage-unavailable.png`. Reproduce with `SMOKE_PROXY=http://127.0.0.1:7897 SMOKE_STORAGE_OUTAGE=1 node scripts/smoke-cloud-browser.mjs`. Production recovery orchestration and device acceptance remain open.

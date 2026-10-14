@@ -113,6 +113,36 @@ try {
     });
     expect(removed.status()).toBe(204);
   }
+  if (process.env.SMOKE_STORAGE_OUTAGE === '1') {
+    // Browser-only injection: production storage and other accounts are untouched.
+    await page.route('**/api/me', async (route) => {
+      const response = await route.fetch();
+      expect(response.status()).toBe(200);
+      await route.fulfill({
+        response,
+        status: 503,
+        json: {
+          error: 'Storage unavailable during browser smoke',
+          code: 'ACCOUNT_STORAGE_UNAVAILABLE',
+          account: { ...(await response.json()), usedBytes: null },
+        },
+      });
+    });
+    await page.route('**/api/documents', (route) =>
+      route.fulfill({ status: 503, json: { error: 'Storage unavailable during browser smoke' } }),
+    );
+    await page.reload();
+    await expect(page.getByText('云空间用量暂不可用', { exact: true })).toBeVisible();
+    await expect(page.getByText('云空间暂时不可用', { exact: true })).toBeVisible();
+    await expect(page.locator('.nav-count, .count-pill')).toHaveCount(0);
+    await expect(page.getByRole('progressbar', { name: '云空间用量' })).toHaveCount(0);
+    await page.screenshot({
+      path: 'releases/cloudflare/live-storage-unavailable.png',
+      fullPage: true,
+      animations: 'disabled',
+    });
+    console.log('Deployed browser bundle passed browser-injected storage outage UI checks.');
+  }
   await page.getByRole('button', { name: '账号设置' }).click();
   await page.getByRole('button', { name: '退出登录', exact: true }).click();
   await expect(page.getByRole('heading', { name: '欢迎回来' })).toBeVisible();
