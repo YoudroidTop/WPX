@@ -40,6 +40,7 @@ function fixture() {
   const gate = new AccountWriteAdmission(sql, atomic),
     journal = new RecoveryJournal(sql, atomic);
   const snapshot = { sha256: 'a'.repeat(64), count: 1, usedBytes: 100, trashed: 0 };
+  gate.initialize(0);
   gate.suspend('restore');
   journal.begin({
     id: 'restore',

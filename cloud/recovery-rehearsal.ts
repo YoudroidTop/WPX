@@ -104,6 +104,10 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
     };
     return completeVerifiedRecovery(sql, (fn) => this.ctx.storage.transactionSync(fn), id);
   }
+  initializeAdmission() {
+    // This RPC is restricted to the isolated generated-fixture namespace.
+    this.admission().initialize(0);
+  }
   admitMutation() {
     return this.admission().admit();
   }

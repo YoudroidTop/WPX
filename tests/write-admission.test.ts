@@ -7,7 +7,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-function fixture(path = ':memory:') {
+function fixture(path = ':memory:', initialize = true) {
   const db = new DatabaseSync(path);
   const sql: SqlDatabase = {
     exec<T extends Record<string, SqlValue>>(query: string, ...bindings: SqlValue[]): T[] {
@@ -31,6 +31,7 @@ function fixture(path = ':memory:') {
       throw error;
     }
   };
+  if (initialize) new AccountWriteAdmission(sql, atomic).initialize(0);
   return { db, open: () => new AccountWriteAdmission(sql, atomic) };
 }
 
@@ -207,5 +208,76 @@ test('historical ceiling survives storage reopen and an exhausted ceiling remain
   } finally {
     f.db.close();
     rmSync(directory, { recursive: true });
+  }
+});
+
+test('uninitialized admission fails closed and initialization retries preserve later state', () => {
+  const f = fixture(':memory:', false);
+  try {
+    const gate = f.open();
+    assert.equal(gate.status().phase, 'uninitialized');
+    assert.throws(() => gate.admit(), { status: 503 });
+    assert.throws(() => gate.suspend('restore'), { status: 503 });
+    assert.throws(() => gate.resumeAfterVerification('restore', 1), { status: 503 });
+    for (const value of [-1, 0.5, NaN, Infinity, Number.MAX_SAFE_INTEGER])
+      assert.throws(() => gate.initialize(value));
+    assert.equal(gate.status().phase, 'uninitialized');
+    gate.initialize(100);
+    const permit = gate.admit();
+    assert.equal(permit.revision, 101);
+    gate.suspend('restore');
+    const state = gate.status();
+    f.open().initialize(100);
+    assert.deepEqual(gate.status(), state);
+    assert.throws(() => gate.initialize(0), /conflicts/);
+    assert.deepEqual(gate.status(), state);
+    gate.complete(permit);
+    gate.resumeAfterVerification('restore', 102);
+    gate.initialize(100);
+    assert.equal(gate.admit().revision, 103);
+  } finally {
+    f.db.close();
+  }
+});
+
+test('initialization is atomic and persists across database close and reopen', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'zhuole-initialize-'));
+  const path = join(directory, 'coordinator.sqlite');
+  let f = fixture(path, false);
+  try {
+    f.open();
+    f.db.exec(`CREATE TRIGGER fail_initialization BEFORE INSERT ON write_admission_initialization
+      BEGIN SELECT RAISE(ABORT, 'Injected initialization failure'); END`);
+    assert.throws(() => f.open().initialize(700), /Injected initialization failure/);
+    assert.equal(f.open().status().highWaterMark, 0);
+    assert.equal(f.open().status().phase, 'uninitialized');
+    f.db.exec('DROP TRIGGER fail_initialization');
+    f.open().initialize(700);
+    f.db.close();
+    f = fixture(path, false);
+    f.open().initialize(700);
+    assert.equal(f.open().admit().revision, 701);
+  } finally {
+    f.db.close();
+    rmSync(directory, { recursive: true });
+  }
+});
+
+test('legacy coordinator state cannot be silently adopted by initialization', () => {
+  const f = fixture(':memory:', false);
+  try {
+    f.open();
+    f.db.exec(
+      "UPDATE write_admission SET revision=9,pending='legacy-permit',recovery='legacy-restore'",
+    );
+    assert.equal(f.open().status().phase, 'uninitialized');
+    assert.throws(() => f.open().initialize(9), /explicit migration/);
+    assert.throws(() => f.open().admit(), { status: 503 });
+    assert.throws(() => f.open().complete({ token: 'legacy-permit', revision: 9 }), {
+      status: 503,
+    });
+    assert.equal(f.open().status().pending, 'legacy-permit');
+  } finally {
+    f.db.close();
   }
 });

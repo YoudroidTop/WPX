@@ -124,6 +124,7 @@ test('receipt failure rolls back document writes and leaves admission draining u
     c = database();
   try {
     const gate = new AccountWriteAdmission(c.sql, c.atomic);
+    gate.initialize(0);
     const permit = gate.admit();
     gate.suspend('restore');
     const executor = new AccountMutationExecutor(d.sql, d.atomic);

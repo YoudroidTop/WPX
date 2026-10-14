@@ -10,6 +10,8 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
   const restart = async (id: DurableObjectId) => {
     await assert.rejects(() => namespace.get(id).restart(), /Recovery rehearsal restart/);
   };
+  await assert.rejects(() => control().admitMutation());
+  await control().initializeAdmission();
   const first = await control().admitMutation();
   await control().completeMutation(await data().fixtureMutation(first, 'word'));
   const before = await data().snapshot();
