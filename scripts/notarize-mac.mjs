@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, writeFile, open, unlink } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
 
@@ -35,48 +35,72 @@ assert.ok(
 const auth = ['--key', key, '--key-id', keyId, '--issuer', issuer];
 const version = JSON.parse(await readFile('package.json', 'utf8')).version;
 const recordsPath = 'releases/desktop/notarization.json';
-let records = [];
+const lockPath = 'releases/desktop/notarization.lock';
+let lock;
 try {
-  records = JSON.parse(await readFile(recordsPath, 'utf8'));
+  lock = await open(lockPath, 'wx', 0o600);
 } catch (error) {
-  if (error.code !== 'ENOENT') throw error;
+  if (error.code === 'EEXIST')
+    throw new Error(
+      'Another notarization operation holds ' + lockPath + '; inspect its owner before retrying',
+    );
+  throw error;
 }
-const run = (args) => {
-  const result = spawnSync('xcrun', ['notarytool', ...args, ...auth, '--output-format', 'json'], {
-    encoding: 'utf8',
-  });
-  if (result.status !== 0) throw new Error(result.stderr || 'notarytool failed');
-  return JSON.parse(result.stdout);
-};
-if (architecture === '--status') {
-  for (const record of records) {
-    record.status = run(['info', record.id]).status;
-    await writeFile(recordsPath, JSON.stringify(records, null, 2) + '\n');
-    console.log(`${record.id}: ${record.status}`);
-  }
-  process.exit(records.some((record) => record.status === 'Invalid') ? 1 : 0);
+try {
+  await lock.writeFile(
+    JSON.stringify({ pid: process.pid, startedAt: new Date().toISOString() }) + '\n',
+  );
+  await notarize();
+} finally {
+  await lock.close();
+  await unlink(lockPath);
 }
 
-// Save each submission immediately; reruns poll existing jobs instead of uploading duplicates.
-const { createHash } = await import('node:crypto');
-for (const arch of architecture ? [architecture] : ['arm64', 'x64']) {
-  for (const extension of ['zip', 'dmg']) {
-    const artifact = resolve(`releases/desktop/ZhuoleDocs-${version}-mac-${arch}.${extension}`);
-    const sha256 = createHash('sha256')
-      .update(await readFile(artifact))
-      .digest('hex');
-    let record = records.find((entry) => entry.artifact === artifact && entry.sha256 === sha256);
-    if (!record) {
-      const job = run(['submit', artifact]);
-      assert.ok(job.id, 'Submission did not return an ID');
-      record = { artifact, sha256, id: job.id, status: 'Submitted' };
-      records.push(record);
+async function notarize() {
+  let records = [];
+  try {
+    records = JSON.parse(await readFile(recordsPath, 'utf8'));
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  const run = (args) => {
+    const result = spawnSync('xcrun', ['notarytool', ...args, ...auth, '--output-format', 'json'], {
+      encoding: 'utf8',
+    });
+    if (result.status !== 0) throw new Error(result.stderr || 'notarytool failed');
+    return JSON.parse(result.stdout);
+  };
+  if (architecture === '--status') {
+    for (const record of records) {
+      record.status = run(['info', record.id]).status;
       await writeFile(recordsPath, JSON.stringify(records, null, 2) + '\n');
+      console.log(`${record.id}: ${record.status}`);
     }
-    const job = run(['info', record.id]);
-    record.status = job.status;
-    await writeFile(recordsPath, JSON.stringify(records, null, 2) + '\n');
-    console.log(`${arch} ${extension}: ${record.status} (${record.id})`);
-    assert.notEqual(record.status, 'Invalid', 'Notarization rejected; inspect the job log');
+    process.exitCode = records.some((record) => record.status === 'Invalid') ? 1 : 0;
+    return;
+  }
+
+  // Save each submission immediately; reruns poll existing jobs instead of uploading duplicates.
+  const { createHash } = await import('node:crypto');
+  for (const arch of architecture ? [architecture] : ['arm64', 'x64']) {
+    for (const extension of ['zip', 'dmg']) {
+      const artifact = resolve(`releases/desktop/ZhuoleDocs-${version}-mac-${arch}.${extension}`);
+      const sha256 = createHash('sha256')
+        .update(await readFile(artifact))
+        .digest('hex');
+      let record = records.find((entry) => entry.artifact === artifact && entry.sha256 === sha256);
+      if (!record) {
+        const job = run(['submit', artifact]);
+        assert.ok(job.id, 'Submission did not return an ID');
+        record = { artifact, sha256, id: job.id, status: 'Submitted' };
+        records.push(record);
+        await writeFile(recordsPath, JSON.stringify(records, null, 2) + '\n');
+      }
+      const job = run(['info', record.id]);
+      record.status = job.status;
+      await writeFile(recordsPath, JSON.stringify(records, null, 2) + '\n');
+      console.log(`${arch} ${extension}: ${record.status} (${record.id})`);
+      assert.notEqual(record.status, 'Invalid', 'Notarization rejected; inspect the job log');
+    }
   }
 }
