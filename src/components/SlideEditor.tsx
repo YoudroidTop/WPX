@@ -83,7 +83,9 @@ export default function SlideEditor({
         >
           <X size={22} />
         </button>
-        {preview}
+        <div className="presentation-stage">
+          <div className="presentation-frame">{preview}</div>
+        </div>
         <div className="presentation-controls">
           <button aria-label="上一页" disabled={index === 0} onClick={() => setIndex(index - 1)}>
             <ChevronLeft />
