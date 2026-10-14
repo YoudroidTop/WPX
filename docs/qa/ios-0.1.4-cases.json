@@ -21,6 +21,13 @@
       "caseIds": [
         "ios-014-pptx-file-selection"
       ]
+    },
+    {
+      "title": "PPTX saved-file fidelity",
+      "status": "passed",
+      "caseIds": [
+        "ios-014-pptx-byte-readback"
+      ]
     }
   ],
   "cases": [
@@ -78,6 +85,20 @@
         "API retains four documents and 881 B",
         "Login page visible"
       ]
+    },
+    {
+      "id": "ios-014-pptx-byte-readback",
+      "title": "Verify saved and selected PPTX bytes and supported slide content",
+      "steps": [
+        "Read actual export cache, Files provider file and WebKit selected-file copy",
+        "Compare all three byte sequences",
+        "Parse saved PPTX using current importOffice",
+        "Compare supported slide content with authenticated source revision 6"
+      ],
+      "assertions": [
+        "All three 51919-byte files are identical",
+        "Two slides match title/body/notes/theme and order excluding generated IDs"
+      ]
     }
   ],
   "lastRun": {
@@ -123,12 +144,21 @@
           "releases/mobile/ios-0.1.4-pptx-logout.png",
           "releases/mobile/ios-0.1.4-pptx-cancel-readback.json"
         ]
+      },
+      {
+        "caseId": "ios-014-pptx-byte-readback",
+        "status": "passed",
+        "mode": "Actual simulator file readback and current-source parser with authenticated API comparison",
+        "notes": "No UI import confirmation submitted; actual saved bytes, not a regenerated export. API session logged out.",
+        "evidence": [
+          "releases/mobile/ios-0.1.4-pptx-byte-readback.json"
+        ]
       }
     ],
-    "notes": "First login attempt failed; re-entering the same password succeeded. No confirmed app defect. No files selected or documents changed. Logged out and shut down dedicated simulator. Follow-up saved the existing synthetic slide fixture as PPTX to On My iPad and selected it through Files; canceled confirmation without cloud import. Local sample retained; API count/usage unchanged, UI/API logout completed and simulator shut down.",
+    "notes": "First login attempt failed; re-entering the same password succeeded. No confirmed app defect. No files selected or documents changed. Logged out and shut down dedicated simulator. Follow-up saved the existing synthetic slide fixture as PPTX to On My iPad and selected it through Files; canceled confirmation without cloud import. Local sample retained; API count/usage unchanged, UI/API logout completed and simulator shut down. Saved PPTX, export cache and selected-file copy match exactly. Current-source parser matches both source slides at revision 6 except regenerated IDs. This does not establish native confirmed import.",
     "exclusions": [
       "Real file-provider read failures and oversized selection",
-      "Office import content and exported-byte fidelity",
+      "Native confirmed cloud import; DOCX/XLSX and complex PPTX fidelity",
       "Physical devices and store distribution",
       "Full editor/offline/keyboard regression"
     ]

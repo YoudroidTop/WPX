@@ -284,3 +284,9 @@ Catalog: `docs/qa/ios-0.1.4-cases.json`; report: `releases/mobile/ios-0.1.4-repo
 Native CUA exported the retained local slide fixture, used the system share sheet to save to On My iPad, and selected that actual file through the application's import picker. The confirmation displayed `iOS 012 slide QA 1434.pptx`, 51.9 KB. Canceling did not submit an import; authenticated API readback confirmed four documents and 881 B. The first readback assertion incorrectly expected top-level usage; correcting it to the existing `account.usedBytes` contract passed. UI/API sessions were logged out and the task simulator shut down. The local exported sample remains available.
 
 Catalog `docs/qa/ios-0.1.4-cases.json` now has four focused passes; evidence `releases/mobile/ios-0.1.4-pptx-{saved,confirmation,canceled,logout}.png` and `ios-0.1.4-pptx-cancel-readback.json`. This establishes actual native file saving and reading, not cloud content conversion, byte-for-byte Office fidelity, real provider failure, or physical-device acceptance.
+
+### iOS 0.1.4 saved PPTX byte/content readback (2026-10-14)
+
+Read the actual Files provider file saved in the preceding native run, the export-cache original and the WebKit selected-file copy. All three are byte-identical: 51,919 bytes, SHA-256 `25a871965ca9fb8b05127269b73d679561965f1b3ce994debefbf70ce45025db`. Parsing the saved file with current `importOffice` deeply matches the authenticated source document at revision 6: both slides, order, titles, bodies, notes and themes. Only freshly generated slide IDs are excluded from comparison. No file was regenerated for this check, no document was changed, and the API session was logged out.
+
+Evidence: `releases/mobile/ios-0.1.4-pptx-byte-readback.json`. The catalog now contains five focused passes. This closes byte/content fidelity for this actual PPTX fixture; native confirmed cloud import, DOCX/XLSX, complex Office fidelity and physical-device acceptance remain open.
