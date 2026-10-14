@@ -29,7 +29,8 @@
     "harmony:sync": "npm run build && node scripts/build-harmony.mjs",
     "desktop:verify-release": "node scripts/verify-desktop-release.mjs",
     "desktop:pack:mac:signed": "npm run desktop:build && electron-builder --config electron-builder.macos-release.yml --mac --publish never",
-    "desktop:verify:mac-distribution": "node scripts/verify-mac-distribution.mjs"
+    "desktop:verify:mac-distribution": "node scripts/verify-mac-distribution.mjs",
+    "mobile:pack:android": "node scripts/build-android-release.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

@@ -66,3 +66,7 @@ Fixed a reproduced duplicate-acknowledgement race between HTTP writes and reconc
 ## Recovery scheduling follow-up (2026-10-14)
 
 Automatic pending-mutation reconciliation now passes real Cloudflare alarm acceptance in the isolated namespace: atomic command/alarm scheduling, restart plus two consecutive simulated failures, exact replay without duplication, retained suspension and alarm cleanup. All 89 unit/API tests and application/cloud type checks passed. Worker `c6d924b9-b3db-4e90-8934-da4b962788ee`; evidence in `docs/recovery-protocol.md`. This advances the coordinator implementation; production authenticated routing, existing-account migration, operator approval, ambiguous PITR handling and client-level idempotency remain open.
+
+## Android release signing follow-up (2026-10-14)
+
+A local non-debuggable 0.1.1 (2) release APK is now signed with the dedicated project identity and verified for signatures, alignment, native version and ten editor assets. Fresh isolated emulator installation/cold Activity start passed; visible login/editor checks remain unverified because the UI controller could not bind that window. The original debug environment is preserved. See `docs/mobile.md` for artifact identity, signing-material backup and evidence. This is a local release candidate, not public download or app-store publication.
