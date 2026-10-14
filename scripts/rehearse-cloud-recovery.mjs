@@ -50,6 +50,12 @@ try {
     restored: { rejected: 3, highWaterMark: 2, nextRevision: 3 },
     undone: { rejected: 2, highWaterMark: 3, nextRevision: 4 },
   });
+  assert.deepEqual(result.emptyRecovery, {
+    passed: true,
+    emptyFence: 2,
+    freshRevision: 3,
+    staleWriteRejected: true,
+  });
   assert.deepEqual(result.recoveryTargets, {
     passed: true,
     rejected: 6,

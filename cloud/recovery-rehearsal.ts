@@ -15,6 +15,7 @@ import {
   type MutationDispatch,
 } from './mutation-dispatch';
 import { ScheduledMutations } from './scheduled-mutations';
+import { rehearseEmptyRecovery } from './recovery-empty-rehearsal';
 import { rehearseRecoveryTargets } from './recovery-target-rehearsal';
 import { rehearseScheduledMutations } from './recovery-scheduling-rehearsal';
 import { rehearseCoordination, rehearseLargeDispatch } from './recovery-coordination-rehearsal';
@@ -347,7 +348,7 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   }
   verifyRevisionFence(highWaterMark: number) {
     const before = this.documents.list().map((doc) => this.documents.get(doc.id));
-    this.documents.advanceRevisionsPast(highWaterMark);
+    const nextRevision = this.documents.advanceRevisionsPast(highWaterMark);
     let rejected = 0;
     for (const original of before) {
       const current = this.documents.get(original.id);
@@ -362,7 +363,7 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
         rejected++;
       }
     }
-    return { rejected, highWaterMark, nextRevision: this.documents.list()[0]?.revision };
+    return { rejected, highWaterMark, nextRevision };
   }
   scheduleRestore(bookmark: string) {
     return this.ctx.storage.onNextSessionRestoreBookmark(bookmark);
@@ -415,6 +416,7 @@ export default {
       restored,
       undone,
       revisionFencing: { restored: restoredFence, undone: undoFence },
+      emptyRecovery: await rehearseEmptyRecovery(env.REHEARSAL),
       recoveryTargets: await rehearseRecoveryTargets(env.REHEARSAL),
       coordination: await rehearseCoordination(env.REHEARSAL),
       largeDispatch: await rehearseLargeDispatch(env.REHEARSAL),

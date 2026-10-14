@@ -63,6 +63,10 @@ export class AccountMutationExecutor {
     try {
       return this.atomic(() => {
         const previous = [...this.sql.exec<ReceiptRow>('SELECT * FROM mutation_receipt')][0];
+        const floor = Number(
+          [...this.sql.exec('SELECT revision FROM recovery_revision_floor')][0].revision,
+        );
+        if (permit.revision <= floor) throw new Error('Write permit revision is obsolete');
         const maximum = Number(
           [...this.sql.exec('SELECT COALESCE(MAX(revision),0) AS maximum FROM documents')][0]
             .maximum,

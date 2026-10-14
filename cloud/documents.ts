@@ -50,6 +50,10 @@ export class AccountDocuments {
       ordinal INTEGER NOT NULL, bytes BLOB NOT NULL,
       PRIMARY KEY(document_id, ordinal)
     )`);
+    sql.exec(`CREATE TABLE IF NOT EXISTS recovery_revision_floor (
+      singleton INTEGER PRIMARY KEY CHECK(singleton=1), revision INTEGER NOT NULL
+    )`);
+    sql.exec('INSERT OR IGNORE INTO recovery_revision_floor VALUES(1,0)');
   }
   used(): number {
     return Number(
@@ -64,17 +68,24 @@ export class AccountDocuments {
   // Recovery callers must hold an external write fence and supply a durable high-water
   // mark covering every issued revision, including deleted documents and prior restores.
   // This method alone is not a production recovery protocol.
-  advanceRevisionsPast(highWaterMark: number): void {
+  advanceRevisionsPast(highWaterMark: number): number {
     if (!Number.isSafeInteger(highWaterMark) || highWaterMark < 0)
       throw new Error('Invalid recovery revision high-water mark');
-    this.atomic(() => {
+    return this.atomic(() => {
       const currentMaximum = Number(
         [...this.sql.exec('SELECT COALESCE(MAX(revision), 0) AS maximum FROM documents')][0]
           .maximum,
       );
-      const next = Math.max(currentMaximum, highWaterMark) + 1;
+      const floor = Number(
+        [...this.sql.exec('SELECT revision FROM recovery_revision_floor')][0].revision,
+      );
+      const next = Math.max(currentMaximum, highWaterMark, floor) + 1;
       if (!Number.isSafeInteger(next)) throw new Error('Recovery revision range exhausted');
       this.sql.exec('UPDATE documents SET revision=?', next);
+      this.sql.exec('UPDATE recovery_revision_floor SET revision=?', next);
+      // Empty restored accounts still need an externally persisted fence before
+      // admission reopens; no document row exists from which to read it back.
+      return next;
     });
   }
   private metadata(id: string): Metadata {

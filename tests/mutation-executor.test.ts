@@ -161,3 +161,30 @@ test('a receipt behind restored document revisions cannot be replayed as a curre
     d.db.close();
   }
 });
+
+test('empty restored storage rejects stale permits before the first fresh mutation', () => {
+  const f = database();
+  try {
+    const documents = new AccountDocuments(f.sql, f.atomic);
+    assert.equal(documents.advanceRevisionsPast(17), 18);
+    const command = { kind: 'create' as const, name: 'Fresh', content: blankContent('word') };
+    let executor = new AccountMutationExecutor(f.sql, f.atomic);
+    for (const revision of [1, 17, 18])
+      assert.throws(
+        () => executor.execute({ token: `stale-${revision}`, revision }, command),
+        /obsolete/,
+      );
+    executor = new AccountMutationExecutor(f.sql, f.atomic);
+    assert.throws(
+      () => executor.execute({ token: 'stale-reopened', revision: 17 }, command),
+      /obsolete/,
+    );
+    assert.deepEqual(documents.list(), []);
+    assert.equal(documents.used(), 0);
+    const receipt = executor.execute({ token: 'fresh', revision: 19 }, command);
+    assert.ok('document' in receipt.result);
+    assert.equal(documents.list()[0].revision, 19);
+  } finally {
+    f.db.close();
+  }
+});

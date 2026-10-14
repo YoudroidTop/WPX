@@ -190,3 +190,17 @@ test('a recovered document at the safe revision limit cannot accept an imprecise
     db.close();
   }
 });
+
+test('empty recovery returns an explicit fence without allocating documents or quota', () => {
+  const { store, db } = fixture();
+  try {
+    assert.equal(store.advanceRevisionsPast(17), 18);
+    assert.deepEqual(store.list(), []);
+    assert.equal(store.used(), 0);
+    assert.throws(() => store.advanceRevisionsPast(Number.MAX_SAFE_INTEGER));
+    assert.deepEqual(store.list(), []);
+    assert.equal(store.advanceRevisionsPast(18), 19);
+  } finally {
+    db.close();
+  }
+});
