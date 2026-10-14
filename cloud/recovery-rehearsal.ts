@@ -19,6 +19,7 @@ import { rehearseScheduledMutations } from './recovery-scheduling-rehearsal';
 import { rehearseCoordination, rehearseLargeDispatch } from './recovery-coordination-rehearsal';
 import { RecoveryJournal, type RecoveryIntent } from './recovery-journal';
 import { completeVerifiedRecovery } from './recovery-completion';
+import { startDrainedRecovery } from './recovery-start';
 import { CoordinatedMutations, type MutationFlight } from './coordinated-mutations';
 import { CoordinatedReads } from './coordinated-reads';
 import { readDocumentRequest } from './document-reads';
@@ -107,7 +108,11 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
     return this.journal().get(id);
   }
   journalStart(id: string) {
-    return this.journal().startScheduling(id);
+    return startDrainedRecovery(
+      this.ctx.storage.sql,
+      (fn) => this.ctx.storage.transactionSync(fn),
+      id,
+    );
   }
   journalScheduled(id: string, undo: string) {
     return this.journal().recordScheduled(id, undo);
