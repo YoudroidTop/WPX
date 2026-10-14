@@ -72,6 +72,13 @@ try {
     completionFailureKeptSuspended: true,
     completionRetryPreservedPending: true,
   });
+  assert.deepEqual(result.largeDispatch, {
+    passed: true,
+    contentBytes: 4_000_000,
+    oversizedRejected: true,
+    replayPreservedSnapshot: true,
+    commandRecoveredAfterRestart: true,
+  });
   await mkdir('releases/cloudflare', { recursive: true });
   await writeFile('releases/cloudflare/recovery-result.json', JSON.stringify(result, null, 2));
   console.log('Remote recovery and undo passed; evidence saved without preview credentials.');

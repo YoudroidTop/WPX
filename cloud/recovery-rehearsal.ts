@@ -1,11 +1,11 @@
 import { DurableObject } from 'cloudflare:workers';
 import { AccountDocuments, type SqlDatabase } from './documents';
-import { blankContent } from '../shared/documents';
+import { blankContent, contentSchema, MAX_CONTENT_BYTES } from '../shared/documents';
 import { ApiError } from '../server/errors';
 import { AccountWriteAdmission, type WritePermit } from './write-admission';
 import { AccountMutationExecutor, type MutationReceipt, type Mutation } from './mutation-executor';
 import { AccountMutationDispatch, type PendingMutation } from './mutation-dispatch';
-import { rehearseCoordination } from './recovery-coordination-rehearsal';
+import { rehearseCoordination, rehearseLargeDispatch } from './recovery-coordination-rehearsal';
 import { RecoveryJournal, type RecoveryIntent } from './recovery-journal';
 import { completeVerifiedRecovery } from './recovery-completion';
 
@@ -50,6 +50,16 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
       count: documents.length,
       usedBytes: this.documents.used(),
       trashed: documents.filter((doc) => doc.deletedAt !== null).length,
+    };
+  }
+  async contentDigest(id: string) {
+    const bytes = new TextEncoder().encode(JSON.stringify(this.documents.get(id).content));
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return {
+      bytes: bytes.length,
+      sha256: [...new Uint8Array(digest)]
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join(''),
     };
   }
   mutate() {
@@ -124,6 +134,27 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   }
   private wireMutation(pending: PendingMutation) {
     return { permit: pending.permit, commandJson: JSON.stringify(pending.command) };
+  }
+  admitLargeMutation(extra: 0 | 1 = 0) {
+    const paragraphs = Array.from({ length: 4 }, () => ({
+      type: 'paragraph',
+      content: [{ type: 'text', text: '' }],
+    }));
+    const content = { type: 'word' as const, doc: { type: 'doc', content: paragraphs } };
+    const remaining = MAX_CONTENT_BYTES + extra - Buffer.byteLength(JSON.stringify(content));
+    for (const paragraph of paragraphs)
+      paragraph.content[0].text = '中文📝'.repeat(Math.floor(remaining / 40));
+    paragraphs[0].content[0].text += 'x'.repeat(remaining % 40);
+    const validated = contentSchema.parse(content);
+    if (Buffer.byteLength(JSON.stringify(validated)) !== MAX_CONTENT_BYTES + extra)
+      throw new Error('Large fixture size mismatch');
+    return this.wireMutation(
+      this.dispatch().enqueue({
+        kind: 'create',
+        name: 'Large coordinated fixture',
+        content: validated,
+      }),
+    );
   }
   pendingMutation() {
     const pending = this.dispatch().pending();
@@ -220,6 +251,7 @@ export default {
       undone,
       revisionFencing: { restored: restoredFence, undone: undoFence },
       coordination: await rehearseCoordination(env.REHEARSAL),
+      largeDispatch: await rehearseLargeDispatch(env.REHEARSAL),
     });
   },
 } satisfies ExportedHandler<RecoveryEnv>;

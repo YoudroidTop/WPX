@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import type { RecoveryRehearsal } from './recovery-rehearsal';
 
 // Only generated fixture objects. The coordinator object is never a PITR target.
@@ -145,5 +146,49 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
     originalUndoPreserved: true,
     completionFailureKeptSuspended: true,
     completionRetryPreservedPending: true,
+  };
+}
+
+export async function rehearseLargeDispatch(namespace: DurableObjectNamespace<RecoveryRehearsal>) {
+  const controlId = namespace.newUniqueId(),
+    dataId = namespace.newUniqueId();
+  const control = () => namespace.get(controlId),
+    data = () => namespace.get(dataId);
+  await control().initializeAdmission();
+  const original = await control().admitLargeMutation();
+  await assert.rejects(
+    () => data().fixtureMutation(original, true),
+    /Simulated response loss after commit/,
+  );
+  await assert.rejects(() => control().restart(), /Recovery rehearsal restart/);
+  const persisted = await control().pendingMutation();
+  assert.deepEqual(persisted, original);
+  const beforeReplay = await data().snapshot();
+  assert.equal(beforeReplay.count, 1);
+  assert.equal(beforeReplay.usedBytes, 4_000_000);
+  const receipt = await data().fixtureMutation(persisted!);
+  assert.ok('document' in receipt.result);
+  const expectedContent = JSON.stringify(JSON.parse(original.commandJson).content);
+  assert.deepEqual(await data().contentDigest(receipt.result.document.id), {
+    bytes: 4_000_000,
+    sha256: createHash('sha256').update(expectedContent).digest('hex'),
+  });
+  assert.deepEqual(await data().snapshot(), beforeReplay);
+  await control().completeMutation(receipt);
+  assert.equal(await control().pendingMutation(), null);
+  const oversized = await control().admitLargeMutation(1);
+  const rejected = await data().fixtureMutation(oversized);
+  assert.ok('error' in rejected.result);
+  assert.equal(rejected.result.error.status, 413);
+  assert.deepEqual(await data().fixtureMutation(oversized), rejected);
+  await control().completeMutation(rejected);
+  assert.deepEqual(await data().snapshot(), beforeReplay);
+  assert.equal(await control().pendingMutation(), null);
+  return {
+    passed: true,
+    contentBytes: 4_000_000,
+    oversizedRejected: true,
+    replayPreservedSnapshot: true,
+    commandRecoveredAfterRestart: true,
   };
 }
