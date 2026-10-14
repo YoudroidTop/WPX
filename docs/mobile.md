@@ -218,3 +218,11 @@ A local CUA browser harness rendered the actual `SlideEditor` and application CS
 The task-owned `Zhuole_Docs_Release_API35` emulator accepted `adb install -r` over 0.1.2 and preserved its first installation time. Cold Activity launch completed successfully in 1,501 ms; PID 2876 was live and MainActivity was top-resumed. The AndroidRuntime error log was empty. CUA did not expose the emulator application, so this is package/process acceptance, not visible slideshow or draft/session acceptance. No uninstall or clear-data operation occurred. The task emulator was stopped after verification.
 
 Evidence: `releases/mobile/0.1.3-android-{release-build.log,release-verification.json,before-upgrade.log,after-upgrade.log,upgrade.log,launch.log,activities.log,runtime-errors.log}`. This signed local APK has not been uploaded to a public download or store. iOS, HarmonyOS and desktop packages still need the presentation correction; their prior acceptance remains version-specific.
+
+### iOS development candidate 0.1.3 — 2026-10-14
+
+`releases/mobile/ZhuoleDocs-0.1.3-ios-development.ipa` packages the presentation aspect-ratio correction with version 0.1.3/build 4. Size: 1,116,511 bytes; SHA-256: `3a1b132f260bfcb33ab8421e6488949cb0a499ce06eb498ac936e11032c3d59b`. Release archive/export and strict deep signature verification passed. Entitlements identify `Y4MB2B6UD3.com.youdroid.zhuoledocs` with development access; the existing profile lists ten devices and expires 2027-07-14. All ten embedded web files match current `dist`, with an exact asset filename set. The 0.1.2 IPA remains unchanged.
+
+A separate Debug simulator build also succeeded at `releases/mobile/Simulator013/Build/Products/Debug-iphonesimulator/App.app`, with matching version/build and all ten web resources. This turn verifies package construction, not installation or runtime. All three paired iPhones remained unavailable in `devicectl`; physical-device, safe-area and current-build editor acceptance remain open. No profile changes, public upload or App Store submission occurred.
+
+Evidence: `releases/mobile/0.1.3-ios-{sync.log,archive.log,export.log,simulator-build.log,verification.json}`. HarmonyOS and desktop packages still require this correction.
