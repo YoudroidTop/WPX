@@ -79,6 +79,14 @@ try {
     replayPreservedSnapshot: true,
     commandRecoveredAfterRestart: true,
   });
+  assert.deepEqual(result.httpMutations, {
+    passed: true,
+    fullDocumentResponses: true,
+    mutationRoutes: true,
+    nativeImport: true,
+    restartReconciled: true,
+    suspensionPreserved: true,
+  });
   await mkdir('releases/cloudflare', { recursive: true });
   await writeFile('releases/cloudflare/recovery-result.json', JSON.stringify(result, null, 2));
   console.log('Remote recovery and undo passed; evidence saved without preview credentials.');

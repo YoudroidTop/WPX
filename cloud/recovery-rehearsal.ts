@@ -1,6 +1,11 @@
 import { DurableObject } from 'cloudflare:workers';
 import { AccountDocuments, type SqlDatabase } from './documents';
-import { blankContent, contentSchema, MAX_CONTENT_BYTES } from '../shared/documents';
+import {
+  blankContent,
+  contentSchema,
+  MAX_CONTENT_BYTES,
+  type CloudDocument,
+} from '../shared/documents';
 import { ApiError } from '../server/errors';
 import { AccountWriteAdmission, type WritePermit } from './write-admission';
 import { AccountMutationExecutor, type MutationReceipt, type Mutation } from './mutation-executor';
@@ -8,6 +13,8 @@ import { AccountMutationDispatch, type PendingMutation } from './mutation-dispat
 import { rehearseCoordination, rehearseLargeDispatch } from './recovery-coordination-rehearsal';
 import { RecoveryJournal, type RecoveryIntent } from './recovery-journal';
 import { completeVerifiedRecovery } from './recovery-completion';
+import { CoordinatedMutations } from './coordinated-mutations';
+import { rehearseHttpMutations } from './recovery-http-rehearsal';
 
 interface RecoveryEnv {
   REHEARSAL: DurableObjectNamespace<RecoveryRehearsal>;
@@ -118,6 +125,31 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   initializeAdmission() {
     // This RPC is restricted to the isolated generated-fixture namespace.
     this.admission().initialize(0);
+  }
+  documentResponse(id: string) {
+    return Response.json(this.documents.get(id));
+  }
+  private httpAdapter(dataId: string, loseResponse = false) {
+    const target = this.env.REHEARSAL.get(this.env.REHEARSAL.idFromString(dataId));
+    return new CoordinatedMutations(this.dispatch(), {
+      execute: (pending) => target.fixtureMutation(this.wireMutation(pending), loseResponse),
+      read: async (id) => (await target.documentResponse(id)).json<CloudDocument>(),
+    });
+  }
+  async coordinatedRequest(request: Request, dataId: string, loseResponse = false) {
+    try {
+      return (
+        (await this.httpAdapter(dataId, loseResponse).handle(request)) ??
+        new Response(null, { status: 404 })
+      );
+    } catch (error) {
+      if (error instanceof ApiError)
+        return Response.json({ error: error.message }, { status: error.status });
+      throw error;
+    }
+  }
+  async reconcileRequest(dataId: string) {
+    return (await this.httpAdapter(dataId).reconcile()) ?? new Response(null, { status: 204 });
   }
   private dispatch() {
     return new AccountMutationDispatch(this.ctx.storage.sql, (fn) =>
@@ -252,6 +284,7 @@ export default {
       revisionFencing: { restored: restoredFence, undone: undoFence },
       coordination: await rehearseCoordination(env.REHEARSAL),
       largeDispatch: await rehearseLargeDispatch(env.REHEARSAL),
+      httpMutations: await rehearseHttpMutations(env.REHEARSAL),
     });
   },
 } satisfies ExportedHandler<RecoveryEnv>;
