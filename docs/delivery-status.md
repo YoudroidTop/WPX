@@ -50,3 +50,7 @@ Official downloads now serve the verified 0.1.3 installers. All four public file
 ## Mobile 0.1.1 development packages (2026-10-14)
 
 Android debug APK, iOS development IPA and Harmony debug HAP now include the shared account availability/draft fixes, with native version 0.1.1/build 2. All bundled web files match staging. Android's dedicated-emulator editor/export/offline/cache/account regression passed. iOS signature/profile checks passed but paired phones were offline. Harmony build/package checks passed; device launch remained locked, and the new HAP was not installed. See `docs/mobile.md` for exact hashes and logs. Mobile public distribution and current-build iOS/Harmony runtime acceptance remain open.
+
+## Android native 503 follow-up (2026-10-14)
+
+Mobile 0.1.1 (2) now has native HTTP storage-outage acceptance on the dedicated Android emulator: account/session retention, process restart, local draft access and recovery synchronization passed against a loopback fault proxy. This closes the Android-specific 503 check; it does not establish iOS/Harmony runtime behavior or production recovery orchestration. Evidence and stale-emulator-snapshot safeguards are documented in `docs/mobile.md`.
