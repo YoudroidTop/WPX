@@ -175,3 +175,11 @@ Evidence under `releases/desktop/`: `0.1.3-client-tests.log`, `0.1.3-packaged-te
 ### Version 0.1.3 public release (2026-10-14)
 
 The official manifest now serves 0.1.3 for Mac arm64/x64 and Windows x64/arm64. All four public downloads passed full-content hash/size comparison and HEAD/range verification. Three historical versions retain all 12 links, verified through HEAD and boundary bytes. Worker `7c787cea-6184-4071-9f6f-a1bf9e4ca45d` serves the release at 100% traffic. See `docs/cloudflare.md` for the deployment evidence. Windows user acceptance, Intel runtime acceptance and mobile refresh remain separate open gates.
+
+### Version 0.1.4 packaging checkpoint (2026-10-14)
+
+Desktop version 0.1.4 includes the aggregate formula reference correction. All 91 unit/API tests and the desktop staging build passed. Previous 0.1.3 unpacked applications and validation manifests were moved to `0.1.3-preserved-*` paths; published installers remain unchanged.
+
+Windows x64 and arm64 NSIS files are ready locally as `releases/desktop/ZhuoleDocs-0.1.4-win-x64.exe` and `ZhuoleDocs-0.1.4-win-arm64.exe`. Both unpacked architectures match all 13 staged files, and the installer payloads match their unpacked apps. The PE certificate tables of both installers and application executables are empty, as requested. This is packaging acceptance, not Windows execution. Evidence: `0.1.4-windows-payload.json`, `0.1.4-windows-payload.log`, `0.1.4-windows-signature.json` under `releases/desktop/`. The scoped verifier's generic final log says six artifacts; its actual filtered manifest contains only the two Windows installers.
+
+Mac arm64 signed DMG/ZIP packaging completed and notarization was started. Intel signing/packaging is still running at this checkpoint; no new Mac distribution readiness is claimed. Continue the existing build and notarization jobs rather than launching duplicates. Logs: `0.1.4-mac-build.log` and `0.1.4-arm64-notarization.log`; Apple submission identities, once returned, persist in `notarization.json`. Official public downloads remain 0.1.3 until all Mac acceptance, payload checks and public readback complete.
