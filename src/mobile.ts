@@ -1,5 +1,6 @@
 import { pruneExportCache } from './export-cache';
 import { decodeNativeResponse } from './mobile-response';
+import { pickMobileFile } from './mobile-file-picker';
 import { Capacitor, CapacitorCookies, CapacitorHttp, registerPlugin } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -89,23 +90,7 @@ export const mobileBridge: NativeBridge = {
       : null;
   },
   async openFile() {
-    return new Promise((resolve) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.docx,.xlsx,.pptx,.zdoc';
-      input.addEventListener('cancel', () => resolve(null), { once: true });
-      input.addEventListener(
-        'change',
-        async () => {
-          const file = input.files?.[0];
-          resolve(
-            file ? { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) } : null,
-          );
-        },
-        { once: true },
-      );
-      input.click();
-    });
+    return pickMobileFile();
   },
   async saveFile(name, extension, bytes) {
     const file = await Filesystem.writeFile({
