@@ -3,7 +3,8 @@ import { AccountDocuments, type SqlDatabase } from './documents';
 import { blankContent } from '../shared/documents';
 import { ApiError } from '../server/errors';
 import { AccountWriteAdmission, type WritePermit } from './write-admission';
-import { AccountMutationExecutor } from './mutation-executor';
+import { AccountMutationExecutor, type MutationReceipt, type Mutation } from './mutation-executor';
+import { AccountMutationDispatch, type PendingMutation } from './mutation-dispatch';
 import { rehearseCoordination } from './recovery-coordination-rehearsal';
 import { RecoveryJournal, type RecoveryIntent } from './recovery-journal';
 import { completeVerifiedRecovery } from './recovery-completion';
@@ -108,11 +109,28 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
     // This RPC is restricted to the isolated generated-fixture namespace.
     this.admission().initialize(0);
   }
-  admitMutation() {
-    return this.admission().admit();
+  private dispatch() {
+    return new AccountMutationDispatch(this.ctx.storage.sql, (fn) =>
+      this.ctx.storage.transactionSync(fn),
+    );
   }
-  completeMutation(permit: WritePermit) {
-    this.admission().complete(permit);
+  admitMutation(kind: 'word' | 'sheet' = 'word') {
+    const pending = this.dispatch().enqueue({
+      kind: 'create',
+      name: `Coordinated ${kind}`,
+      content: blankContent(kind),
+    });
+    return this.wireMutation(pending);
+  }
+  private wireMutation(pending: PendingMutation) {
+    return { permit: pending.permit, commandJson: JSON.stringify(pending.command) };
+  }
+  pendingMutation() {
+    const pending = this.dispatch().pending();
+    return pending ? this.wireMutation(pending) : null;
+  }
+  completeMutation(receipt: MutationReceipt) {
+    this.dispatch().acknowledge(receipt);
   }
   suspendMutations(operation: string) {
     this.admission().suspend(operation);
@@ -123,18 +141,11 @@ export class RecoveryRehearsal extends DurableObject<RecoveryEnv> {
   drainedRevision(operation: string) {
     return this.admission().requireDrained(operation);
   }
-  fixtureMutation(permit: WritePermit, kind: 'word' | 'sheet', loseResponse = false) {
+  fixtureMutation(pending: { permit: WritePermit; commandJson: string }, loseResponse = false) {
     const executor = new AccountMutationExecutor(this.ctx.storage.sql, (fn) =>
       this.ctx.storage.transactionSync(fn),
     );
-    const content = blankContent(kind);
-    // A retry must reuse the same command, including generated worksheet IDs.
-    if (content.type === 'sheet') content.sheets[0].id = 'coordinated-sheet';
-    const receipt = executor.execute(permit, {
-      kind: 'create',
-      name: `Coordinated ${kind}`,
-      content,
-    });
+    const receipt = executor.execute(pending.permit, JSON.parse(pending.commandJson) as Mutation);
     if (loseResponse) throw new Error('Simulated response loss after commit');
     return receipt;
   }

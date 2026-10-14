@@ -59,6 +59,7 @@ try {
     initializationSurvivedRestart: true,
     initializationRetryPreservedPending: true,
     responseLossReconciled: true,
+    durableCommandSurvivedRestart: true,
     duplicateCreatePrevented: true,
     coordinatorRestartPreservedPending: true,
     coordinatorUnaffectedByRestore: true,

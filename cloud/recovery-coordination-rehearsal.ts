@@ -19,28 +19,31 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
   assert.equal((await control().admissionStatus()).phase, 'active');
   assert.equal((await control().admissionStatus()).highWaterMark, 0);
   const first = await control().admitMutation();
-  await control().completeMutation(await data().fixtureMutation(first, 'word'));
+  await control().completeMutation(await data().fixtureMutation(first));
   const before = await data().snapshot();
   const bookmark = await data().checkpoint();
-  const second = await control().admitMutation();
+  const second = await control().admitMutation('sheet');
   await assert.rejects(
-    () => data().fixtureMutation(second, 'sheet', true),
+    () => data().fixtureMutation(second, true),
     /Simulated response loss after commit/,
   );
   await control().suspendMutations('restore');
   await restart(controlId);
   const draining = await control().admissionStatus();
   assert.equal(draining.phase, 'draining');
-  assert.equal(draining.pending, second.token);
+  assert.equal(draining.pending, second.permit.token);
   await control().initializeAdmission();
   assert.deepEqual(await control().admissionStatus(), draining);
   await assert.rejects(() => control().admitMutation());
   await assert.rejects(() => control().drainedRevision('restore'));
-  const receipt = await data().fixtureMutation(second, 'sheet');
+  const persisted = await control().pendingMutation();
+  assert.deepEqual(persisted, second);
+  const receipt = await data().fixtureMutation(persisted!);
   assert.ok('document' in receipt.result);
   const changed = await data().snapshot();
   assert.equal(changed.count, 2, 'Retry must not create a third document');
   await control().completeMutation(receipt);
+  assert.equal(await control().pendingMutation(), null);
   const ceiling = await control().drainedRevision('restore');
   assert.equal(ceiling, 2);
   await control().journalBegin({
@@ -72,7 +75,7 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
   assert.equal((await control().admissionStatus()).phase, 'suspended');
   assert.equal(await control().drainedRevision('restore'), ceiling);
   const restoredFence = await data().verifyRevisionFence(ceiling);
-  await assert.rejects(() => data().fixtureMutation(second, 'sheet'), /obsolete/);
+  await assert.rejects(() => data().fixtureMutation(second), /obsolete/);
   await control().journalVerified('restore', before, restoredFence.nextRevision!);
   await assert.rejects(
     () => control().finishRecovery('restore', true),
@@ -82,11 +85,11 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
   assert.equal((await control().journalGet('restore')).phase, 'verified');
   await assert.rejects(() => control().admitMutation());
   await control().finishRecovery('restore');
-  const fresh = await control().admitMutation();
-  assert.equal(fresh.revision, 4);
+  const fresh = await control().admitMutation('sheet');
+  assert.equal(fresh.permit.revision, 4);
   await control().finishRecovery('restore');
-  assert.equal((await control().admissionStatus()).pending, fresh.token);
-  await control().completeMutation(await data().fixtureMutation(fresh, 'sheet'));
+  assert.equal((await control().admissionStatus()).pending, fresh.permit.token);
+  await control().completeMutation(await data().fixtureMutation(fresh));
   assert.equal((await data().snapshot()).count, 2);
 
   await control().suspendMutations('undo');
@@ -113,7 +116,7 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
   await control().journalRestored('undo');
   assert.equal(await control().drainedRevision('undo'), undoCeiling);
   const undoneFence = await data().verifyRevisionFence(undoCeiling);
-  await assert.rejects(() => data().fixtureMutation(fresh, 'sheet'), /obsolete/);
+  await assert.rejects(() => data().fixtureMutation(fresh), /obsolete/);
   await control().journalVerified('undo', changed, undoneFence.nextRevision!);
   await control().finishRecovery('undo');
   await restart(controlId);
@@ -130,11 +133,12 @@ export async function rehearseCoordination(namespace: DurableObjectNamespace<Rec
     dataObjectId: dataId.toString(),
     coordinatorObjectId: controlId.toString(),
     responseLossReconciled: true,
+    durableCommandSurvivedRestart: true,
     duplicateCreatePrevented: true,
     coordinatorRestartPreservedPending: true,
     coordinatorUnaffectedByRestore: true,
     staleAfterRestoreRejected: true,
-    freshWriteRevision: fresh.revision,
+    freshWriteRevision: fresh.permit.revision,
     staleAfterUndoRejected: true,
     finalHighWaterMark: final.highWaterMark,
     journalSurvivedRestart: true,
