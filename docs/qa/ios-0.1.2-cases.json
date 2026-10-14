@@ -1,0 +1,228 @@
+{
+  "app": "Zhuole Docs",
+  "runner": {
+    "platform": "iPadOS Simulator",
+    "bundleId": "com.youdroid.zhuoledocs",
+    "udid": "6E217ADC-EDFD-498B-85D3-A69475D3382F",
+    "evidenceTypes": ["CUA native screenshots", "installed bundle inspection", "process restart"]
+  },
+  "coverageAreas": [
+    {
+      "area": "Installed version and editor assets",
+      "caseIds": ["ios-012-identity"],
+      "status": "passed"
+    },
+    {
+      "area": "Native login and workspace",
+      "caseIds": ["ios-012-login"],
+      "status": "passed"
+    },
+    {
+      "area": "Open existing Word content",
+      "caseIds": ["ios-012-word-open"],
+      "status": "passed"
+    },
+    {
+      "area": "Session survives process restart",
+      "caseIds": ["ios-012-restart"],
+      "status": "passed"
+    },
+    {
+      "area": "Logout returns to empty login form",
+      "caseIds": ["ios-012-logout"],
+      "status": "passed"
+    },
+    {
+      "area": "Current aggregate formula edit and save",
+      "caseIds": ["ios-012-sheet"],
+      "status": "not-run"
+    },
+    {
+      "area": "Current presentation edit and playback",
+      "caseIds": ["ios-012-slides"],
+      "status": "not-run"
+    },
+    {
+      "area": "Current Word edit and save",
+      "caseIds": ["ios-012-word-edit"],
+      "status": "not-run"
+    }
+  ],
+  "cases": [
+    {
+      "id": "ios-012-identity",
+      "title": "Installed version and editor assets",
+      "priority": "P1",
+      "platforms": ["iPadOS Simulator"],
+      "preconditions": [
+        "Task-owned simulator with local service 3173 and isolated existing fixture."
+      ],
+      "steps": [
+        "Installed 0.1.2 (3); all 10 dist files match byte-for-byte and assets contain no stale files."
+      ],
+      "assertions": ["Installed version and editor assets"],
+      "failureSignals": ["Expected UI or artifact mismatch."]
+    },
+    {
+      "id": "ios-012-login",
+      "title": "Native login and workspace",
+      "priority": "P1",
+      "platforms": ["iPadOS Simulator"],
+      "preconditions": [
+        "Task-owned simulator with local service 3173 and isolated existing fixture."
+      ],
+      "steps": [
+        "Dedicated local account logged in; workspace shows one document and 193 B / 3 GB. Initial automation input lost trailing characters; separated text input and observation before focus changes succeeded."
+      ],
+      "assertions": ["Native login and workspace"],
+      "failureSignals": ["Expected UI or artifact mismatch."]
+    },
+    {
+      "id": "ios-012-word-open",
+      "title": "Open existing Word content",
+      "priority": "P1",
+      "platforms": ["iPadOS Simulator"],
+      "preconditions": [
+        "Task-owned simulator with local service 3173 and isolated existing fixture."
+      ],
+      "steps": [
+        "Existing iOS outage fixture displays marker 5031213 and word count 7. Read-only UI check; no new save or API readback claimed."
+      ],
+      "assertions": ["Open existing Word content"],
+      "failureSignals": ["Expected UI or artifact mismatch."]
+    },
+    {
+      "id": "ios-012-restart",
+      "title": "Session survives process restart",
+      "priority": "P1",
+      "platforms": ["iPadOS Simulator"],
+      "preconditions": [
+        "Task-owned simulator with local service 3173 and isolated existing fixture."
+      ],
+      "steps": [
+        "simctl terminate/launch returned new PID 17719. Workspace reopened for the same account with the existing document."
+      ],
+      "assertions": ["Session survives process restart"],
+      "failureSignals": ["Expected UI or artifact mismatch."]
+    },
+    {
+      "id": "ios-012-logout",
+      "title": "Logout returns to empty login form",
+      "priority": "P1",
+      "platforms": ["iPadOS Simulator"],
+      "preconditions": [
+        "Task-owned simulator with local service 3173 and isolated existing fixture."
+      ],
+      "steps": [
+        "Account settings logout returned to login with empty email/password. No document changes or deletions."
+      ],
+      "assertions": ["Logout returns to empty login form"],
+      "failureSignals": ["Expected UI or artifact mismatch."]
+    },
+    {
+      "id": "ios-012-sheet",
+      "title": "Current aggregate formula edit and save",
+      "priority": "P1",
+      "platforms": ["iPadOS Simulator"],
+      "preconditions": [
+        "Task-owned simulator with local service 3173 and isolated existing fixture."
+      ],
+      "steps": ["Requires dedicated current-build editor regression."],
+      "assertions": ["Current aggregate formula edit and save"],
+      "failureSignals": ["Expected UI or artifact mismatch."]
+    },
+    {
+      "id": "ios-012-slides",
+      "title": "Current presentation edit and playback",
+      "priority": "P1",
+      "platforms": ["iPadOS Simulator"],
+      "preconditions": [
+        "Task-owned simulator with local service 3173 and isolated existing fixture."
+      ],
+      "steps": ["Requires dedicated current-build editor regression."],
+      "assertions": ["Current presentation edit and playback"],
+      "failureSignals": ["Expected UI or artifact mismatch."]
+    },
+    {
+      "id": "ios-012-word-edit",
+      "title": "Current Word edit and save",
+      "priority": "P1",
+      "platforms": ["iPadOS Simulator"],
+      "preconditions": [
+        "Task-owned simulator with local service 3173 and isolated existing fixture."
+      ],
+      "steps": ["Opening existing content does not prove editing or synchronization."],
+      "assertions": ["Current Word edit and save"],
+      "failureSignals": ["Expected UI or artifact mismatch."]
+    }
+  ],
+  "lastRun": {
+    "date": "2026-10-14",
+    "device": "Zhuole Docs iPad QA, iOS 26.1, portrait",
+    "build": "0.1.2 (3), current dist assets",
+    "authSource": "Existing isolated local iOS outage fixture; credentials excluded",
+    "results": [
+      {
+        "caseId": "ios-012-identity",
+        "status": "passed",
+        "mode": "artifact inspection",
+        "notes": "Installed 0.1.2 (3); all 10 dist files match byte-for-byte and assets contain no stale files.",
+        "evidence": ["releases/mobile/ios-0.1.2-simulator-identity.json"]
+      },
+      {
+        "caseId": "ios-012-login",
+        "status": "passed",
+        "mode": "native CUA",
+        "notes": "Dedicated local account logged in; workspace shows one document and 193 B / 3 GB. Initial automation input lost trailing characters; separated text input and observation before focus changes succeeded.",
+        "evidence": ["releases/mobile/ios-0.1.2-workspace.png"]
+      },
+      {
+        "caseId": "ios-012-word-open",
+        "status": "passed",
+        "mode": "native CUA",
+        "notes": "Existing iOS outage fixture displays marker 5031213 and word count 7. Read-only UI check; no new save or API readback claimed.",
+        "evidence": ["releases/mobile/ios-0.1.2-word-existing.png"]
+      },
+      {
+        "caseId": "ios-012-restart",
+        "status": "passed",
+        "mode": "native CUA",
+        "notes": "simctl terminate/launch returned new PID 17719. Workspace reopened for the same account with the existing document.",
+        "evidence": ["releases/mobile/ios-0.1.2-session-restart.png"]
+      },
+      {
+        "caseId": "ios-012-logout",
+        "status": "passed",
+        "mode": "native CUA",
+        "notes": "Account settings logout returned to login with empty email/password. No document changes or deletions.",
+        "evidence": ["releases/mobile/ios-0.1.2-logged-out.png"]
+      },
+      {
+        "caseId": "ios-012-sheet",
+        "status": "not-run",
+        "mode": "native CUA",
+        "notes": "Requires dedicated current-build editor regression.",
+        "evidence": []
+      },
+      {
+        "caseId": "ios-012-slides",
+        "status": "not-run",
+        "mode": "native CUA",
+        "notes": "Requires dedicated current-build editor regression.",
+        "evidence": []
+      },
+      {
+        "caseId": "ios-012-word-edit",
+        "status": "not-run",
+        "mode": "native CUA",
+        "notes": "Opening existing content does not prove editing or synchronization.",
+        "evidence": []
+      }
+    ],
+    "exclusions": [
+      "Physical devices, landscape, keyboard and IME regression.",
+      "Current-build three-editor edits, Office import/export, offline and 503 regression.",
+      "Public distribution and app-store acceptance."
+    ]
+  }
+}
