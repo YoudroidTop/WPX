@@ -9,8 +9,23 @@ export interface ViewSettings {
   showGridlines: boolean;
   showHeadings: boolean;
   zebraStripe: boolean;
+  hideZeros?: boolean;
   zoom: number; // 50, 75, 100, 125, 150
 }
+
+export type InsertDialogType =
+  | 'checkbox'
+  | 'dropdown'
+  | 'link'
+  | 'image'
+  | 'chart'
+  | 'pivot'
+  | 'symbol'
+  | 'textbox'
+  | 'watermark'
+  | 'qrcode'
+  | 'comment'
+  | 'import-csv';
 
 export interface SheetRibbonProps {
   currentTab: RibbonTab;
@@ -20,6 +35,8 @@ export interface SheetRibbonProps {
   onStyleChange: (patch: SheetCellStyle) => void;
   onClearContent: () => void;
   onClearFormat: () => void;
+  usedColors?: string[];
+  usedFills?: string[];
   // History
   canUndo: boolean;
   canRedo: boolean;
@@ -46,6 +63,7 @@ export interface SheetRibbonProps {
   onSort: (direction: 'asc' | 'desc') => void;
   // Formula
   onInsertFormula: (formulaName: string) => void;
+  onRecalculate?: () => void;
   // View Settings
   viewSettings: ViewSettings;
   onViewSettingsChange: (settings: Partial<ViewSettings>) => void;
@@ -56,5 +74,6 @@ export interface SheetRibbonProps {
   canAddCols: boolean;
   // Modal triggers / search
   onOpenFindReplace: () => void;
-  onOpenInsertDialog: (type: 'checkbox' | 'dropdown' | 'link' | 'image' | 'chart' | 'pivot') => void;
+  onOpenInsertDialog: (type: InsertDialogType) => void;
+  onTextToNumber?: () => void;
 }

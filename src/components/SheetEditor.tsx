@@ -10,7 +10,7 @@ import type { CSSProperties } from 'react';
 import SheetFormatToolbar from './SheetFormatToolbar';
 import SheetRibbon from './sheet/SheetRibbon';
 import { FindReplaceModal, InsertFeatureModal } from './sheet/SheetModals';
-import type { RibbonTab, ViewSettings } from './sheet/types';
+import type { RibbonTab, ViewSettings, InsertDialogType } from './sheet/types';
 import { sortSheetSelection } from '../../shared/sheet-sort';
 import { formatSelection, formatCellValue } from '../../shared/sheet-format';
 import { useMemo, useState, useRef, useEffect, type PointerEvent, type KeyboardEvent } from 'react';
@@ -70,9 +70,7 @@ export default function SheetEditor({
     zoom: 100,
   });
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
-  const [insertModalType, setInsertModalType] = useState<
-    'checkbox' | 'dropdown' | 'link' | 'image' | 'chart' | 'pivot' | null
-  >(null);
+  const [insertModalType, setInsertModalType] = useState<InsertDialogType | null>(null);
   function onChange(next: SheetContent) {
     history.current.undo.push(content);
     if (history.current.undo.length > 100) history.current.undo.shift();
@@ -526,9 +524,64 @@ export default function SheetEditor({
     if (payload.formula) {
       setCell(addr, payload.formula);
     } else if (payload.text !== undefined) {
+      if (payload.text.includes('\n') || payload.text.includes('\t') || payload.text.includes(',')) {
+        const normalized = payload.text.includes('\t') ? payload.text : payload.text.replace(/,/g, '\t');
+        const pasteResult = pasteSheetCells(
+          sheet.cells,
+          normalized,
+          selection.anchor.row,
+          selection.anchor.col,
+        );
+        if (pasteResult.ok) {
+          applyCells(pasteResult.cells);
+          return;
+        }
+      }
       setCell(addr, payload.text);
     }
   }
+
+  function handleTextToNumber() {
+    const cellsToUpdate: Record<string, string> = { ...sheet.cells };
+    let changed = false;
+    for (const addr of selectionCells(selection)) {
+      const val = sheet.cells[addr];
+      if (!val) continue;
+      const trimmed = val.trim();
+      const num = Number(trimmed);
+      if (!Number.isNaN(num) && trimmed !== '') {
+        cellsToUpdate[addr] = String(num);
+        changed = true;
+      }
+    }
+    if (changed) {
+      applyCells(cellsToUpdate);
+    }
+  }
+
+  function handleRecalculate() {
+    setHistoryVersion((v) => v + 1);
+  }
+
+  const usedColors = useMemo(() => {
+    const set = new Set<string>();
+    if (sheet.styles) {
+      for (const style of Object.values(sheet.styles)) {
+        if (style.color) set.add(style.color.toLowerCase());
+      }
+    }
+    return Array.from(set);
+  }, [sheet.styles]);
+
+  const usedFills = useMemo(() => {
+    const set = new Set<string>();
+    if (sheet.styles) {
+      for (const style of Object.values(sheet.styles)) {
+        if (style.fill) set.add(style.fill.toLowerCase());
+      }
+    }
+    return Array.from(set);
+  }, [sheet.styles]);
 
   return (
     <div className="sheet-editor" data-history-version={historyVersion}>
@@ -544,6 +597,8 @@ export default function SheetEditor({
             ),
           })
         }
+        usedColors={usedColors}
+        usedFills={usedFills}
         onClearContent={() => applyCells(clearSelection(sheet.cells, selection))}
         onClearFormat={() =>
           onChange({
@@ -584,6 +639,8 @@ export default function SheetEditor({
         canAddCols={columns < MAX_COLUMNS}
         onOpenFindReplace={() => setFindReplaceOpen(true)}
         onOpenInsertDialog={(type) => setInsertModalType(type)}
+        onTextToNumber={handleTextToNumber}
+        onRecalculate={handleRecalculate}
       />
       <div className="formula-bar">
         <input
