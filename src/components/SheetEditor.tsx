@@ -47,8 +47,8 @@ export default function SheetEditor({
       focus: { row: 1, col: 0 },
     }),
     [editing, setEditing] = useState<string | null>(null);
-  const [rowCount, setRowCount] = useState(50),
-    [colCount, setColCount] = useState(12);
+  const [rowCount, setRowCount] = useState(100),
+    [colCount, setColCount] = useState(26);
   const history = useRef<{ undo: SheetContent[]; redo: SheetContent[] }>({ undo: [], redo: [] });
   const [historyVersion, setHistoryVersion] = useState(0);
   const [sheetAction, setSheetAction] = useState<'rename' | 'delete' | null>(null);
@@ -173,6 +173,55 @@ export default function SheetEditor({
     setColumnWidth(String(sheet.columnWidths?.[selection.anchor.col] ?? 120));
     setRowHeight(String(sheet.rowHeights?.[selection.anchor.row] ?? 29));
   }, [sheet.id, sheet.columnWidths, sheet.rowHeights, selection.anchor.col, selection.anchor.row]);
+
+  useEffect(() => {
+    const el = grid.current;
+    if (!el) return;
+    function adaptViewport() {
+      if (!el) return;
+      const clientWidth = el.clientWidth;
+      const clientHeight = el.clientHeight;
+      if (clientWidth <= 0 || clientHeight <= 0) return;
+
+      let accWidth = 44;
+      let neededCols = 0;
+      while (accWidth < clientWidth && neededCols < MAX_COLUMNS) {
+        accWidth += widthOf(neededCols);
+        neededCols++;
+      }
+      const targetCols = Math.min(MAX_COLUMNS, Math.max(26, neededCols + 2));
+      setColCount((prev) => Math.max(prev, targetCols));
+
+      let accHeight = 29;
+      let neededRows = 0;
+      while (accHeight < clientHeight && neededRows < MAX_ROWS) {
+        accHeight += heightOf(neededRows + 1);
+        neededRows++;
+      }
+      const targetRows = Math.min(MAX_ROWS, Math.max(100, neededRows + 30));
+      setRowCount((prev) => Math.max(prev, targetRows));
+    }
+
+    adaptViewport();
+    const observer = new ResizeObserver(() => {
+      adaptViewport();
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [sheet.id, sheet.columnWidths, sheet.rowHeights]);
+
+  function handleScroll(event: React.UIEvent<HTMLDivElement>) {
+    const el = event.currentTarget;
+    const bottomRemaining = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const rightRemaining = el.scrollWidth - el.scrollLeft - el.clientWidth;
+
+    if (bottomRemaining < 300) {
+      setRowCount((prev) => (prev < MAX_ROWS ? Math.min(MAX_ROWS, prev + 50) : prev));
+    }
+    if (rightRemaining < 300) {
+      setColCount((prev) => (prev < MAX_COLUMNS ? Math.min(MAX_COLUMNS, prev + 5) : prev));
+    }
+  }
 
   const usedRows = Math.max(
     1,
@@ -617,6 +666,7 @@ export default function SheetEditor({
         className="sheet-scroll"
         style={{ scrollPaddingTop: rowOffsets.size, scrollPaddingLeft: columnOffsets.size }}
         ref={grid}
+        onScroll={handleScroll}
         onCopy={(event) => {
           if (editing) return;
           event.preventDefault();
