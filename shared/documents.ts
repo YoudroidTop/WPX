@@ -31,6 +31,8 @@ export interface SheetCellStyle {
   borderBottom?: boolean;
   borderLeft?: boolean;
   borderRight?: boolean;
+  fontFamily?: string;
+  fontSize?: number;
 }
 export interface SheetPage {
   id: string;
@@ -162,6 +164,8 @@ const sheetCellStyleSchema = z.object({
     .optional(),
   align: z.enum(['left', 'center', 'right']).optional(),
   numberFormat: z.enum(['general', 'number', 'percent', 'currency']).optional(),
+  fontFamily: z.string().min(1).max(64).optional(),
+  fontSize: z.number().min(6).max(96).optional(),
 });
 const boundedCellStyleSchema = sheetCellStyleSchema.strict();
 const nativeContentSchema = z.discriminatedUnion('type', [

@@ -1,9 +1,29 @@
-import React, { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Modal } from '../ui';
-import { cellAddress, type CellPoint } from '../../../shared/sheet-selection';
+import type { SheetPage } from '../../../shared/documents';
+import type { CellPoint } from '../../../shared/sheet-selection';
+import {
+  removeDuplicateRows,
+  splitTextToColumns,
+  SPLIT_DELIMITERS,
+  type SheetBounds,
+  type SplitDelimiter,
+} from '../../../shared/sheet-data';
+import SheetChartPreview from './SheetChartPreview';
+import type { ChartKind, InsertDialogType } from './types';
+
+function parseAddress(address: string): CellPoint | null {
+  const match = /^([A-Z]+)(\d+)$/.exec(address);
+  if (!match) return null;
+  const col = [...match[1]].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
+  return { row: Number(match[2]), col };
+}
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 interface FindReplaceModalProps {
   cells: Record<string, string>;
+  current: CellPoint;
   onClose: () => void;
   onSelectCell: (point: CellPoint) => void;
   onReplace: (updatedCells: Record<string, string>) => void;
@@ -11,45 +31,55 @@ interface FindReplaceModalProps {
 
 export function FindReplaceModal({
   cells,
+  current,
   onClose,
   onSelectCell,
   onReplace,
 }: FindReplaceModalProps) {
   const [findText, setFindText] = useState('');
   const [replaceText, setReplaceText] = useState('');
-  const [matchCount, setMatchCount] = useState<number | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
 
-  function handleFind() {
+  function matches() {
+    const needle = findText.toLowerCase();
+    return Object.entries(cells)
+      .filter(([, value]) => value.toLowerCase().includes(needle))
+      .map(([address]) => parseAddress(address))
+      .filter((point): point is CellPoint => !!point)
+      .sort((a, b) => a.row - b.row || a.col - b.col);
+  }
+
+  function handleFindNext() {
     if (!findText) return;
-    const matches: string[] = [];
-    for (const [addr, val] of Object.entries(cells)) {
-      if (val.toLowerCase().includes(findText.toLowerCase())) {
-        matches.push(addr);
-      }
+    const found = matches();
+    if (!found.length) {
+      setHint('未找到匹配内容');
+      return;
     }
-    setMatchCount(matches.length);
-    if (matches.length > 0) {
-      const match = /^([A-Z]+)(\d+)$/.exec(matches[0]);
-      if (match) {
-        const col = [...match[1]].reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
-        const row = Number(match[2]);
-        onSelectCell({ row, col });
-      }
-    }
+    // Continue after the current cell in row-major order and wrap around at the end.
+    const nextIndex = found.findIndex(
+      (p) => p.row > current.row || (p.row === current.row && p.col > current.col),
+    );
+    const index = nextIndex === -1 ? 0 : nextIndex;
+    onSelectCell(found[index]);
+    setHint(`第 ${index + 1} / ${found.length} 处匹配`);
   }
 
   function handleReplaceAll() {
     if (!findText) return;
+    const pattern = new RegExp(escapeRegExp(findText), 'gi');
     const next = { ...cells };
     let count = 0;
-    for (const [addr, val] of Object.entries(cells)) {
-      if (val.includes(findText)) {
-        next[addr] = val.replaceAll(findText, replaceText);
-        count++;
-      }
+    for (const [address, value] of Object.entries(cells)) {
+      if (!pattern.test(value)) continue;
+      pattern.lastIndex = 0;
+      const replaced = value.replace(pattern, () => replaceText);
+      if (replaced) next[address] = replaced;
+      else delete next[address];
+      count++;
     }
-    onReplace(next);
-    setMatchCount(count);
+    if (count) onReplace(next);
+    setHint(count ? `已替换 ${count} 个单元格` : '未找到匹配内容');
   }
 
   return (
@@ -61,8 +91,11 @@ export function FindReplaceModal({
             autoFocus
             aria-label="查找内容"
             value={findText}
-            onChange={(e) => setFindText(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleFind()}
+            onChange={(e) => {
+              setFindText(e.target.value);
+              setHint(null);
+            }}
+            onKeyDown={(e) => e.key === 'Enter' && handleFindNext()}
           />
         </label>
         <label>
@@ -74,20 +107,16 @@ export function FindReplaceModal({
           />
         </label>
 
-        {matchCount !== null && (
-          <p className="find-result-hint">
-            {matchCount > 0 ? `找到 ${matchCount} 处匹配项` : '未找到匹配内容'}
-          </p>
-        )}
+        {hint && <p className="find-result-hint">{hint}</p>}
 
-        <div className="modal-actions">
-          <button type="button" onClick={handleFind}>
+        <div className="modal-buttons">
+          <button className="secondary" type="button" onClick={handleFindNext}>
             查找下一个
           </button>
-          <button type="button" onClick={handleReplaceAll}>
+          <button className="secondary" type="button" onClick={handleReplaceAll}>
             全部替换
           </button>
-          <button className="button-primary" type="button" onClick={onClose}>
+          <button className="primary" type="button" onClick={onClose}>
             完成
           </button>
         </div>
@@ -96,196 +125,363 @@ export function FindReplaceModal({
   );
 }
 
-import type { InsertDialogType } from './types';
+export type InsertPayload =
+  | { kind: 'cell-text'; text: string; mode: 'replace' | 'append' | 'prefix' }
+  | { kind: 'import'; text: string };
 
 interface InsertFeatureModalProps {
   type: InsertDialogType;
+  /** Raw content of the anchor cell, used to warn before overwriting it. */
+  targetValue: string;
   onClose: () => void;
-  onConfirm: (payload: { text?: string; formula?: string; bulkCells?: Record<string, string> }) => void;
+  onConfirm: (payload: InsertPayload) => void;
 }
 
 const COMMON_SYMBOLS = [
-  '¥', '$', '€', '£', '₽', '₩', '‰', '%',
-  '±', '×', '÷', '≈', '≠', '≤', '≥', '√', '∑', 'π', '∞',
-  '★', '☆', '●', '○', '✓', '✕', '▲', '▼', '◆', '℃', '℉',
+  '¥',
+  '$',
+  '€',
+  '£',
+  '₽',
+  '₩',
+  '‰',
+  '%',
+  '±',
+  '×',
+  '÷',
+  '≈',
+  '≠',
+  '≤',
+  '≥',
+  '√',
+  '∑',
+  'π',
+  '∞',
+  '★',
+  '☆',
+  '●',
+  '○',
+  '✓',
+  '✕',
+  '▲',
+  '▼',
+  '◆',
+  '℃',
+  '℉',
 ];
 
-const WATERMARKS = [
-  '内部绝密',
-  '机密文件',
-  '草稿 DRAFT',
-  '仅供参考',
-  '禁止外传',
-  'SAMPLE 示例',
-];
+const TITLES: Record<InsertDialogType, string> = {
+  checkbox: '插入复选框',
+  dropdown: '下拉列表',
+  validation: '数据有效性',
+  filter: '自动筛选',
+  link: '插入超链接',
+  image: '插入图片',
+  pivot: '数据透视表',
+  symbol: '插入特殊符号',
+  textbox: '文本框',
+  watermark: '水印',
+  qrcode: '二维码',
+  comment: '批注',
+  'import-csv': '导入 CSV / 文本数据',
+};
+
+/**
+ * Features that need new persisted structures (validation rules, comments, floating
+ * objects, filter state…). They stay visible but never write placeholder text into cells.
+ */
+const UNSUPPORTED: Partial<Record<InsertDialogType, string>> = {
+  dropdown: '单元格下拉列表需要保存数据有效性规则',
+  validation: '数据有效性需要保存单元格输入规则',
+  filter: '自动筛选需要保存筛选条件与隐藏行',
+  image: '图片需要独立的浮动对象与文件存储',
+  pivot: '透视表需要生成并维护独立的汇总工作表',
+  textbox: '文本框需要独立的浮动对象',
+  watermark: '水印需要保存工作表级的背景设置',
+  qrcode: '二维码需要独立的浮动图片对象',
+  comment: '批注需要保存独立于单元格内容的批注数据',
+};
 
 export function InsertFeatureModal({
   type,
+  targetValue,
   onClose,
   onConfirm,
 }: InsertFeatureModalProps) {
   const [inputVal, setInputVal] = useState('');
   const [selectedSymbol, setSelectedSymbol] = useState(COMMON_SYMBOLS[0]);
-  const [selectedWatermark, setSelectedWatermark] = useState(WATERMARKS[0]);
-
-  const titles: Record<InsertDialogType, string> = {
-    checkbox: '插入复选框',
-    dropdown: '设置下拉列表 (数据验证)',
-    link: '插入超链接',
-    image: '插入图片',
-    chart: '插入统计图表',
-    pivot: '创建数据透视表',
-    symbol: '插入特殊符号',
-    textbox: '插入文本框',
-    watermark: '设置工作表水印',
-    qrcode: '生成二维码',
-    comment: '添加批注',
-    'import-csv': '导入 CSV / 文本数据',
-  };
-
-  const descriptions: Record<InsertDialogType, string> = {
-    checkbox: '将在当前单元格插入复选框标记 [ ]，支持点击切换勾选。',
-    dropdown: '输入可供选择的下拉选项，以逗号分隔，例如：已完成, 进行中, 待处理。',
-    link: '输入网址链接，例如：https://example.com。',
-    image: '输入网络图片地址 (URL) 即可在单元格中嵌入图片。',
-    chart: '根据当前选中区域的数据快速生成可视化图表。',
-    pivot: '基于当前表格数据区域创建动态多维交叉透视报表。',
-    symbol: '选择常用货币、数学、特殊符号插入当前单元格。',
-    textbox: '输入多行长文本说明，插入到当前选区。',
-    watermark: '选择水印类型或自定义水印文字，提示文档状态与安全级别。',
-    qrcode: '输入网址或文本内容，生成二维码嵌入单元格。',
-    comment: '为当前单元格添加详细批注说明。',
-    'import-csv': '粘贴逗号或制表符分隔的 CSV 纯文本，自动按行和列解析填入。',
-  };
+  const unsupported = UNSUPPORTED[type];
 
   function handleConfirm() {
     if (type === 'checkbox') {
-      onConfirm({ text: '[ ]' });
-    } else if (type === 'dropdown') {
-      onConfirm({ text: inputVal.split(/[,，]/)[0]?.trim() || inputVal });
-    } else if (type === 'link') {
-      onConfirm({ text: inputVal.startsWith('http') ? inputVal : `https://${inputVal}` });
-    } else if (type === 'image') {
-      onConfirm({ text: inputVal ? `[图片: ${inputVal}]` : '' });
+      onConfirm({ kind: 'cell-text', text: targetValue ? '☐ ' : '☐', mode: 'prefix' });
     } else if (type === 'symbol') {
-      onConfirm({ text: selectedSymbol });
-    } else if (type === 'textbox') {
-      onConfirm({ text: inputVal || '[文本框]' });
-    } else if (type === 'watermark') {
-      onConfirm({ text: `[水印: ${inputVal || selectedWatermark}]` });
-    } else if (type === 'qrcode') {
-      onConfirm({ text: inputVal ? `[二维码: ${inputVal}]` : '[二维码]' });
-    } else if (type === 'comment') {
-      onConfirm({ text: inputVal ? `[批注: ${inputVal}]` : '' });
+      onConfirm({ kind: 'cell-text', text: selectedSymbol, mode: 'append' });
+    } else if (type === 'link') {
+      const url = inputVal.trim();
+      if (!url) return;
+      onConfirm({
+        kind: 'cell-text',
+        text: /^[a-z][a-z\d+.-]*:/i.test(url) ? url : `https://${url}`,
+        mode: 'replace',
+      });
     } else if (type === 'import-csv') {
-      onConfirm({ text: inputVal });
-    } else {
-      onConfirm({ text: `[${titles[type]}]` });
+      if (!inputVal.trim()) return;
+      onConfirm({ kind: 'import', text: inputVal });
     }
     onClose();
   }
 
-  return (
-    <Modal title={titles[type]} onClose={onClose}>
-      <div className="insert-feature-modal">
-        <p>{descriptions[type]}</p>
-
-        {type === 'symbol' && (
-          <div className="symbol-grid-picker">
-            {COMMON_SYMBOLS.map((sym) => (
-              <button
-                key={sym}
-                type="button"
-                className={`symbol-btn ${selectedSymbol === sym ? 'selected' : ''}`}
-                onClick={() => setSelectedSymbol(sym)}
-              >
-                {sym}
-              </button>
-            ))}
+  if (unsupported) {
+    return (
+      <Modal title={TITLES[type]} onClose={onClose}>
+        <div className="insert-feature-modal">
+          <p>
+            「{TITLES[type]}」暂未开放：{unsupported}，当前版本不会修改表格内容。
+          </p>
+          <div className="modal-buttons">
+            <button className="primary" type="button" onClick={onClose}>
+              知道了
+            </button>
           </div>
-        )}
+        </div>
+      </Modal>
+    );
+  }
 
-        {type === 'watermark' && (
-          <div className="watermark-options">
-            <div className="watermark-chips">
-              {WATERMARKS.map((w) => (
+  return (
+    <Modal title={TITLES[type]} onClose={onClose}>
+      <div className="insert-feature-modal">
+        {type === 'checkbox' && <p>在当前单元格内容前插入复选框标记 ☐。</p>}
+        {type === 'symbol' && (
+          <>
+            <p>选择符号，追加到当前单元格内容末尾。</p>
+            <div className="symbol-grid-picker">
+              {COMMON_SYMBOLS.map((sym) => (
                 <button
-                  key={w}
+                  key={sym}
                   type="button"
-                  className={`watermark-chip ${selectedWatermark === w ? 'selected' : ''}`}
-                  onClick={() => {
-                    setSelectedWatermark(w);
-                    setInputVal(w);
+                  className={`symbol-btn ${selectedSymbol === sym ? 'selected' : ''}`}
+                  onClick={() => setSelectedSymbol(sym)}
+                  onDoubleClick={() => {
+                    onConfirm({ kind: 'cell-text', text: sym, mode: 'append' });
+                    onClose();
                   }}
                 >
-                  {w}
+                  {sym}
                 </button>
               ))}
             </div>
-            <label style={{ marginTop: 12 }}>
-              自定义水印文字
-              <input
-                value={inputVal}
-                placeholder="输入自定义水印内容"
-                onChange={(e) => setInputVal(e.target.value)}
-              />
-            </label>
-          </div>
+          </>
         )}
-
-        {['dropdown', 'link', 'image', 'textbox', 'qrcode', 'comment'].includes(type) && (
+        {type === 'link' && (
           <label>
-            {type === 'dropdown'
-              ? '下拉选项'
-              : type === 'link'
-                ? '链接地址'
-                : type === 'image'
-                  ? '图片链接'
-                  : type === 'textbox'
-                    ? '文本内容'
-                    : type === 'qrcode'
-                      ? '二维码编码内容'
-                      : '批注文字'}
+            链接地址
             <input
               autoFocus
               value={inputVal}
-              placeholder={
-                type === 'dropdown'
-                  ? '选项1, 选项2, 选项3'
-                  : type === 'link'
-                    ? 'https://example.com'
-                    : type === 'image'
-                      ? 'https://example.com/logo.png'
-                      : type === 'qrcode'
-                        ? 'https://example.com 或 编号'
-                        : '请输入文本'
-              }
+              placeholder="https://example.com"
               onChange={(e) => setInputVal(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleConfirm()}
             />
           </label>
         )}
-
+        {type === 'link' && targetValue && (
+          <p className="modal-warning">当前单元格已有内容，插入后将被链接地址替换。</p>
+        )}
         {type === 'import-csv' && (
           <label>
-            CSV 内容 (逗号或制表符分隔)
+            粘贴逗号或制表符分隔的文本，将从当前单元格开始按行列填入
             <textarea
               autoFocus
               rows={6}
-              style={{ width: '100%', padding: '8px', fontSize: '13px', borderRadius: '4px', border: '1px solid var(--border-color, #e0e0e0)' }}
+              className="csv-import-textarea"
               value={inputVal}
-              placeholder="姓名, 部门, 销售额&#10;张三, 华东区, 15000&#10;李四, 华南区, 28000"
+              placeholder={'姓名, 部门, 销售额\n张三, 华东区, 15000\n李四, 华南区, 28000'}
               onChange={(e) => setInputVal(e.target.value)}
             />
           </label>
         )}
 
-        <div className="modal-actions">
-          <button type="button" onClick={onClose}>
+        <div className="modal-buttons">
+          <button className="secondary" type="button" onClick={onClose}>
             取消
           </button>
-          <button className="button-primary" type="button" onClick={handleConfirm}>
-            确认插入
+          <button className="primary" type="button" onClick={handleConfirm}>
+            {type === 'import-csv' ? '导入' : '插入'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+interface DataToolModalProps {
+  sheet: SheetPage;
+  range: { bounds: SheetBounds; hasHeader: boolean } | null;
+  rangeLabel: string;
+  onClose: () => void;
+  onApply: (next: SheetPage) => void;
+}
+
+export function RemoveDuplicatesModal({
+  sheet,
+  range,
+  rangeLabel,
+  onClose,
+  onApply,
+}: DataToolModalProps) {
+  const [hasHeader, setHasHeader] = useState(range?.hasHeader ?? false);
+  const result = useMemo(
+    () => (range ? removeDuplicateRows(sheet, range.bounds, hasHeader) : null),
+    [sheet, range, hasHeader],
+  );
+  return (
+    <Modal title="删除重复项" onClose={onClose}>
+      <div className="insert-feature-modal">
+        {!range || !result ? (
+          <p>请先选中包含数据的区域。</p>
+        ) : (
+          <>
+            <p>检查区域 {rangeLabel} 中所有列的值完全相同的行，保留首次出现的行。</p>
+            <label className="modal-checkbox">
+              <input
+                type="checkbox"
+                checked={hasHeader}
+                onChange={(e) => setHasHeader(e.target.checked)}
+              />
+              数据包含标题行
+            </label>
+            <p className="find-result-hint">
+              {result.removed ? `将删除 ${result.removed} 行重复数据` : '未发现重复行'}
+            </p>
+          </>
+        )}
+        <div className="modal-buttons">
+          <button className="secondary" type="button" onClick={onClose}>
+            取消
+          </button>
+          <button
+            className="primary"
+            type="button"
+            disabled={!result?.removed}
+            onClick={() => {
+              if (result?.removed) onApply(result.sheet);
+              onClose();
+            }}
+          >
+            删除重复项
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+const DELIMITER_LABELS: Record<SplitDelimiter, string> = {
+  comma: '逗号',
+  tab: '制表符',
+  semicolon: '分号',
+  space: '空格',
+};
+
+export function TextToColumnsModal({
+  sheet,
+  range,
+  rangeLabel,
+  onClose,
+  onApply,
+}: DataToolModalProps) {
+  const [delimiter, setDelimiter] = useState<SplitDelimiter>('comma');
+  const result = useMemo(
+    () => (range ? splitTextToColumns(sheet, range.bounds, delimiter) : null),
+    [sheet, range, delimiter],
+  );
+  const changed = !!result?.split;
+  return (
+    <Modal title="分列" onClose={onClose}>
+      <div className="insert-feature-modal">
+        {!range ? (
+          <p>请先选中包含数据的区域。</p>
+        ) : (
+          <>
+            <p>将区域 {rangeLabel} 首列的文本按分隔符拆分到右侧相邻列。</p>
+            <div className="split-delimiters" role="radiogroup" aria-label="分隔符">
+              {(Object.keys(SPLIT_DELIMITERS) as SplitDelimiter[]).map((key) => (
+                <label key={key} className="modal-checkbox">
+                  <input
+                    type="radio"
+                    name="split-delimiter"
+                    checked={delimiter === key}
+                    onChange={() => setDelimiter(key)}
+                  />
+                  {DELIMITER_LABELS[key]}
+                </label>
+              ))}
+            </div>
+            {!result && <p className="modal-warning">拆分后将超出 52 列上限。</p>}
+            {!!result?.overwritten && (
+              <p className="modal-warning">
+                右侧有 {result.overwritten} 个非空单元格将被覆盖，可通过撤销恢复。
+              </p>
+            )}
+          </>
+        )}
+        <div className="modal-buttons">
+          <button className="secondary" type="button" onClick={onClose}>
+            取消
+          </button>
+          <button
+            className="primary"
+            type="button"
+            disabled={!changed}
+            onClick={() => {
+              if (result && changed) onApply(result.sheet);
+              onClose();
+            }}
+          >
+            分列
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+interface ChartModalProps {
+  kind: ChartKind;
+  sheet: SheetPage;
+  range: { bounds: SheetBounds; hasHeader: boolean } | null;
+  valueAt: (address: string) => string | number;
+  onClose: () => void;
+}
+
+const CHART_TITLES: Record<ChartKind, string> = { bar: '柱形图', line: '折线图', pie: '饼图' };
+
+export function ChartModal({ kind, range, valueAt, onClose }: ChartModalProps) {
+  const [current, setCurrent] = useState(kind);
+  return (
+    <Modal title={`图表预览 · ${CHART_TITLES[current]}`} onClose={onClose}>
+      <div className="insert-feature-modal">
+        <div className="chart-kind-switch" role="tablist">
+          {(Object.keys(CHART_TITLES) as ChartKind[]).map((k) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={current === k}
+              className={current === k ? 'active' : ''}
+              onClick={() => setCurrent(k)}
+            >
+              {CHART_TITLES[k]}
+            </button>
+          ))}
+        </div>
+        <SheetChartPreview kind={current} range={range} valueAt={valueAt} />
+        <p>预览基于当前选区数据（首列为分类，其余数值列为系列），暂不嵌入工作表。</p>
+        <div className="modal-buttons">
+          <button className="primary" type="button" onClick={onClose}>
+            关闭
           </button>
         </div>
       </div>

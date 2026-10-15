@@ -18,6 +18,32 @@ export const SYSTEM_FONTS = [
   { name: 'Times New Roman', family: '"Times New Roman", serif' },
 ];
 
+export const DEFAULT_FONT = '微软雅黑';
+
+/** Maps a stored font name to a CSS font stack; unknown names (e.g. from XLSX) pass through. */
+export function fontStack(name?: string) {
+  if (!name) return undefined;
+  return SYSTEM_FONTS.find((f) => f.name === name)?.family ?? `"${name.replace(/"/g, '')}", sans-serif`;
+}
+
+const RECENT_KEY = 'wpx.sheet.recentFonts';
+function readRecentFonts(): string[] {
+  try {
+    const value = JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]');
+    return Array.isArray(value) ? value.filter((v) => typeof v === 'string').slice(0, 3) : [];
+  } catch {
+    return [];
+  }
+}
+function rememberFont(name: string) {
+  try {
+    const next = [name, ...readRecentFonts().filter((n) => n !== name)].slice(0, 3);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  } catch {
+    // Storage may be unavailable (private mode); recents are a convenience only.
+  }
+}
+
 interface FontDropdownProps {
   currentFont?: string;
   onSelect: (fontFamily: string) => void;
@@ -25,7 +51,7 @@ interface FontDropdownProps {
 }
 
 export default function SheetFontDropdown({
-  currentFont = '微软雅黑',
+  currentFont = DEFAULT_FONT,
   onSelect,
   trigger,
 }: FontDropdownProps) {
@@ -49,8 +75,15 @@ export default function SheetFontDropdown({
     f.name.toLowerCase().includes(searchTerm.toLowerCase().trim()),
   );
 
+  const recent = open
+    ? readRecentFonts()
+        .map((name) => SYSTEM_FONTS.find((f) => f.name === name))
+        .filter((f): f is (typeof SYSTEM_FONTS)[number] => !!f)
+    : [];
+
   function handlePick(item: { name: string; family: string }) {
-    onSelect(item.family);
+    rememberFont(item.name);
+    onSelect(item.name);
     setOpen(false);
   }
 
@@ -75,12 +108,11 @@ export default function SheetFontDropdown({
 
           <div className="font-list-scroll">
             {/* Recently used */}
-            {!searchTerm && (
+            {!searchTerm && recent.length > 0 && (
               <>
                 <div className="font-group-label">最近使用</div>
-                {SYSTEM_FONTS.slice(0, 2).map((item) => {
-                  const isSelected =
-                    currentFont === item.name || currentFont.includes(item.name);
+                {recent.map((item) => {
+                  const isSelected = currentFont === item.name;
                   return (
                     <button
                       key={`recent-${item.name}`}
@@ -100,8 +132,7 @@ export default function SheetFontDropdown({
             )}
 
             {filtered.map((item) => {
-              const isSelected =
-                currentFont === item.name || currentFont.includes(item.name);
+              const isSelected = currentFont === item.name;
               return (
                 <button
                   key={item.name}

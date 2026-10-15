@@ -1882,6 +1882,16 @@ hr {
   color: #4b5d4e;
   cursor: pointer;
   margin-right: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.ribbon-checkbox input {
+  width: auto;
+  min-height: 0;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  flex: none;
 }
 .ribbon-size-input {
   display: flex;
@@ -1913,6 +1923,7 @@ hr {
 }
 .sheet-scroll.eye-care {
   background: #f4f8f0;
+  --sheet-cell-bg: #fbfdf9;
 }
 .sheet-scroll.eye-care .spreadsheet td {
   background: #fbfdf9;
@@ -1974,6 +1985,68 @@ hr {
   border: 1px solid #dce4d5;
   border-radius: 4px;
   font-size: 14px;
+}
+.insert-feature-modal .modal-buttons {
+  margin-top: 8px;
+}
+.insert-feature-modal p.modal-warning {
+  color: #a5532d;
+}
+.insert-feature-modal label.modal-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.insert-feature-modal .modal-checkbox input {
+  width: auto;
+  min-height: 0;
+  height: auto;
+  flex: none;
+  margin: 0;
+  padding: 0;
+}
+.split-delimiters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.csv-import-textarea {
+  width: 100%;
+  padding: 8px;
+  font-size: 13px;
+  border-radius: 4px;
+  border: 1px solid #dce4d5;
+  resize: vertical;
+}
+.chart-kind-switch {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid #dce4d5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.chart-kind-switch button {
+  padding: 4px 12px;
+  font-size: 13px;
+  background: #fff;
+  color: #425348;
+}
+.chart-kind-switch button.active {
+  background: #e2f4ea;
+  color: #176340;
+  font-weight: 600;
+}
+.chart-preview {
+  width: 100%;
+  height: auto;
+  border: 1px solid #e4ebe1;
+  border-radius: 8px;
+  background: #fff;
+}
+.sheet-scroll.format-painter .spreadsheet td,
+.sheet-scroll.format-painter .spreadsheet input[readonly] {
+  cursor: copy;
 }
 .sheet-dropdown-container {
   position: relative;

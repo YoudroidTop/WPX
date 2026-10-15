@@ -16,9 +16,10 @@ export interface ViewSettings {
 export type InsertDialogType =
   | 'checkbox'
   | 'dropdown'
+  | 'validation'
+  | 'filter'
   | 'link'
   | 'image'
-  | 'chart'
   | 'pivot'
   | 'symbol'
   | 'textbox'
@@ -26,6 +27,9 @@ export type InsertDialogType =
   | 'qrcode'
   | 'comment'
   | 'import-csv';
+
+export type ChartKind = 'bar' | 'line' | 'pie';
+export type DataToolType = 'duplicates' | 'split';
 
 export interface SheetRibbonProps {
   currentTab: RibbonTab;
@@ -36,6 +40,8 @@ export interface SheetRibbonProps {
   onApplyBorder?: (type: string) => void;
   onClearContent: () => void;
   onClearFormat: () => void;
+  formatPainterActive: boolean;
+  onToggleFormatPainter: () => void;
   usedColors?: string[];
   usedFills?: string[];
   // History
@@ -76,5 +82,7 @@ export interface SheetRibbonProps {
   // Modal triggers / search
   onOpenFindReplace: () => void;
   onOpenInsertDialog: (type: InsertDialogType) => void;
+  onOpenChart: (kind: ChartKind) => void;
+  onOpenDataTool: (type: DataToolType) => void;
   onTextToNumber?: () => void;
 }

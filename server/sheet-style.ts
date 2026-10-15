@@ -7,6 +7,8 @@ export function writeCellStyle(cell: ExcelJS.Cell, style: SheetCellStyle) {
     bold: style.bold,
     italic: style.italic,
     underline: style.underline,
+    ...(style.fontFamily ? { name: style.fontFamily } : {}),
+    ...(style.fontSize ? { size: style.fontSize } : {}),
     ...(style.color ? { color: { argb: `FF${style.color.slice(1).toUpperCase()}` } } : {}),
   };
   if (style.fill)
@@ -32,6 +34,8 @@ export function writeCellStyle(cell: ExcelJS.Cell, style: SheetCellStyle) {
   }
 }
 
+const DEFAULT_FONT_NAMES = new Set(['Calibri', '等线', 'DengXian']);
+
 function rgb(color?: Partial<ExcelJS.Color>) {
   const value = color?.argb;
   return value && /^(?:FF)?[0-9A-F]{6}$/i.test(value)
@@ -43,6 +47,13 @@ export function readCellStyle(cell: ExcelJS.Cell): SheetCellStyle {
   if (cell.font?.bold) style.bold = true;
   if (cell.font?.italic) style.italic = true;
   if (cell.font?.underline) style.underline = true;
+  // Skip workbook default fonts so plain imported cells stay unstyled.
+  const fontName = cell.font?.name?.trim();
+  if (fontName && fontName.length <= 64 && !DEFAULT_FONT_NAMES.has(fontName))
+    style.fontFamily = fontName;
+  const fontSize = cell.font?.size;
+  if (typeof fontSize === 'number' && fontSize >= 6 && fontSize <= 96 && fontSize !== 11)
+    style.fontSize = fontSize;
   const color = rgb(cell.font?.color);
   if (color) style.color = color;
   if (cell.fill?.type === 'pattern' && cell.fill.pattern === 'solid') {

@@ -1,7 +1,6 @@
-import { useState } from 'react';
 import SheetColorPickerDropdown from './SheetColorPickerDropdown';
 import SheetBorderDropdown from './SheetBorderDropdown';
-import SheetFontDropdown from './SheetFontDropdown';
+import SheetFontDropdown, { DEFAULT_FONT } from './SheetFontDropdown';
 import {
   Undo,
   Redo,
@@ -9,6 +8,7 @@ import {
   Scissors,
   Copy,
   Eraser,
+  RemoveFormatting,
   Bold,
   Italic,
   Underline,
@@ -52,6 +52,9 @@ import {
 } from 'lucide-react';
 import type { SheetRibbonProps, RibbonTab } from './types';
 
+const FONT_SIZES = [9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
+const DEFAULT_FONT_SIZE = 11;
+
 export default function SheetRibbon({
   currentTab,
   onTabChange,
@@ -60,6 +63,8 @@ export default function SheetRibbon({
   onApplyBorder,
   onClearContent,
   onClearFormat,
+  formatPainterActive,
+  onToggleFormatPainter,
   usedColors = [],
   usedFills = [],
   canUndo,
@@ -91,17 +96,20 @@ export default function SheetRibbon({
   canAddCols,
   onOpenFindReplace,
   onOpenInsertDialog,
+  onOpenChart,
+  onOpenDataTool,
   onTextToNumber,
 }: SheetRibbonProps) {
-  const [formatBrushActive, setFormatBrushActive] = useState(false);
-  const [selectedFont, setSelectedFont] = useState('微软雅黑');
-  const [selectedFontSize, setSelectedFontSize] = useState(10);
+  const selectedFont = currentStyle.fontFamily ?? DEFAULT_FONT;
+  const selectedFontSize = currentStyle.fontSize ?? DEFAULT_FONT_SIZE;
 
   function handleFontStep(delta: number) {
-    const SIZES = [9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72];
-    const currIdx = SIZES.indexOf(selectedFontSize);
-    const nextIdx = Math.max(0, Math.min(SIZES.length - 1, (currIdx >= 0 ? currIdx : 1) + delta));
-    setSelectedFontSize(SIZES[nextIdx]);
+    // Step to the next preset size in the given direction, even from a non-preset size.
+    const next =
+      delta > 0
+        ? FONT_SIZES.find((size) => size > selectedFontSize)
+        : [...FONT_SIZES].reverse().find((size) => size < selectedFontSize);
+    if (next) onStyleChange({ fontSize: next });
   }
 
   return (
@@ -163,18 +171,26 @@ export default function SheetRibbon({
                 <Redo size={15} />
               </button>
               <button
-                className={`ribbon-icon-btn ${formatBrushActive ? 'active' : ''}`}
-                title="格式刷"
-                onClick={() => setFormatBrushActive(!formatBrushActive)}
+                className={`ribbon-icon-btn ${formatPainterActive ? 'active' : ''}`}
+                title="格式刷：复制当前单元格格式，再选择目标区域 (Esc 取消)"
+                aria-pressed={formatPainterActive}
+                onClick={onToggleFormatPainter}
               >
                 <Paintbrush size={15} />
               </button>
               <button
                 className="ribbon-icon-btn"
-                title="清空选区内容 (Delete)"
+                title="清除内容 (Delete)"
                 onClick={onClearContent}
               >
                 <Eraser size={15} />
+              </button>
+              <button
+                className="ribbon-icon-btn"
+                title="清除格式"
+                onClick={onClearFormat}
+              >
+                <RemoveFormatting size={15} />
               </button>
             </div>
 
@@ -184,12 +200,10 @@ export default function SheetRibbon({
             <div className="ribbon-group">
               <SheetFontDropdown
                 currentFont={selectedFont}
-                onSelect={(font) => {
-                  setSelectedFont(font);
-                }}
+                onSelect={(font) => onStyleChange({ fontFamily: font === DEFAULT_FONT ? undefined : font })}
                 trigger={
-                  <button className="ribbon-btn ribbon-dropdown-trigger">
-                    <span>{selectedFont.split(',')[0].replace(/"/g, '')}</span>
+                  <button className="ribbon-btn ribbon-dropdown-trigger" title="字体">
+                    <span>{selectedFont}</span>
                     <ChevronDown size={12} />
                   </button>
                 }
@@ -199,9 +213,15 @@ export default function SheetRibbon({
                 className="ribbon-select ribbon-size-select"
                 aria-label="字号"
                 value={selectedFontSize}
-                onChange={(e) => setSelectedFontSize(Number(e.target.value))}
+                onChange={(e) => {
+                  const size = Number(e.target.value);
+                  onStyleChange({ fontSize: size === DEFAULT_FONT_SIZE ? undefined : size });
+                }}
               >
-                {[9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 26, 28, 36, 48, 72].map((s) => (
+                {(FONT_SIZES.includes(selectedFontSize)
+                  ? FONT_SIZES
+                  : [...FONT_SIZES, selectedFontSize].sort((a, b) => a - b)
+                ).map((s) => (
                   <option key={s} value={s}>
                     {s}
                   </option>
@@ -271,7 +291,7 @@ export default function SheetRibbon({
                 type="color"
                 currentColor={currentStyle.color}
                 usedColors={usedColors}
-                onChange={(color) => onStyleChange({ color: color ?? '#000000' })}
+                onChange={(color) => onStyleChange({ color: color ?? undefined })}
                 trigger={
                   <button
                     className="ribbon-icon-btn ribbon-color-trigger"
@@ -293,7 +313,7 @@ export default function SheetRibbon({
                 type="fill"
                 currentColor={currentStyle.fill}
                 usedColors={usedFills}
-                onChange={(fill) => onStyleChange({ fill })}
+                onChange={(fill) => onStyleChange({ fill: fill ?? undefined })}
                 trigger={
                   <button
                     className="ribbon-icon-btn ribbon-color-trigger"
@@ -575,24 +595,24 @@ export default function SheetRibbon({
             <div className="ribbon-group">
               <button
                 className="ribbon-btn-icon"
-                title="插入柱形图"
-                onClick={() => onOpenInsertDialog('chart')}
+                title="根据选区数据预览柱形图"
+                onClick={() => onOpenChart('bar')}
               >
                 <BarChart2 size={14} />
                 柱形图
               </button>
               <button
                 className="ribbon-btn-icon"
-                title="插入折线图"
-                onClick={() => onOpenInsertDialog('chart')}
+                title="根据选区数据预览折线图"
+                onClick={() => onOpenChart('line')}
               >
                 <LineChart size={14} />
                 折线图
               </button>
               <button
                 className="ribbon-btn-icon"
-                title="插入饼图"
-                onClick={() => onOpenInsertDialog('chart')}
+                title="根据选区数据预览饼图"
+                onClick={() => onOpenChart('pie')}
               >
                 <PieChart size={14} />
                 饼图
@@ -660,7 +680,7 @@ export default function SheetRibbon({
               <button
                 className="ribbon-btn-icon"
                 title="开启自动筛选"
-                onClick={() => onOpenInsertDialog('dropdown')}
+                onClick={() => onOpenInsertDialog('filter')}
               >
                 <Filter size={14} />
                 筛选
@@ -681,21 +701,21 @@ export default function SheetRibbon({
               <button
                 className="ribbon-btn"
                 title="设置数据有效性 / 输入验证"
-                onClick={() => onOpenInsertDialog('dropdown')}
+                onClick={() => onOpenInsertDialog('validation')}
               >
                 数据有效性
               </button>
               <button
                 className="ribbon-btn"
-                title="查找或删除选区中的重复行"
-                onClick={() => onOpenInsertDialog('dropdown')}
+                title="删除选区中的重复行"
+                onClick={() => onOpenDataTool('duplicates')}
               >
-                重复项 ˅
+                删除重复项
               </button>
               <button
                 className="ribbon-btn"
                 title="将文本按特定分隔符分列到多个单元格"
-                onClick={() => onOpenInsertDialog('dropdown')}
+                onClick={() => onOpenDataTool('split')}
               >
                 分列
               </button>

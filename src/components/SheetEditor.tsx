@@ -7,19 +7,38 @@ import {
 } from '../../shared/sheet-clipboard';
 import { frozenOffsets } from '../../shared/sheet-view';
 import type { CSSProperties } from 'react';
-import SheetFormatToolbar from './SheetFormatToolbar';
 import SheetRibbon from './sheet/SheetRibbon';
-import { FindReplaceModal, InsertFeatureModal } from './sheet/SheetModals';
-import type { RibbonTab, ViewSettings, InsertDialogType } from './sheet/types';
-import { sortSheetSelection } from '../../shared/sheet-sort';
-import { formatSelection, formatCellValue, applyBorderSelection } from '../../shared/sheet-format';
+import { fontStack } from './sheet/SheetFontDropdown';
+import {
+  ChartModal,
+  FindReplaceModal,
+  InsertFeatureModal,
+  RemoveDuplicatesModal,
+  TextToColumnsModal,
+  type InsertPayload,
+} from './sheet/SheetModals';
+import type {
+  RibbonTab,
+  ViewSettings,
+  InsertDialogType,
+  ChartKind,
+  DataToolType,
+} from './sheet/types';
+import {
+  formatSelection,
+  formatCellValue,
+  applyBorderSelection,
+  replaceSelectionStyle,
+} from '../../shared/sheet-format';
+import { autoSumRange, dataRange, parseDelimitedText, sortSheetRows } from '../../shared/sheet-data';
 import { useMemo, useState, useRef, useEffect, type PointerEvent, type KeyboardEvent } from 'react';
-import { Plus, FunctionSquare, Eraser } from 'lucide-react';
+import { Plus, FunctionSquare } from 'lucide-react';
 import {
   columnName,
   MAX_CELL_LENGTH,
   MAX_COLUMNS,
   MAX_ROWS,
+  type SheetCellStyle,
   type SheetContent,
 } from '../../shared/documents';
 import { createCalculator } from '../../shared/formulas';
@@ -71,6 +90,11 @@ export default function SheetEditor({
   });
   const [findReplaceOpen, setFindReplaceOpen] = useState(false);
   const [insertModalType, setInsertModalType] = useState<InsertDialogType | null>(null);
+  const [chartKind, setChartKind] = useState<ChartKind | null>(null);
+  const [dataTool, setDataTool] = useState<DataToolType | null>(null);
+  // Style captured by the format painter; non-null while painter mode is armed.
+  const [painterStyle, setPainterStyle] = useState<SheetCellStyle | null>(null);
+  const [recalcVersion, setRecalcVersion] = useState(0);
   function onChange(next: SheetContent) {
     history.current.undo.push(content);
     if (history.current.undo.length > 100) history.current.undo.shift();
@@ -93,9 +117,12 @@ export default function SheetEditor({
   const sourceBounds = selectionBounds(selection);
   const resetSelection = () =>
     setSelection({ anchor: { row: 1, col: 0 }, focus: { row: 1, col: 0 } });
+  const applyPainterRef = useRef<() => void>(() => {});
   useEffect(() => {
     const stop = () => {
+      const dragged = drag.current;
       drag.current = false;
+      if (dragged) applyPainterRef.current();
     };
     window.addEventListener('pointerup', stop);
     window.addEventListener('pointercancel', stop);
@@ -170,7 +197,12 @@ export default function SheetEditor({
   }
 
   const sheet = content.sheets.find((s) => s.id === sheetId) ?? content.sheets[0];
-  const calculate = useMemo(() => createCalculator(sheet.cells), [sheet.cells]);
+  // recalcVersion forces volatile functions such as NOW()/TODAY() to re-evaluate.
+  const calculate = useMemo(
+    () => createCalculator(sheet.cells),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sheet.cells, recalcVersion],
+  );
   const fillHandle = useSheetFillHandle({
     sheet,
     selection,
@@ -183,6 +215,8 @@ export default function SheetEditor({
     },
     onError: () => setPasteError('填充超出工作表、数值或单元格长度上限，原表格未修改。'),
   });
+  const headerWidth = viewSettings.showHeadings ? 44 : 0,
+    headerHeight = viewSettings.showHeadings ? 29 : 0;
   const visualSelection = fillHandle.preview ?? selection;
   const bounds = selectionBounds(visualSelection);
   useEffect(() => {
@@ -199,7 +233,7 @@ export default function SheetEditor({
       const clientHeight = el.clientHeight;
       if (clientWidth <= 0 || clientHeight <= 0) return;
 
-      let accWidth = 44;
+      let accWidth = headerWidth;
       let neededCols = 0;
       while (accWidth < clientWidth && neededCols < MAX_COLUMNS) {
         accWidth += widthOf(neededCols);
@@ -208,7 +242,7 @@ export default function SheetEditor({
       const targetCols = Math.min(MAX_COLUMNS, Math.max(26, neededCols + 2));
       setColCount((prev) => Math.max(prev, targetCols));
 
-      let accHeight = 29;
+      let accHeight = headerHeight;
       let neededRows = 0;
       while (accHeight < clientHeight && neededRows < MAX_ROWS) {
         accHeight += heightOf(neededRows + 1);
@@ -224,7 +258,7 @@ export default function SheetEditor({
     });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [sheet.id, sheet.columnWidths, sheet.rowHeights]);
+  }, [sheet.id, sheet.columnWidths, sheet.rowHeights, viewSettings.showHeadings]);
 
   function handleScroll(event: React.UIEvent<HTMLDivElement>) {
     const el = event.currentTarget;
@@ -255,8 +289,8 @@ export default function SheetEditor({
     columns = Math.max(colCount, usedCols, (sheet.frozenColumns ?? 0) + 1);
   const frozenRows = sheet.frozenRows ?? 0,
     frozenColumns = sheet.frozenColumns ?? 0;
-  const rowOffsets = frozenOffsets(frozenRows, 29, (index) => heightOf(index + 1));
-  const columnOffsets = frozenOffsets(frozenColumns, 44, widthOf);
+  const rowOffsets = frozenOffsets(frozenRows, headerHeight, (index) => heightOf(index + 1));
+  const columnOffsets = frozenOffsets(frozenColumns, headerWidth, widthOf);
   function frozenCellStyle(row: number, col: number): CSSProperties {
     const fixedRow = row <= frozenRows,
       fixedColumn = col < frozenColumns;
@@ -269,7 +303,7 @@ export default function SheetEditor({
       backgroundColor:
         inSelection(visualSelection, { row, col }) && selected !== cellAddress({ row, col })
           ? '#e7f1eb'
-          : 'white',
+          : 'var(--sheet-cell-bg, white)',
     };
   }
   function freeze(mode: string) {
@@ -346,6 +380,7 @@ export default function SheetEditor({
     }
     if (event.key === 'Escape') {
       setEditing(null);
+      setPainterStyle(null);
       return;
     }
     if (!editing && event.key === 'F2') {
@@ -498,48 +533,137 @@ export default function SheetEditor({
     setPasteError('');
   }
 
+  function replaceSheet(next: SheetContent['sheets'][number]) {
+    onChange({ ...content, sheets: content.sheets.map((s) => (s.id === sheet.id ? next : s)) });
+  }
+
   function handleSort(direction: 'asc' | 'desc') {
-    const nextCells = sortSheetSelection(sheet.cells, selection, direction);
-    onChange({
-      ...content,
-      sheets: content.sheets.map((s) => (s.id === sheet.id ? { ...s, cells: nextCells } : s)),
+    const range = dataRange(sheet.cells, selection);
+    if (!range) {
+      setPasteError('请先选中需要排序的数据区域。');
+      return;
+    }
+    setPasteError('');
+    setEditing(null);
+    replaceSheet(
+      sortSheetRows(sheet, range.bounds, direction, {
+        sortCol: selection.anchor.col,
+        hasHeader: range.hasHeader,
+      }),
+    );
+  }
+
+  // Functions that aggregate a range; the rest get an empty argument list to fill in.
+  const RANGE_FUNCTIONS = new Set(['SUM', 'AVERAGE', 'COUNT', 'COUNTA', 'MAX', 'MIN', 'MEDIAN']);
+  const NO_ARG_FUNCTIONS = new Set(['TODAY', 'NOW']);
+
+  function editFormula(point: CellPoint, formula: string, caret: number) {
+    const address = cellAddress(point);
+    setSelection({ anchor: point, focus: point });
+    setCell(address, formula);
+    setEditing(address);
+    requestAnimationFrame(() => {
+      const input = grid.current?.querySelector<HTMLInputElement>(`#cell-${address}`);
+      input?.focus({ preventScroll: true });
+      input?.setSelectionRange(caret, caret);
+      input?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     });
   }
 
   function handleInsertFormula(formulaName: string) {
-    const addr = cellAddress(selection.anchor);
+    if (!formulaName) return;
     const b = selectionBounds(selection);
+    const anchor = selection.anchor;
+    if (NO_ARG_FUNCTIONS.has(formulaName)) {
+      setCell(cellAddress(anchor), `=${formulaName}()`);
+      return;
+    }
+    if (!RANGE_FUNCTIONS.has(formulaName)) {
+      const formula = `=${formulaName}()`;
+      editFormula(anchor, formula, formula.length - 1);
+      return;
+    }
     const isRange = b.top !== b.bottom || b.left !== b.right;
-    const rangeStr = isRange
-      ? `${cellAddress({ row: b.top, col: b.left })}:${cellAddress({ row: b.bottom, col: b.right })}`
-      : `${columnName(selection.anchor.col)}1:${columnName(selection.anchor.col)}${Math.max(1, selection.anchor.row - 1)}`;
-    const formula = `=${formulaName}(${rangeStr})`;
-    setCell(addr, formula);
-    setEditing(addr);
-    focusCell(selection.anchor);
+    if (!isRange) {
+      const range = autoSumRange(calculate, anchor);
+      const formula = `=${formulaName}(${range ?? ''})`;
+      editFormula(anchor, formula, range ? formula.length : formula.length - 1);
+      return;
+    }
+    // Like WPS/Excel: a selected range gets one result per column in the row below it,
+    // so the formula never references its own cell.
+    const used = dataRange(sheet.cells, selection)?.bounds;
+    const bottom = used ? Math.min(b.bottom, used.bottom) : b.bottom;
+    const right = used ? Math.min(b.right, used.right) : b.right;
+    const targetRow = bottom + 1;
+    if (targetRow > MAX_ROWS) {
+      setPasteError('选区下方已没有空行，无法放置计算结果。');
+      return;
+    }
+    const cells = { ...sheet.cells };
+    for (let col = b.left; col <= right; col++)
+      cells[cellAddress({ row: targetRow, col })] =
+        `=${formulaName}(${columnName(col)}${b.top}:${columnName(col)}${bottom})`;
+    applyCells(cells);
+    setPasteError('');
+    setRowCount((count) => Math.max(count, targetRow));
+    select({ row: targetRow, col: b.left });
+    focusCell({ row: targetRow, col: b.left });
   }
 
-  function handleInsertConfirm(payload: { text?: string; formula?: string }) {
+  function handleInsertConfirm(payload: InsertPayload) {
     const addr = cellAddress(selection.anchor);
-    if (payload.formula) {
-      setCell(addr, payload.formula);
-    } else if (payload.text !== undefined) {
-      if (payload.text.includes('\n') || payload.text.includes('\t') || payload.text.includes(',')) {
-        const normalized = payload.text.includes('\t') ? payload.text : payload.text.replace(/,/g, '\t');
-        const pasteResult = pasteSheetCells(
-          sheet.cells,
-          normalized,
-          selection.anchor.row,
-          selection.anchor.col,
-        );
-        if (pasteResult.ok) {
-          applyCells(pasteResult.cells);
-          return;
-        }
+    if (payload.kind === 'import') {
+      const rows = parseDelimitedText(payload.text);
+      // Sanitize tabs/newlines inside quoted fields so the TSV round-trip stays rectangular.
+      const tsv = rows.map((row) => row.map((v) => v.replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+      const result = pasteSheetCells(sheet.cells, tsv, selection.anchor.row, selection.anchor.col);
+      if (!result.ok) {
+        setPasteError('导入内容超出工作表或单元格长度上限，原表格未修改。');
+        return;
       }
-      setCell(addr, payload.text);
+      setPasteError('');
+      applyCells(result.cells);
+      return;
     }
+    const current = sheet.cells[addr] ?? '';
+    const text =
+      payload.mode === 'append'
+        ? current + payload.text
+        : payload.mode === 'prefix'
+          ? payload.text + current
+          : payload.text;
+    setCell(addr, text.slice(0, MAX_CELL_LENGTH));
   }
+
+  function toggleFormatPainter() {
+    if (painterStyle) setPainterStyle(null);
+    else setPainterStyle({ ...(sheet.styles?.[selected] ?? {}) });
+  }
+
+  // Called by the window pointerup listener (via ref) once a cell click or drag completes.
+  // The paint itself runs in an effect so it sees the final selection of the drag.
+  const [paintPending, setPaintPending] = useState(false);
+  applyPainterRef.current = () => {
+    if (painterStyle) setPaintPending(true);
+  };
+  useEffect(() => {
+    if (!paintPending) return;
+    setPaintPending(false);
+    if (!painterStyle) return;
+    replaceSheet(replaceSelectionStyle(sheet, selection, painterStyle));
+    setPainterStyle(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paintPending]);
+  useEffect(() => {
+    if (!painterStyle) return;
+    // Focus usually sits on the painter button, so cell-level Esc handling won't see it.
+    const cancel = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') setPainterStyle(null);
+    };
+    window.addEventListener('keydown', cancel);
+    return () => window.removeEventListener('keydown', cancel);
+  }, [painterStyle]);
 
   function handleTextToNumber() {
     const cellsToUpdate: Record<string, string> = { ...sheet.cells };
@@ -560,7 +684,7 @@ export default function SheetEditor({
   }
 
   function handleRecalculate() {
-    setHistoryVersion((v) => v + 1);
+    setRecalcVersion((v) => v + 1);
   }
 
   const usedColors = useMemo(() => {
@@ -608,13 +732,17 @@ export default function SheetEditor({
         usedColors={usedColors}
         usedFills={usedFills}
         onClearContent={() => applyCells(clearSelection(sheet.cells, selection))}
+        formatPainterActive={!!painterStyle}
+        onToggleFormatPainter={toggleFormatPainter}
+        onOpenChart={setChartKind}
+        onOpenDataTool={setDataTool}
         onClearFormat={() =>
           onChange({
             ...content,
             sheets: content.sheets.map((s) => {
               if (s.id !== sheet.id) return s;
               const styles = { ...s.styles };
-              for (const addr of selectionCells(selection)) delete styles[addr];
+              for (const address of selectionCells(selection)) delete styles[address];
               return { ...s, styles };
             }),
           })
@@ -689,7 +817,7 @@ export default function SheetEditor({
         </div>
       )}
       <div
-        className={`sheet-scroll ${viewSettings.eyeCare ? 'eye-care' : ''} ${!viewSettings.showGridlines ? 'hide-gridlines' : ''} ${viewSettings.zebraStripe ? 'zebra-stripe' : ''}`}
+        className={`sheet-scroll ${painterStyle ? 'format-painter' : ''} ${viewSettings.eyeCare ? 'eye-care' : ''} ${!viewSettings.showGridlines ? 'hide-gridlines' : ''} ${viewSettings.zebraStripe ? 'zebra-stripe' : ''}`}
         style={{ scrollPaddingTop: rowOffsets.size, scrollPaddingLeft: columnOffsets.size }}
         ref={grid}
         onScroll={handleScroll}
@@ -861,6 +989,8 @@ export default function SheetEditor({
                                 ? 'linear-gradient(#1b784d22, #1b784d22)'
                                 : undefined,
                             textAlign: style?.align,
+                            fontFamily: fontStack(style?.fontFamily),
+                            fontSize: style?.fontSize ? `${style.fontSize}pt` : undefined,
                             boxShadow:
                               [
                                 ...(inSelection(visualSelection, { row, col })
@@ -895,7 +1025,9 @@ export default function SheetEditor({
                           value={
                             editing === address
                               ? (sheet.cells[address] ?? '')
-                              : formatCellValue(value, style)
+                              : viewSettings.hideZeros && value === 0
+                                ? ''
+                                : formatCellValue(value, style)
                           }
                           readOnly={editing !== address}
                           onCompositionStart={() => {
@@ -997,11 +1129,11 @@ export default function SheetEditor({
               <p>将删除“{sheet.name}”及其中的内容，可通过撤销恢复。</p>
             )}
             {pasteError && <p role="alert">{pasteError}</p>}
-            <div className="modal-actions">
-              <button type="button" onClick={() => setSheetAction(null)}>
+            <div className="modal-buttons">
+              <button className="secondary" type="button" onClick={() => setSheetAction(null)}>
                 取消
               </button>
-              <button className="button-primary" type="submit">
+              <button className="primary" type="submit">
                 {sheetAction === 'rename' ? '保存名称' : '确认删除工作表'}
               </button>
             </div>
@@ -1011,6 +1143,7 @@ export default function SheetEditor({
       {findReplaceOpen && (
         <FindReplaceModal
           cells={sheet.cells}
+          current={selection.anchor}
           onClose={() => setFindReplaceOpen(false)}
           onSelectCell={(pt) => {
             select(pt);
@@ -1029,8 +1162,30 @@ export default function SheetEditor({
       {insertModalType && (
         <InsertFeatureModal
           type={insertModalType}
+          targetValue={sheet.cells[selected] ?? ''}
           onClose={() => setInsertModalType(null)}
           onConfirm={handleInsertConfirm}
+        />
+      )}
+      {chartKind && (
+        <ChartModal
+          kind={chartKind}
+          sheet={sheet}
+          range={dataRange(sheet.cells, selection)}
+          valueAt={calculate}
+          onClose={() => setChartKind(null)}
+        />
+      )}
+      {dataTool && (
+        <DataToolDialog
+          type={dataTool}
+          sheet={sheet}
+          range={dataRange(sheet.cells, selection)}
+          onClose={() => setDataTool(null)}
+          onApply={(next) => {
+            replaceSheet(next);
+            setEditing(null);
+          }}
         />
       )}
       <div className="editor-statusbar">
@@ -1046,5 +1201,28 @@ export default function SheetEditor({
         <span>最多 500 行 × 52 列 / 工作表</span>
       </div>
     </div>
+  );
+}
+
+function DataToolDialog({
+  type,
+  ...props
+}: {
+  type: DataToolType;
+  sheet: SheetContent['sheets'][number];
+  range: ReturnType<typeof dataRange>;
+  onClose: () => void;
+  onApply: (next: SheetContent['sheets'][number]) => void;
+}) {
+  const rangeLabel = props.range
+    ? selectionLabel({
+        anchor: { row: props.range.bounds.top, col: props.range.bounds.left },
+        focus: { row: props.range.bounds.bottom, col: props.range.bounds.right },
+      })
+    : '';
+  return type === 'duplicates' ? (
+    <RemoveDuplicatesModal {...props} rangeLabel={rangeLabel} />
+  ) : (
+    <TextToColumnsModal {...props} rangeLabel={rangeLabel} />
   );
 }

@@ -20,10 +20,36 @@ export function formatSelection(
 ): SheetPage {
   const styles = { ...sheet.styles };
   for (const address of selectionCells(selection)) {
-    if (patch === null) delete styles[address];
-    else styles[address] = { ...styles[address], ...patch };
+    if (patch === null) {
+      delete styles[address];
+      continue;
+    }
+    // An undefined patch value clears that property (e.g. "auto" color, "no fill").
+    const next = compactStyle({ ...styles[address], ...patch });
+    if (next) styles[address] = next;
+    else delete styles[address];
   }
   return { ...sheet, styles };
+}
+
+/** Replaces the whole style of every selected cell, as the format painter does. */
+export function replaceSelectionStyle(
+  sheet: SheetPage,
+  selection: SheetSelection,
+  style: SheetCellStyle,
+): SheetPage {
+  const next = compactStyle(style);
+  const styles = { ...sheet.styles };
+  for (const address of selectionCells(selection)) {
+    if (next) styles[address] = { ...next };
+    else delete styles[address];
+  }
+  return { ...sheet, styles };
+}
+
+function compactStyle(style: SheetCellStyle): SheetCellStyle | undefined {
+  const entries = Object.entries(style).filter(([, value]) => value !== undefined);
+  return entries.length ? (Object.fromEntries(entries) as SheetCellStyle) : undefined;
 }
 
 export function applyBorderSelection(
