@@ -191,8 +191,6 @@ const TITLES: Record<InsertDialogType, string> = {
  * objects, filter state…). They stay visible but never write placeholder text into cells.
  */
 const UNSUPPORTED: Partial<Record<InsertDialogType, string>> = {
-  dropdown: '单元格下拉列表需要保存数据有效性规则',
-  validation: '数据有效性需要保存单元格输入规则',
   filter: '自动筛选需要保存筛选条件与隐藏行',
   image: '图片需要独立的浮动对象与文件存储',
   pivot: '透视表需要生成并维护独立的汇总工作表',

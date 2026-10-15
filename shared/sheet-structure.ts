@@ -57,6 +57,46 @@ export function shiftFormula(
     },
   );
 }
+/**
+ * Shifts, grows or shrinks a stored range such as "A2:A500". Unlike formula references a
+ * range is clamped at the sheet edge on insert; it is dropped (null) only when deleted entirely.
+ */
+export function shiftRange(
+  range: string,
+  axis: Axis,
+  at: number,
+  count: number,
+  operation: Operation,
+): string | null {
+  const selection = parseSelection(range);
+  if (!selection) return null;
+  const limit = axis === 'row' ? MAX_ROWS : MAX_COLUMNS - 1;
+  const a = selection.anchor[axis],
+    b = selection.focus[axis];
+  let low = Math.min(a, b),
+    high = Math.max(a, b);
+  if (operation === 'insert') {
+    if (low >= at) low += count;
+    if (high >= at) high += count;
+    if (low > limit) return null;
+    high = Math.min(high, limit);
+  } else {
+    if (low >= at && low < at + count) low = at + count;
+    if (high >= at && high < at + count) high = at - 1;
+    if (low > high) return null;
+    if (low >= at + count) low -= count;
+    if (high >= at + count) high -= count;
+  }
+  const start = { ...selection.anchor, [axis]: low },
+    end = { ...selection.focus, [axis]: high };
+  const top = Math.min(start.row, end.row),
+    bottom = Math.max(start.row, end.row),
+    left = Math.min(start.col, end.col),
+    right = Math.max(start.col, end.col);
+  const from = cellAddress({ row: top, col: left }),
+    to = cellAddress({ row: bottom, col: right });
+  return from === to ? from : `${from}:${to}`;
+}
 export function changeSheetStructure(
   sheet: SheetPage,
   axis: Axis,
@@ -100,6 +140,10 @@ export function changeSheetStructure(
   }
   const styles = shiftAddressMap(sheet.styles ?? {});
   const comments = shiftAddressMap(sheet.comments ?? {});
+  const validations = (sheet.validations ?? []).flatMap((validation) => {
+    const range = shiftRange(validation.range, axis, at, count, operation);
+    return range ? [{ ...validation, range }] : [];
+  });
   const dimensions = axis === 'row' ? sheet.rowHeights : sheet.columnWidths;
   const shifted: Record<string, number> = {};
   for (const [key, value] of Object.entries(dimensions ?? {})) {
@@ -114,6 +158,7 @@ export function changeSheetStructure(
     cells,
     ...(sheet.styles ? { styles } : {}),
     ...(sheet.comments ? { comments } : {}),
+    ...(sheet.validations ? { validations } : {}),
     ...(axis === 'row' && sheet.frozenRows !== undefined
       ? {
           frozenRows: shiftFrozenBoundary(sheet.frozenRows, at - 1, count, operation, MAX_ROWS - 1),

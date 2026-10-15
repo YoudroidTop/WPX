@@ -1,4 +1,10 @@
-import { readCellNote, readCellStyle, writeCellStyle } from './sheet-style';
+import {
+  readCellNote,
+  readCellStyle,
+  readValidations,
+  writeCellStyle,
+  writeValidations,
+} from './sheet-style';
 import type { SheetCellStyle, SheetComment } from '../shared/documents';
 import JSZip from 'jszip';
 import ExcelJS from 'exceljs';
@@ -132,6 +138,7 @@ export async function exportOffice(content: DocumentContent): Promise<Buffer> {
         if (cell.value === null) cell.value = '';
         cell.note = comment.text;
       }
+      writeValidations(ws, sheet.validations ?? []);
       ws.columns?.forEach((column) => {
         column.width = 18;
       });
@@ -266,6 +273,7 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
         if (row.height)
           rowHeights[row.number] = Math.max(24, Math.min(300, Math.round(row.height / 0.75)));
       });
+      const validations = readValidations(ws);
       const frozen = ws.views?.find((view) => view.state === 'frozen');
       return {
         id: randomUUID(),
@@ -279,6 +287,7 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
         cells,
         ...(Object.keys(styles).length ? { styles } : {}),
         ...(Object.keys(comments).length ? { comments } : {}),
+        ...(validations.length ? { validations } : {}),
         ...(Object.keys(columnWidths).length ? { columnWidths } : {}),
         ...(Object.keys(rowHeights).length ? { rowHeights } : {}),
       };

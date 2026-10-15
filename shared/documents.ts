@@ -8,6 +8,8 @@ export const MAX_COLUMNS = 52;
 export const MAX_CELL_LENGTH = 10_000;
 export const MAX_SHEET_COMMENTS = 500;
 export const MAX_COMMENT_LENGTH = 1000;
+export const MAX_SHEET_VALIDATIONS = 50;
+export const MAX_LIST_OPTIONS = 50;
 export type DocumentKind = 'word' | 'sheet' | 'slide';
 export interface RichNode {
   type: string;
@@ -41,6 +43,17 @@ export interface SheetComment {
   author?: string;
   updatedAt?: number;
 }
+export type SheetValidationRule =
+  | { type: 'list'; options: string[] }
+  | { type: 'number'; min?: number; max?: number; integer?: boolean }
+  | { type: 'textLength'; min?: number; max?: number };
+export interface SheetValidation {
+  id: string;
+  /** Rectangle such as "A2:A100"; single cells may omit the colon. */
+  range: string;
+  rule: SheetValidationRule;
+  mode: 'stop' | 'warning';
+}
 export interface SheetPage {
   id: string;
   name: string;
@@ -51,6 +64,7 @@ export interface SheetPage {
   rowHeights?: Record<string, number>;
   columnWidths?: Record<string, number>;
   comments?: Record<string, SheetComment>;
+  validations?: SheetValidation[];
 }
 export interface SheetContent {
   type: 'sheet';
@@ -176,6 +190,46 @@ const sheetCellStyleSchema = z.object({
   fontSize: z.number().min(6).max(96).optional(),
 });
 const boundedCellStyleSchema = sheetCellStyleSchema.strict();
+const rangeSchema = z
+  .string()
+  .max(16)
+  .regex(/^(?:[A-Z]|A[A-Z])(?:[1-9]\d?|[1-4]\d{2}|500)(?::(?:[A-Z]|A[A-Z])(?:[1-9]\d?|[1-4]\d{2}|500))?$/);
+const sheetValidationRuleSchema = z.union([
+  z.object({
+    type: z.literal('list'),
+    options: z
+      .array(
+        z
+          .string()
+          .min(1)
+          .max(64)
+          .regex(/^[^,]+$/),
+      )
+      .min(1)
+      .max(MAX_LIST_OPTIONS)
+      // Excel caps an inline list source at 255 characters.
+      .refine((options) => options.join(',').length <= 255, {
+        message: 'List options are too long',
+      }),
+  }),
+  z
+    .object({ type: z.literal('number'), integer: z.boolean().optional() })
+    .merge(z.object({ min: z.number().finite().optional(), max: z.number().finite().optional() }))
+    .refine((v) => v.min === undefined || v.max === undefined || v.min <= v.max),
+  z
+    .object({
+      type: z.literal('textLength'),
+      min: z.number().int().min(0).max(MAX_CELL_LENGTH).optional(),
+      max: z.number().int().min(0).max(MAX_CELL_LENGTH).optional(),
+    })
+    .refine((v) => v.min === undefined || v.max === undefined || v.min <= v.max),
+]);
+const sheetValidationSchema = z.object({
+  id: z.string().min(1).max(100),
+  range: rangeSchema,
+  rule: sheetValidationRuleSchema,
+  mode: z.enum(['stop', 'warning']),
+});
 const sheetCommentSchema = z.object({
   text: z.string().min(1).max(MAX_COMMENT_LENGTH),
   author: z.string().max(64).optional(),
@@ -210,6 +264,7 @@ const nativeContentSchema = z.discriminatedUnion('type', [
           columnWidths: z
             .record(z.string().regex(/^(?:[0-9]|[1-4][0-9]|5[01])$/), z.number().min(48).max(600))
             .optional(),
+          validations: z.array(sheetValidationSchema).max(MAX_SHEET_VALIDATIONS).optional(),
           comments: z
             .record(z.string().regex(cellAddress), sheetCommentSchema)
             .refine((comments) => Object.keys(comments).length <= MAX_SHEET_COMMENTS, {

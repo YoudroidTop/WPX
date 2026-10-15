@@ -10,6 +10,14 @@ import type { CSSProperties } from 'react';
 import SheetRibbon from './sheet/SheetRibbon';
 import { fontStack } from './sheet/SheetFontDropdown';
 import { CommentBubble, CommentModal } from './sheet/SheetComments';
+import { invalidMessage, ListPopover, ValidationModal } from './sheet/SheetValidation';
+import {
+  applyValidation,
+  clearValidation,
+  invalidCells,
+  isValidValue,
+  validationAt,
+} from '../../shared/sheet-validation';
 import {
   ChartModal,
   FindReplaceModal,
@@ -38,7 +46,15 @@ import {
   setCellComment,
   sortSheetRows,
 } from '../../shared/sheet-data';
-import { useMemo, useState, useRef, useEffect, type PointerEvent, type KeyboardEvent } from 'react';
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useRef,
+  useEffect,
+  type PointerEvent,
+  type KeyboardEvent,
+} from 'react';
 import { Plus, FunctionSquare } from 'lucide-react';
 import {
   columnName,
@@ -104,6 +120,9 @@ export default function SheetEditor({
   const [recalcVersion, setRecalcVersion] = useState(0);
   const [commentEditor, setCommentEditor] = useState<string | null>(null);
   const [hoverComment, setHoverComment] = useState<string | null>(null);
+  const [validationDialog, setValidationDialog] = useState<'list' | 'number' | null>(null);
+  const [listOpen, setListOpen] = useState(false);
+  const closeList = useCallback(() => setListOpen(false), []);
   function onChange(next: SheetContent) {
     history.current.undo.push(content);
     if (history.current.undo.length > 100) history.current.undo.shift();
@@ -340,6 +359,36 @@ export default function SheetEditor({
     });
   }
   const stats = useMemo(() => selectionStats(sheet.cells, selection), [sheet.cells, selection]);
+  const invalid = useMemo(() => invalidCells(sheet, calculate), [sheet, calculate]);
+  const anchorValidation = validationAt(sheet.validations, selection.anchor);
+  const anchorList = anchorValidation?.rule.type === 'list' ? anchorValidation.rule.options : null;
+
+  // Data validation runs when an edit commits (the cell leaves edit mode), comparing with
+  // the value from before the edit started; per-keystroke checks would block typing.
+  const preEditCells = useRef(sheet.cells);
+  const previousEditing = useRef<string | null>(null);
+  function enforceValidation(address: string, original: string) {
+    const value = sheet.cells[address] ?? '';
+    if (value === original) return;
+    const point = parseSelection(address)?.anchor;
+    const validation = point && validationAt(sheet.validations, point);
+    if (!validation || isValidValue(validation.rule, calculate(address))) return;
+    if (validation.mode === 'stop') {
+      setCell(address, original);
+      setPasteError(`${invalidMessage(validation, value)}已恢复原值。`);
+    } else setPasteError(`警告：${invalidMessage(validation, value)}`);
+  }
+  useEffect(() => {
+    const was = previousEditing.current;
+    previousEditing.current = editing;
+    if (was && was !== editing) enforceValidation(was, preEditCells.current[was] ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing]);
+  // Declared after the check above so the snapshot still holds pre-edit values when it runs.
+  useEffect(() => {
+    if (!editing) preEditCells.current = sheet.cells;
+  });
+  const formulaBarOriginal = useRef<string | null>(null);
   function applyCells(cells: Record<string, string>) {
     onChange({
       ...content,
@@ -367,6 +416,11 @@ export default function SheetEditor({
       return;
     }
     const command = event.ctrlKey || event.metaKey;
+    if (!editing && event.altKey && event.key === 'ArrowDown' && anchorList) {
+      event.preventDefault();
+      setListOpen(true);
+      return;
+    }
     if (command && !editing && ['d', 'r'].includes(event.key.toLowerCase())) {
       event.preventDefault();
       fill(event.key.toLowerCase() === 'd' ? 'down' : 'right');
@@ -789,7 +843,13 @@ export default function SheetEditor({
         canAddCols={columns < MAX_COLUMNS}
         onOpenFindReplace={() => setFindReplaceOpen(true)}
         onOpenInsertDialog={(type) =>
-          type === 'comment' ? setCommentEditor(selected) : setInsertModalType(type)
+          type === 'comment'
+            ? setCommentEditor(selected)
+            : type === 'dropdown'
+              ? setValidationDialog('list')
+              : type === 'validation'
+                ? setValidationDialog('number')
+                : setInsertModalType(type)
         }
         onTextToNumber={handleTextToNumber}
         onRecalculate={handleRecalculate}
@@ -825,6 +885,14 @@ export default function SheetEditor({
           placeholder="输入文字、数字或公式，如 =SUM(A1:A10)"
           maxLength={MAX_CELL_LENGTH}
           onChange={(event) => setCell(selected, event.target.value)}
+          onFocus={() => {
+            formulaBarOriginal.current = sheet.cells[selected] ?? '';
+          }}
+          onBlur={() => {
+            if (formulaBarOriginal.current !== null)
+              enforceValidation(selected, formulaBarOriginal.current);
+            formulaBarOriginal.current = null;
+          }}
         />
       </div>
       {pasteError && (
@@ -950,7 +1018,7 @@ export default function SheetEditor({
                       <td
                         key={address}
                         data-cell={address}
-                        className={`${selected === address ? 'selected-cell' : ''} ${sheet.comments?.[address] ? 'has-comment' : ''} ${inSelection(visualSelection, { row, col }) ? 'range-cell' : ''} ${typeof value === 'string' && value.startsWith('#') ? 'cell-error' : ''} ${isCrosshair ? 'highlight-crosshair' : ''}`}
+                        className={`${selected === address ? 'selected-cell' : ''} ${sheet.comments?.[address] ? 'has-comment' : ''} ${inSelection(visualSelection, { row, col }) ? 'range-cell' : ''} ${typeof value === 'string' && value.startsWith('#') ? 'cell-error' : ''} ${invalid.has(address) ? 'cell-invalid' : ''} ${isCrosshair ? 'highlight-crosshair' : ''}`}
                         data-range={
                           inSelection(visualSelection, { row, col }) ? 'selected' : undefined
                         }
@@ -1058,6 +1126,20 @@ export default function SheetEditor({
                           onKeyDown={(event) => keyboard(event, row, col)}
                           onPaste={(event) => paste(event, row, col)}
                         />
+                        {!editing && anchorList && selected === address && (
+                          <button
+                            className="sheet-list-trigger"
+                            aria-label="打开下拉选项 (Alt+↓)"
+                            aria-expanded={listOpen}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setListOpen((open) => !open);
+                            }}
+                          >
+                            ▾
+                          </button>
+                        )}
                         {!editing && row === sourceBounds.bottom && col === sourceBounds.right && (
                           <button
                             className="sheet-fill-handle"
@@ -1184,6 +1266,38 @@ export default function SheetEditor({
           targetValue={sheet.cells[selected] ?? ''}
           onClose={() => setInsertModalType(null)}
           onConfirm={handleInsertConfirm}
+        />
+      )}
+      {listOpen && anchorList && !editing && (
+        <ListPopover
+          address={selected}
+          options={anchorList}
+          value={sheet.cells[selected] ?? ''}
+          grid={grid}
+          onClose={closeList}
+          onPick={(option) => {
+            setCell(selected, option);
+            setListOpen(false);
+            focusCell(selection.anchor);
+          }}
+        />
+      )}
+      {validationDialog && (
+        <ValidationModal
+          rangeLabel={selectionLabel(selection)}
+          current={anchorValidation}
+          initialType={validationDialog === 'list' ? 'list' : 'number'}
+          onClose={() => {
+            setValidationDialog(null);
+            focusCell(selection.anchor);
+          }}
+          onApply={(rule, mode) => {
+            const next = applyValidation(sheet, selectionBounds(selection), rule, mode);
+            if (!next) return '每个工作表最多 50 条有效性规则，请先清除部分规则。';
+            replaceSheet(next);
+            return null;
+          }}
+          onClear={() => replaceSheet(clearValidation(sheet, selectionBounds(selection)))}
         />
       )}
       {commentEditor && (
