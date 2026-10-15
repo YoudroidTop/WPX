@@ -139,6 +139,23 @@ const richNode: z.ZodType<RichNode> = z.lazy(() =>
   }),
 );
 const cellAddress = /^(?:[A-Z]|A[A-Z])(?:[1-9]\d?|[1-4]\d{2}|500)$/;
+const sheetCellStyleSchema = z.object({
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  underline: z.boolean().optional(),
+  border: z.boolean().optional(),
+  color: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .optional(),
+  fill: z
+    .string()
+    .regex(/^#[0-9a-f]{6}$/i)
+    .optional(),
+  align: z.enum(['left', 'center', 'right']).optional(),
+  numberFormat: z.enum(['general', 'number', 'percent', 'currency']).optional(),
+});
+const boundedCellStyleSchema = sheetCellStyleSchema.strict();
 const nativeContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('word'), doc: richNode.refine((n) => n.type === 'doc') }),
   z.object({
@@ -161,27 +178,7 @@ const nativeContentSchema = z.discriminatedUnion('type', [
             .min(0)
             .max(MAX_COLUMNS - 1)
             .optional(),
-          styles: z
-            .record(
-              z.string().regex(cellAddress),
-              z.object({
-                bold: z.boolean().optional(),
-                italic: z.boolean().optional(),
-                underline: z.boolean().optional(),
-                border: z.boolean().optional(),
-                color: z
-                  .string()
-                  .regex(/^#[0-9a-f]{6}$/i)
-                  .optional(),
-                fill: z
-                  .string()
-                  .regex(/^#[0-9a-f]{6}$/i)
-                  .optional(),
-                align: z.enum(['left', 'center', 'right']).optional(),
-                numberFormat: z.enum(['general', 'number', 'percent', 'currency']).optional(),
-              }),
-            )
-            .optional(),
+          styles: z.record(z.string().regex(cellAddress), sheetCellStyleSchema).optional(),
           rowHeights: z
             .record(z.string().regex(/^(?:[1-9]\d?|[1-4]\d{2}|500)$/), z.number().min(24).max(300))
             .optional(),
@@ -211,7 +208,27 @@ const nativeContentSchema = z.discriminatedUnion('type', [
 ]);
 export const contentSchema = z
   .preprocess((value, context) => {
-    const stack: { value: unknown; depth: number }[] = [{ value, depth: 0 }];
+    const styleMaps = new Set<unknown>();
+    if (
+      value &&
+      typeof value === 'object' &&
+      'type' in value &&
+      value.type === 'sheet' &&
+      'sheets' in value &&
+      Array.isArray(value.sheets) &&
+      value.sheets.length <= 20
+    ) {
+      for (const sheet of value.sheets)
+        if (
+          sheet &&
+          typeof sheet === 'object' &&
+          sheet.styles &&
+          typeof sheet.styles === 'object' &&
+          !Array.isArray(sheet.styles)
+        )
+          styleMaps.add(sheet.styles);
+    }
+    const stack: { value: unknown; depth: number; cellStyle?: boolean }[] = [{ value, depth: 0 }];
     let nodes = 0;
     while (stack.length) {
       const item = stack.pop()!;
@@ -219,9 +236,12 @@ export const contentSchema = z
         context.addIssue({ code: 'custom', message: 'Document structure exceeds limits' });
         return z.NEVER;
       }
+      // A valid cell style has only bounded scalar fields. Charge one leaf, not one
+      // node per property, so a full formatted sheet fits the structural budget.
+      if (item.cellStyle && boundedCellStyleSchema.safeParse(item.value).success) continue;
       if (item.value && typeof item.value === 'object') {
         for (const child of Object.values(item.value))
-          stack.push({ value: child, depth: item.depth + 1 });
+          stack.push({ value: child, depth: item.depth + 1, cellStyle: styleMaps.has(item.value) });
       }
     }
     return value;
