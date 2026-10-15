@@ -581,7 +581,7 @@ export default function SheetRibbon({
               </button>
               <button
                 className="ribbon-btn-icon"
-                title="为当前单元格添加批注"
+                title="添加 / 编辑当前单元格批注 (Shift+F2)"
                 onClick={() => onOpenInsertDialog('comment')}
               >
                 <MessageSquare size={14} />

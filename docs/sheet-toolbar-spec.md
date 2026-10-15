@@ -54,7 +54,7 @@
 | | 水印 (Watermark) | 绝密、机密、草稿、仅供参考或自定义水印文字 | 未实装（需工作表级背景设置） | 背景水印层绘制 |
 | | 二维码 (QRCode) | 输入网址或编号快速生成二维码嵌入单元格 | 未实装（需浮动图片对象） | 原生二维码生成与渲染 |
 | **符号与批注** | 特殊符号 (`symbol`) | 货币符号 (¥ $ € £)、数学符号 (± × ÷ ≈ ≠ ≤ ≥ √ ∑ π)、特殊记号，追加到单元格内容末尾 | 已实装 (网格选择弹窗) | 原生符号选择面板 |
-| | 批注 (Comment) | 为当前单元格添加详细批注说明 | 未实装（需独立批注数据结构） | 原生浮动批注气泡 |
+| | 批注 (Comment) | 为当前单元格添加 / 编辑 / 删除批注（`Shift+F2`），红色三角标记 + 悬停/选中浮层；数据结构见 §4.2 | 已实装 | 原生浮动批注气泡 |
 | **可视化图表** | 柱状图/折线图/饼图 | 根据选区数据生成只读 SVG 预览（首列为分类，数值列为系列，无分类的汇总行忽略），暂不嵌入工作表 | 已实装 (预览弹窗) | 原生 Chart 组件渲染 |
 | **工作区容量** | 追加 50 行 / 5 列 | 动态扩展行数列数至 `MAX_ROWS` / `MAX_COLUMNS` | 已实装 | 原生工作表尺寸扩展 |
 
@@ -137,9 +137,69 @@
 
 ---
 
-## 4. 跨端客户端迁移与实现指南
+## 4. 工作表扩展数据结构 (批注 / 数据有效性 / 自动筛选)
 
-### 4.1 跨平台共享内核 (`shared/`)
+三项功能都以 `SheetPage` 的**可选字段**落盘，旧文档无需迁移；字段定义见 `shared/documents.ts`，Zod schema 同步校验（未声明字段会在保存时被丢弃）。
+
+```ts
+interface SheetComment { text: string; author?: string; updatedAt?: number }
+
+type SheetValidationRule =
+  | { type: 'list'; options: string[] }
+  | { type: 'number'; min?: number; max?: number; integer?: boolean }
+  | { type: 'textLength'; min?: number; max?: number };
+interface SheetValidation { id: string; range: string; rule: SheetValidationRule; mode: 'stop' | 'warning' }
+
+interface SheetAutoFilter { range: string; columns: Record<string, { hidden: string[] }> }
+
+interface SheetPage {
+  // ...
+  comments?: Record<string, SheetComment>; // key: 单元格地址，如 "B3"
+  validations?: SheetValidation[];
+  autoFilter?: SheetAutoFilter;
+}
+```
+
+### 4.1 上限 (保证满表 + 满扩展仍在 10 万节点结构预算内)
+| 项 | 上限 |
+| :--- | :--- |
+| 每表批注数 / 批注长度 | 500 条 / 1000 字符 |
+| 每表有效性规则数 | 50 条 |
+| 列表选项 | 每条规则 ≤ 50 项，单项 1~64 字符且不含逗号，合计（逗号连接）≤ 255 字符（Excel 内联列表上限） |
+| 筛选隐藏值 | 每列 ≤ 200 个，单值 ≤ 255 字符 |
+
+`range` 必须是可解析且在 AZ500 内的区域（如 `A2:A100`）。
+
+### 4.2 批注
+- 单元格右上角显示红色三角；悬停或选中时在浮层中显示批注（浮层固定定位，不受表格滚动容器裁剪）。
+- 「插入 → 批注」新建 / 编辑当前单元格批注，内容清空即删除。
+- 随单元格移动：插入/删除行列平移，被删除的行列中的批注随之删除；排序、删除重复项时随行移动。
+- 复制粘贴、拖拽填充不复制批注。
+- XLSX：导出为 `cell.note`；导入时读取 note（富文本拼接为纯文本），包括空单元格上的批注。
+
+### 4.3 数据有效性 / 下拉列表
+- 「插入 → 下拉列表」与「数据 → 数据有效性」打开同一弹窗：下拉列表即 `type: 'list'` 规则。
+- 规则作用于当前选区；新规则覆盖重叠区域（后添加者优先），完全落在新区域内的旧规则被移除；弹窗提供「清除有效性」。
+- 校验时机：单元格编辑结束（离开编辑态）或公式栏失焦时，与编辑前的值比较。`stop` 模式拒绝无效输入并还原；`warning` 模式保留输入并提示。空值始终允许。
+- 粘贴、填充、导入不触发校验（与 Excel 一致）；不符合规则的已有值以红色虚线框标出。
+- 选中带列表规则的单元格时，右侧出现 ▼ 按钮（或 `Alt+↓`）弹出选项列表。
+- 插入/删除行列时规则区域平移、收缩，整体被删除的规则移除。
+- XLSX：导出为 `worksheet.dataValidations`（list / decimal|whole / textLength），导入同理。
+
+### 4.4 自动筛选
+- 每表最多一个筛选区域；区域首行为标题行，标题单元格显示筛选按钮。
+- 「数据 → 筛选」：无筛选时以当前数据区域创建，已有筛选时取消（显示全部行）。
+- 匹配基于计算后的**显示值**（公式取结果，数字按单元格格式显示）；空白记为「(空白)」，存储为空串。
+- `columns` 以列字母为键，记录被隐藏的值；之后新出现的值默认可见。
+- 区域会自动向下包含紧邻的新数据行。
+- 隐藏行不渲染；方向键 / Enter 导航跳过隐藏行。
+- 排序、删除重复项在筛选生效时被拦截并提示先清除筛选，避免改动不可见的数据。
+- 插入/删除行列时区域平移，列条件随列重新编号；标题行被删除时筛选移除。
+- XLSX：只导出区域 (`worksheet.autoFilter`) 并将被筛掉的行设为隐藏；ExcelJS 不支持筛选条件，导入只恢复区域，条件不往返。
+
+## 5. 跨端客户端迁移与实现指南
+
+### 5.1 跨平台共享内核 (`shared/`)
 为确保 iOS / Android / HarmonyOS / Desktop 与 Web 端行为完全一致，所有业务与数据逻辑均必须复用或严格对齐 `shared/` 下的统一实现：
 1. **公式与依赖计算**：[`shared/formulas.ts`](file:///Users/liang/Documents/AI_CODE/WPX/shared/formulas.ts)
 2. **选区算法与矩形运算**：[`shared/sheet-selection.ts`](file:///Users/liang/Documents/AI_CODE/WPX/shared/sheet-selection.ts)
@@ -150,13 +210,13 @@
 7. **单元格格式与显示文本生成**：[`shared/sheet-format.ts`](file:///Users/liang/Documents/AI_CODE/WPX/shared/sheet-format.ts)
 8. **粘贴解析与矩形校验**：[`shared/sheet-paste.ts`](file:///Users/liang/Documents/AI_CODE/WPX/shared/sheet-paste.ts)
 
-### 4.2 布局形态适配准则
+### 5.2 布局形态适配准则
 - **桌面端 / iPad / 平板横屏**：
   - 采用本规范的 **标准 Ribbon 顶部横向选项卡面板**，展开二级功能组，支持快捷键直达。
 - **手机端（窄屏竖屏）**：
   - 顶部仅保留轻量 Tab 切换胶囊或常用快捷按钮；
   - 二级菜单收拢为 **底部弹出抽屉 (Bottom ActionSheet / Drawer)**，按「格式」、「插入」、「数据」、「公式」、「视图」分别展开垂直列表，保证单手触控操作面积 $\ge 44\times 44$ pt。
 
-### 4.3 样式兼容性铁律
+### 5.3 样式兼容性铁律
 - **严禁使用 `Color.withValues(alpha: ...)`**：OpenHarmony 及旧版本 Flutter 运行时均不支持，必须统一使用 `Color.withOpacity(double opacity)`。
 

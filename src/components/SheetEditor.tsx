@@ -9,6 +9,7 @@ import { frozenOffsets } from '../../shared/sheet-view';
 import type { CSSProperties } from 'react';
 import SheetRibbon from './sheet/SheetRibbon';
 import { fontStack } from './sheet/SheetFontDropdown';
+import { CommentBubble, CommentModal } from './sheet/SheetComments';
 import {
   ChartModal,
   FindReplaceModal,
@@ -30,7 +31,13 @@ import {
   applyBorderSelection,
   replaceSelectionStyle,
 } from '../../shared/sheet-format';
-import { autoSumRange, dataRange, parseDelimitedText, sortSheetRows } from '../../shared/sheet-data';
+import {
+  autoSumRange,
+  dataRange,
+  parseDelimitedText,
+  setCellComment,
+  sortSheetRows,
+} from '../../shared/sheet-data';
 import { useMemo, useState, useRef, useEffect, type PointerEvent, type KeyboardEvent } from 'react';
 import { Plus, FunctionSquare } from 'lucide-react';
 import {
@@ -95,6 +102,8 @@ export default function SheetEditor({
   // Style captured by the format painter; non-null while painter mode is armed.
   const [painterStyle, setPainterStyle] = useState<SheetCellStyle | null>(null);
   const [recalcVersion, setRecalcVersion] = useState(0);
+  const [commentEditor, setCommentEditor] = useState<string | null>(null);
+  const [hoverComment, setHoverComment] = useState<string | null>(null);
   function onChange(next: SheetContent) {
     history.current.undo.push(content);
     if (history.current.undo.length > 100) history.current.undo.shift();
@@ -381,6 +390,11 @@ export default function SheetEditor({
     if (event.key === 'Escape') {
       setEditing(null);
       setPainterStyle(null);
+      return;
+    }
+    if (!editing && event.key === 'F2' && event.shiftKey) {
+      event.preventDefault();
+      setCommentEditor(cellAddress(selection.anchor));
       return;
     }
     if (!editing && event.key === 'F2') {
@@ -774,7 +788,9 @@ export default function SheetEditor({
         canAddRows={rows < MAX_ROWS}
         canAddCols={columns < MAX_COLUMNS}
         onOpenFindReplace={() => setFindReplaceOpen(true)}
-        onOpenInsertDialog={(type) => setInsertModalType(type)}
+        onOpenInsertDialog={(type) =>
+          type === 'comment' ? setCommentEditor(selected) : setInsertModalType(type)
+        }
         onTextToNumber={handleTextToNumber}
         onRecalculate={handleRecalculate}
       />
@@ -821,6 +837,7 @@ export default function SheetEditor({
         style={{ scrollPaddingTop: rowOffsets.size, scrollPaddingLeft: columnOffsets.size }}
         ref={grid}
         onScroll={handleScroll}
+        onPointerLeave={() => setHoverComment(null)}
         onCopy={(event) => {
           if (editing) return;
           event.preventDefault();
@@ -933,7 +950,7 @@ export default function SheetEditor({
                       <td
                         key={address}
                         data-cell={address}
-                        className={`${selected === address ? 'selected-cell' : ''} ${inSelection(visualSelection, { row, col }) ? 'range-cell' : ''} ${typeof value === 'string' && value.startsWith('#') ? 'cell-error' : ''} ${isCrosshair ? 'highlight-crosshair' : ''}`}
+                        className={`${selected === address ? 'selected-cell' : ''} ${sheet.comments?.[address] ? 'has-comment' : ''} ${inSelection(visualSelection, { row, col }) ? 'range-cell' : ''} ${typeof value === 'string' && value.startsWith('#') ? 'cell-error' : ''} ${isCrosshair ? 'highlight-crosshair' : ''}`}
                         data-range={
                           inSelection(visualSelection, { row, col }) ? 'selected' : undefined
                         }
@@ -966,6 +983,8 @@ export default function SheetEditor({
                           focusCell({ row, col });
                         }}
                         onPointerEnter={(event) => {
+                          // Bails out without re-rendering when the value is unchanged.
+                          setHoverComment(sheet.comments?.[address] ? address : null);
                           if (!drag.current || event.buttons !== 1) return;
                           setSelection((previous) => ({ ...previous, focus: { row, col } }));
                         }}
@@ -1167,6 +1186,27 @@ export default function SheetEditor({
           onConfirm={handleInsertConfirm}
         />
       )}
+      {commentEditor && (
+        <CommentModal
+          address={commentEditor}
+          comment={sheet.comments?.[commentEditor]}
+          onClose={() => {
+            setCommentEditor(null);
+            focusCell(selection.anchor);
+          }}
+          onSave={(text) => {
+            const current = sheet.comments?.[commentEditor]?.text ?? '';
+            if (text.trim() !== current) replaceSheet(setCellComment(sheet, commentEditor, text));
+          }}
+        />
+      )}
+      {(() => {
+        const address = hoverComment ?? (!editing && !commentEditor ? selected : null);
+        const comment = address ? sheet.comments?.[address] : undefined;
+        return address && comment ? (
+          <CommentBubble address={address} comment={comment} grid={grid} />
+        ) : null;
+      })()}
       {chartKind && (
         <ChartModal
           kind={chartKind}

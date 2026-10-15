@@ -3,6 +3,7 @@ import {
   MAX_COLUMNS,
   MAX_ROWS,
   type SheetCellStyle,
+  type SheetComment,
   type SheetPage,
 } from './documents';
 import {
@@ -123,15 +124,22 @@ function compareValues(a: string, b: string, direction: 'asc' | 'desc') {
 type RowSnapshot = {
   cells: Record<number, string>;
   styles: Record<number, SheetCellStyle>;
+  comments: Record<number, SheetComment>;
   height?: number;
 };
 
 function snapshotRow(sheet: SheetPage, row: number, bounds: SheetBounds): RowSnapshot {
-  const snapshot: RowSnapshot = { cells: {}, styles: {}, height: sheet.rowHeights?.[row] };
+  const snapshot: RowSnapshot = {
+    cells: {},
+    styles: {},
+    comments: {},
+    height: sheet.rowHeights?.[row],
+  };
   for (let c = bounds.left; c <= bounds.right; c++) {
     const address = cellAddress({ row, col: c });
     if (sheet.cells[address]) snapshot.cells[c] = sheet.cells[address];
     if (sheet.styles?.[address]) snapshot.styles[c] = sheet.styles[address];
+    if (sheet.comments?.[address]) snapshot.comments[c] = sheet.comments[address];
   }
   return snapshot;
 }
@@ -146,6 +154,7 @@ function writeRows(
 ): SheetPage {
   const cells = { ...sheet.cells };
   const styles = { ...sheet.styles };
+  const comments = { ...sheet.comments };
   const rowHeights = { ...sheet.rowHeights };
   for (let row = startRow; row <= bounds.bottom; row++) {
     const snapshot = rows[row - startRow];
@@ -157,13 +166,22 @@ function writeRows(
       else delete cells[address];
       if (style) styles[address] = style;
       else delete styles[address];
+      const comment = snapshot?.comments[c];
+      if (comment) comments[address] = comment;
+      else delete comments[address];
     }
     if (moveHeights) {
       if (snapshot?.height) rowHeights[row] = snapshot.height;
       else delete rowHeights[row];
     }
   }
-  return { ...sheet, cells, styles, ...(moveHeights ? { rowHeights } : {}) };
+  return {
+    ...sheet,
+    cells,
+    styles,
+    ...(sheet.comments ? { comments } : {}),
+    ...(moveHeights ? { rowHeights } : {}),
+  };
 }
 
 /**
@@ -313,4 +331,18 @@ export function parseDelimitedText(text: string): string[][] {
   rows.push(row);
   while (rows.length && rows[rows.length - 1].every((value) => value === '')) rows.pop();
   return rows;
+}
+
+/** Sets, replaces or (with blank text) removes a cell comment. */
+export function setCellComment(
+  sheet: SheetPage,
+  address: string,
+  text: string,
+  now = Date.now(),
+): SheetPage {
+  const comments = { ...sheet.comments };
+  const trimmed = text.trim();
+  if (trimmed) comments[address] = { ...comments[address], text: trimmed, updatedAt: now };
+  else delete comments[address];
+  return { ...sheet, comments };
 }

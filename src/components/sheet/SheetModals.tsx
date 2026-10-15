@@ -199,7 +199,6 @@ const UNSUPPORTED: Partial<Record<InsertDialogType, string>> = {
   textbox: '文本框需要独立的浮动对象',
   watermark: '水印需要保存工作表级的背景设置',
   qrcode: '二维码需要独立的浮动图片对象',
-  comment: '批注需要保存独立于单元格内容的批注数据',
 };
 
 export function InsertFeatureModal({

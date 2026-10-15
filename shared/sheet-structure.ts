@@ -84,16 +84,22 @@ export function changeSheetStructure(
     if (next > limit) throw new Error('occupied-edge');
     cells[cellAddress({ ...point, [axis]: next })] = shiftFormula(raw, axis, at, count, operation);
   }
-  const styles: NonNullable<SheetPage['styles']> = {};
-  for (const [address, style] of Object.entries(sheet.styles ?? {})) {
-    const point = parseSelection(address)!.anchor,
-      coordinate = point[axis];
-    if (operation === 'delete' && coordinate >= at && coordinate < at + count) continue;
-    const next =
-      coordinate >= at ? coordinate + (operation === 'insert' ? count : -count) : coordinate;
-    if (next > limit) throw new Error('occupied-edge');
-    styles[cellAddress({ ...point, [axis]: next })] = style;
+  // Per-cell maps (styles, comments) move with their cells; entries in deleted lines go away.
+  function shiftAddressMap<T>(map: Record<string, T>) {
+    const shifted: Record<string, T> = {};
+    for (const [address, value] of Object.entries(map)) {
+      const point = parseSelection(address)!.anchor,
+        coordinate = point[axis];
+      if (operation === 'delete' && coordinate >= at && coordinate < at + count) continue;
+      const next =
+        coordinate >= at ? coordinate + (operation === 'insert' ? count : -count) : coordinate;
+      if (next > limit) throw new Error('occupied-edge');
+      shifted[cellAddress({ ...point, [axis]: next })] = value;
+    }
+    return shifted;
   }
+  const styles = shiftAddressMap(sheet.styles ?? {});
+  const comments = shiftAddressMap(sheet.comments ?? {});
   const dimensions = axis === 'row' ? sheet.rowHeights : sheet.columnWidths;
   const shifted: Record<string, number> = {};
   for (const [key, value] of Object.entries(dimensions ?? {})) {
@@ -107,6 +113,7 @@ export function changeSheetStructure(
     ...sheet,
     cells,
     ...(sheet.styles ? { styles } : {}),
+    ...(sheet.comments ? { comments } : {}),
     ...(axis === 'row' && sheet.frozenRows !== undefined
       ? {
           frozenRows: shiftFrozenBoundary(sheet.frozenRows, at - 1, count, operation, MAX_ROWS - 1),

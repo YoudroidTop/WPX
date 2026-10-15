@@ -1,5 +1,5 @@
-import { readCellStyle, writeCellStyle } from './sheet-style';
-import type { SheetCellStyle } from '../shared/documents';
+import { readCellNote, readCellStyle, writeCellStyle } from './sheet-style';
+import type { SheetCellStyle, SheetComment } from '../shared/documents';
 import JSZip from 'jszip';
 import ExcelJS from 'exceljs';
 import PptxGenJS from 'pptxgenjs';
@@ -19,6 +19,7 @@ import {
   contentSchema,
   MAX_COLUMNS,
   MAX_ROWS,
+  MAX_SHEET_COMMENTS,
   type DocumentContent,
   type RichNode,
 } from '../shared/documents';
@@ -125,6 +126,12 @@ export async function exportOffice(content: DocumentContent): Promise<Buffer> {
       }
       for (const [address, style] of Object.entries(sheet.styles ?? {}))
         writeCellStyle(ws.getCell(address), style);
+      for (const [address, comment] of Object.entries(sheet.comments ?? {})) {
+        const cell = ws.getCell(address);
+        // ExcelJS drops notes on cells without a value, so give empty cells an empty string.
+        if (cell.value === null) cell.value = '';
+        cell.note = comment.text;
+      }
       ws.columns?.forEach((column) => {
         column.width = 18;
       });
@@ -235,9 +242,11 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
         throw new ApiError(400, '基础版每张工作表最多支持 500 行、52 列');
       const cells: Record<string, string> = {};
       const styles: Record<string, SheetCellStyle> = {};
+      const comments: Record<string, SheetComment> = {};
       ws.eachRow((row) =>
         row.eachCell((cell) => {
-          cells[cell.address] = cell.formula ? `=${cell.formula}` : cell.text;
+          const raw = cell.formula ? `=${cell.formula}` : cell.text;
+          if (raw) cells[cell.address] = raw;
         }),
       );
       const columnWidths: Record<string, number> = {},
@@ -250,6 +259,9 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
         row.eachCell({ includeEmpty: true }, (cell) => {
           const style = readCellStyle(cell);
           if (Object.keys(style).length) styles[cell.address] = style;
+          const note = readCellNote(cell);
+          if (note && Object.keys(comments).length < MAX_SHEET_COMMENTS)
+            comments[cell.address] = { text: note };
         });
         if (row.height)
           rowHeights[row.number] = Math.max(24, Math.min(300, Math.round(row.height / 0.75)));
@@ -266,6 +278,7 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
           : {}),
         cells,
         ...(Object.keys(styles).length ? { styles } : {}),
+        ...(Object.keys(comments).length ? { comments } : {}),
         ...(Object.keys(columnWidths).length ? { columnWidths } : {}),
         ...(Object.keys(rowHeights).length ? { rowHeights } : {}),
       };

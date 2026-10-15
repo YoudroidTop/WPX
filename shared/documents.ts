@@ -6,6 +6,8 @@ export const MAX_CONTENT_BYTES = 4_000_000;
 export const MAX_ROWS = 500;
 export const MAX_COLUMNS = 52;
 export const MAX_CELL_LENGTH = 10_000;
+export const MAX_SHEET_COMMENTS = 500;
+export const MAX_COMMENT_LENGTH = 1000;
 export type DocumentKind = 'word' | 'sheet' | 'slide';
 export interface RichNode {
   type: string;
@@ -34,6 +36,11 @@ export interface SheetCellStyle {
   fontFamily?: string;
   fontSize?: number;
 }
+export interface SheetComment {
+  text: string;
+  author?: string;
+  updatedAt?: number;
+}
 export interface SheetPage {
   id: string;
   name: string;
@@ -43,6 +50,7 @@ export interface SheetPage {
   styles?: Record<string, SheetCellStyle>;
   rowHeights?: Record<string, number>;
   columnWidths?: Record<string, number>;
+  comments?: Record<string, SheetComment>;
 }
 export interface SheetContent {
   type: 'sheet';
@@ -168,6 +176,11 @@ const sheetCellStyleSchema = z.object({
   fontSize: z.number().min(6).max(96).optional(),
 });
 const boundedCellStyleSchema = sheetCellStyleSchema.strict();
+const sheetCommentSchema = z.object({
+  text: z.string().min(1).max(MAX_COMMENT_LENGTH),
+  author: z.string().max(64).optional(),
+  updatedAt: z.number().int().nonnegative().optional(),
+});
 const nativeContentSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('word'), doc: richNode.refine((n) => n.type === 'doc') }),
   z.object({
@@ -196,6 +209,12 @@ const nativeContentSchema = z.discriminatedUnion('type', [
             .optional(),
           columnWidths: z
             .record(z.string().regex(/^(?:[0-9]|[1-4][0-9]|5[01])$/), z.number().min(48).max(600))
+            .optional(),
+          comments: z
+            .record(z.string().regex(cellAddress), sheetCommentSchema)
+            .refine((comments) => Object.keys(comments).length <= MAX_SHEET_COMMENTS, {
+              message: `At most ${MAX_SHEET_COMMENTS} comments per sheet`,
+            })
             .optional(),
         }),
       )

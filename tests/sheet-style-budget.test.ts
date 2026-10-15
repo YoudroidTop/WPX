@@ -4,6 +4,7 @@ import {
   columnName,
   contentSchema,
   MAX_CONTENT_BYTES,
+  MAX_SHEET_COMMENTS,
   type SheetContent,
 } from '../shared/documents';
 import { decodeSheetClipboard, encodeSheetClipboard } from '../shared/sheet-clipboard';
@@ -63,4 +64,17 @@ test('leaf accounting only applies to bounded valid styles at the sheet style ma
     }).success,
     false,
   );
+});
+
+test('a full sheet with every cell filled plus the maximum comments fits the structure budget', () => {
+  const document = fullSheet();
+  const sheet = document.sheets[0];
+  sheet.cells = Object.fromEntries(Object.keys(sheet.styles!).map((address) => [address, '1']));
+  sheet.comments = Object.fromEntries(
+    Object.keys(sheet.styles!)
+      .slice(0, MAX_SHEET_COMMENTS)
+      .map((address) => [address, { text: 'note', author: 'QA', updatedAt: 1 }]),
+  );
+  assert.ok(Buffer.byteLength(JSON.stringify(document)) < MAX_CONTENT_BYTES);
+  assert.equal(contentSchema.safeParse(document).success, true);
 });

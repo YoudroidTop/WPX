@@ -1,5 +1,5 @@
 import type ExcelJS from 'exceljs';
-import type { SheetCellStyle } from '../shared/documents';
+import { MAX_COMMENT_LENGTH, type SheetCellStyle } from '../shared/documents';
 import { numberFormats } from '../shared/sheet-format';
 
 export function writeCellStyle(cell: ExcelJS.Cell, style: SheetCellStyle) {
@@ -79,4 +79,15 @@ export function readCellStyle(cell: ExcelJS.Cell): SheetCellStyle {
     }
   }
   return style;
+}
+
+/** Flattens an XLSX note (plain or rich text) into comment text within the length cap. */
+export function readCellNote(cell: ExcelJS.Cell): string | undefined {
+  const note = cell.note as string | ExcelJS.Comment | undefined;
+  const text =
+    typeof note === 'string'
+      ? note
+      : (note?.texts ?? []).map((part) => part.text ?? '').join('');
+  const trimmed = text.trim();
+  return trimmed ? trimmed.slice(0, MAX_COMMENT_LENGTH) : undefined;
 }
