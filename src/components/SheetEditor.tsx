@@ -8,6 +8,10 @@ import {
 import { frozenOffsets } from '../../shared/sheet-view';
 import type { CSSProperties } from 'react';
 import SheetFormatToolbar from './SheetFormatToolbar';
+import SheetRibbon from './sheet/SheetRibbon';
+import { FindReplaceModal, InsertFeatureModal } from './sheet/SheetModals';
+import type { RibbonTab, ViewSettings } from './sheet/types';
+import { sortSheetSelection } from '../../shared/sheet-sort';
 import { formatSelection, formatCellValue } from '../../shared/sheet-format';
 import { useMemo, useState, useRef, useEffect, type PointerEvent, type KeyboardEvent } from 'react';
 import { Plus, FunctionSquare, Eraser } from 'lucide-react';
@@ -30,6 +34,7 @@ import {
   inSelection,
   clearSelection,
   copySelection,
+  selectionCells,
   selectionStats,
   type CellPoint,
   type SheetSelection,
@@ -55,6 +60,19 @@ export default function SheetEditor({
   const [sheetName, setSheetName] = useState('');
   const [columnWidth, setColumnWidth] = useState('120'),
     [rowHeight, setRowHeight] = useState('29');
+  const [currentTab, setCurrentTab] = useState<RibbonTab>('home');
+  const [viewSettings, setViewSettings] = useState<ViewSettings>({
+    eyeCare: false,
+    highlightRowCol: false,
+    showGridlines: true,
+    showHeadings: true,
+    zebraStripe: false,
+    zoom: 100,
+  });
+  const [findReplaceOpen, setFindReplaceOpen] = useState(false);
+  const [insertModalType, setInsertModalType] = useState<
+    'checkbox' | 'dropdown' | 'link' | 'image' | 'chart' | 'pivot' | null
+  >(null);
   function onChange(next: SheetContent) {
     history.current.undo.push(content);
     if (history.current.undo.length > 100) history.current.undo.shift();
@@ -481,36 +499,44 @@ export default function SheetEditor({
     resetSelection();
     setPasteError('');
   }
+
+  function handleSort(direction: 'asc' | 'desc') {
+    const nextCells = sortSheetSelection(sheet.cells, selection, direction);
+    onChange({
+      ...content,
+      sheets: content.sheets.map((s) => (s.id === sheet.id ? { ...s, cells: nextCells } : s)),
+    });
+  }
+
+  function handleInsertFormula(formulaName: string) {
+    const addr = cellAddress(selection.anchor);
+    const b = selectionBounds(selection);
+    const isRange = b.top !== b.bottom || b.left !== b.right;
+    const rangeStr = isRange
+      ? `${cellAddress({ row: b.top, col: b.left })}:${cellAddress({ row: b.bottom, col: b.right })}`
+      : `${columnName(selection.anchor.col)}1:${columnName(selection.anchor.col)}${Math.max(1, selection.anchor.row - 1)}`;
+    const formula = `=${formulaName}(${rangeStr})`;
+    setCell(addr, formula);
+    setEditing(addr);
+    focusCell(selection.anchor);
+  }
+
+  function handleInsertConfirm(payload: { text?: string; formula?: string }) {
+    const addr = cellAddress(selection.anchor);
+    if (payload.formula) {
+      setCell(addr, payload.formula);
+    } else if (payload.text !== undefined) {
+      setCell(addr, payload.text);
+    }
+  }
+
   return (
     <div className="sheet-editor" data-history-version={historyVersion}>
-      <div className="editor-toolbar sheet-tools">
-        <span className="sheet-hint">基础公式</span>
-        <code>SUM · AVERAGE · MIN · MAX · COUNT</code>
-        <span className="toolbar-spacer" />
-        <button
-          title="清空选区内容（Delete）"
-          onClick={() => applyCells(clearSelection(sheet.cells, selection))}
-        >
-          <Eraser size={14} />
-          清空内容
-        </button>
-        <button
-          disabled={rows >= MAX_ROWS}
-          onClick={() => setRowCount(Math.min(MAX_ROWS, rows + 50))}
-        >
-          <Plus size={14} />
-          50 行
-        </button>
-        <button
-          disabled={columns >= MAX_COLUMNS}
-          onClick={() => setColCount(Math.min(MAX_COLUMNS, columns + 5))}
-        >
-          <Plus size={14} />5 列
-        </button>
-      </div>
-      <SheetFormatToolbar
-        style={sheet.styles?.[selected] ?? {}}
-        onChange={(patch) =>
+      <SheetRibbon
+        currentTab={currentTab}
+        onTabChange={setCurrentTab}
+        currentStyle={sheet.styles?.[selected] ?? {}}
+        onStyleChange={(patch) =>
           onChange({
             ...content,
             sheets: content.sheets.map((s) =>
@@ -518,112 +544,47 @@ export default function SheetEditor({
             ),
           })
         }
+        onClearContent={() => applyCells(clearSelection(sheet.cells, selection))}
+        onClearFormat={() =>
+          onChange({
+            ...content,
+            sheets: content.sheets.map((s) => {
+              if (s.id !== sheet.id) return s;
+              const styles = { ...s.styles };
+              for (const addr of selectionCells(selection)) delete styles[addr];
+              return { ...s, styles };
+            }),
+          })
+        }
+        canUndo={history.current.undo.length > 0}
+        canRedo={history.current.redo.length > 0}
+        onUndo={() => travel('undo')}
+        onRedo={() => travel('redo')}
+        onFill={fill}
+        canFillDown={bounds.top !== bounds.bottom}
+        canFillRight={bounds.left !== bounds.right}
+        onStructure={structure}
+        columnWidth={columnWidth}
+        onColumnWidthChange={setColumnWidth}
+        onApplyColumnWidth={() => sizeSelection('col')}
+        rowHeight={rowHeight}
+        onRowHeightChange={setRowHeight}
+        onApplyRowHeight={() => sizeSelection('row')}
+        frozenRows={frozenRows}
+        frozenColumns={frozenColumns}
+        onFreeze={freeze}
+        canFreezeSelection={!(selection.anchor.row === 1 && selection.anchor.col === 0)}
+        onSort={handleSort}
+        onInsertFormula={handleInsertFormula}
+        viewSettings={viewSettings}
+        onViewSettingsChange={(patch) => setViewSettings((prev) => ({ ...prev, ...patch }))}
+        onAddRows={() => setRowCount(Math.min(MAX_ROWS, rows + 50))}
+        onAddCols={() => setColCount(Math.min(MAX_COLUMNS, columns + 5))}
+        canAddRows={rows < MAX_ROWS}
+        canAddCols={columns < MAX_COLUMNS}
+        onOpenFindReplace={() => setFindReplaceOpen(true)}
+        onOpenInsertDialog={(type) => setInsertModalType(type)}
       />
-      <div className="editor-toolbar sheet-structure-tools">
-        <button disabled={!history.current.undo.length} onClick={() => travel('undo')}>
-          撤销
-        </button>
-        <button disabled={!history.current.redo.length} onClick={() => travel('redo')}>
-          重做
-        </button>
-        <button
-          title="将选区首行填充到下方（Ctrl / ⌘ D）"
-          disabled={bounds.top === bounds.bottom}
-          onClick={() => fill('down')}
-        >
-          向下填充
-        </button>
-        <button
-          title="将选区首列填充到右侧（Ctrl / ⌘ R）"
-          disabled={bounds.left === bounds.right}
-          onClick={() => fill('right')}
-        >
-          向右填充
-        </button>
-        <select aria-label="冻结窗格" value="" onChange={(event) => freeze(event.target.value)}>
-          <option value="" disabled>
-            冻结窗格
-          </option>
-          <option value="first-row">冻结首行</option>
-          <option value="first-column">冻结首列</option>
-          <option
-            value="selection"
-            disabled={selection.anchor.row === 1 && selection.anchor.col === 0}
-          >
-            冻结至当前单元格
-          </option>
-          <option value="none" disabled={!frozenRows && !frozenColumns}>
-            取消冻结
-          </option>
-        </select>
-        {!!(frozenRows || frozenColumns) && (
-          <span className="frozen-status">
-            已冻结 {frozenRows} 行 · {frozenColumns} 列
-          </span>
-        )}
-        <select
-          aria-label="行列操作"
-          value=""
-          onChange={(event) => {
-            const [axis, operation] = event.target.value.split('-');
-            structure(axis as 'row' | 'col', operation as 'insert' | 'delete');
-          }}
-        >
-          <option value="" disabled>
-            插入 / 删除
-          </option>
-          <option value="row-insert">在选区上方插入行</option>
-          <option value="row-delete">删除选中行</option>
-          <option value="col-insert">在选区左侧插入列</option>
-          <option value="col-delete">删除选中列</option>
-        </select>
-        <label>
-          列宽{' '}
-          <input
-            aria-label="列宽"
-            type="number"
-            min="48"
-            max="600"
-            value={columnWidth}
-            onChange={(event) => setColumnWidth(event.target.value)}
-          />
-        </label>
-        <button onClick={() => sizeSelection('col')}>应用列宽</button>
-        <label>
-          行高{' '}
-          <input
-            aria-label="行高"
-            type="number"
-            min="24"
-            max="300"
-            value={rowHeight}
-            onChange={(event) => setRowHeight(event.target.value)}
-          />
-        </label>
-        <button onClick={() => sizeSelection('row')}>应用行高</button>
-        <select
-          aria-label="工作表管理"
-          value=""
-          onChange={(event) => {
-            if (event.target.value === 'duplicate') duplicateSheet();
-            else {
-              setSheetName(sheet.name);
-              setSheetAction(event.target.value as 'rename' | 'delete');
-            }
-          }}
-        >
-          <option value="" disabled>
-            工作表管理
-          </option>
-          <option value="rename">重命名工作表</option>
-          <option value="duplicate" disabled={content.sheets.length >= 20}>
-            复制工作表
-          </option>
-          <option value="delete" disabled={content.sheets.length <= 1}>
-            删除工作表
-          </option>
-        </select>
-      </div>
       <div className="formula-bar">
         <input
           className="cell-address"
@@ -663,7 +624,7 @@ export default function SheetEditor({
         </div>
       )}
       <div
-        className="sheet-scroll"
+        className={`sheet-scroll ${viewSettings.eyeCare ? 'eye-care' : ''} ${!viewSettings.showGridlines ? 'hide-gridlines' : ''} ${viewSettings.zebraStripe ? 'zebra-stripe' : ''}`}
         style={{ scrollPaddingTop: rowOffsets.size, scrollPaddingLeft: columnOffsets.size }}
         ref={grid}
         onScroll={handleScroll}
@@ -680,94 +641,106 @@ export default function SheetEditor({
           applyCells(clearSelection(sheet.cells, selection));
         }}
       >
-        <table className="spreadsheet">
+        <table
+          className="spreadsheet"
+          style={{
+            zoom: viewSettings.zoom !== 100 ? `${viewSettings.zoom}%` : undefined,
+          }}
+        >
           <colgroup>
-            <col style={{ width: 44 }} />
+            {viewSettings.showHeadings && <col style={{ width: 44 }} />}
             {Array.from({ length: columns }, (_, col) => (
               <col key={col} style={{ width: widthOf(col) }} />
             ))}
           </colgroup>
-          <thead>
-            <tr>
-              <th className="row-number">
-                <button
-                  aria-label="选择全部单元格"
-                  onClick={() => {
-                    setEditing(null);
-                    setSelection({
-                      anchor: { row: 1, col: 0 },
-                      focus: { row: MAX_ROWS, col: MAX_COLUMNS - 1 },
-                    });
-                    focusCell({ row: 1, col: 0 });
-                  }}
-                >
-                  ◢
-                </button>
-              </th>
-              {Array.from({ length: columns }, (_, col) => (
-                <th
-                  key={col}
-                  style={
-                    col < frozenColumns
-                      ? { position: 'sticky', left: columnOffsets.offsets[col], zIndex: 1 }
-                      : undefined
-                  }
-                  className={col >= bounds.left && col <= bounds.right ? 'selected-heading' : ''}
-                >
+          {viewSettings.showHeadings && (
+            <thead>
+              <tr>
+                <th className="row-number">
                   <button
-                    aria-label={`选择 ${columnName(col)} 列`}
-                    onClick={(event) => {
+                    aria-label="选择全部单元格"
+                    onClick={() => {
                       setEditing(null);
                       setSelection({
-                        anchor: { row: 1, col: event.shiftKey ? selection.anchor.col : col },
-                        focus: { row: MAX_ROWS, col },
+                        anchor: { row: 1, col: 0 },
+                        focus: { row: MAX_ROWS, col: MAX_COLUMNS - 1 },
                       });
-                      focusCell({ row: 1, col });
+                      focusCell({ row: 1, col: 0 });
                     }}
                   >
-                    {columnName(col)}
+                    ◢
                   </button>
-                  {resizeHandle('col', col)}
                 </th>
-              ))}
-            </tr>
-          </thead>
+                {Array.from({ length: columns }, (_, col) => (
+                  <th
+                    key={col}
+                    style={
+                      col < frozenColumns
+                        ? { position: 'sticky', left: columnOffsets.offsets[col], zIndex: 1 }
+                        : undefined
+                    }
+                    className={col >= bounds.left && col <= bounds.right ? 'selected-heading' : ''}
+                  >
+                    <button
+                      aria-label={`选择 ${columnName(col)} 列`}
+                      onClick={(event) => {
+                        setEditing(null);
+                        setSelection({
+                          anchor: { row: 1, col: event.shiftKey ? selection.anchor.col : col },
+                          focus: { row: MAX_ROWS, col },
+                        });
+                        focusCell({ row: 1, col });
+                      }}
+                    >
+                      {columnName(col)}
+                    </button>
+                    {resizeHandle('col', col)}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          )}
           <tbody>
             {Array.from({ length: rows }, (_, index) => {
               const row = index + 1;
               return (
                 <tr key={row} style={{ height: heightOf(row) }}>
-                  <th
-                    style={{
-                      top: row <= frozenRows ? rowOffsets.offsets[row - 1] : undefined,
-                      zIndex: row <= frozenRows ? 6 : 2,
-                    }}
-                    className={`row-number ${row >= bounds.top && row <= bounds.bottom ? 'selected-heading' : ''}`}
-                  >
-                    <button
-                      aria-label={`选择第 ${row} 行`}
-                      onClick={(event) => {
-                        setEditing(null);
-                        setSelection({
-                          anchor: { row: event.shiftKey ? selection.anchor.row : row, col: 0 },
-                          focus: { row, col: MAX_COLUMNS - 1 },
-                        });
-                        focusCell({ row, col: 0 });
+                  {viewSettings.showHeadings && (
+                    <th
+                      style={{
+                        top: row <= frozenRows ? rowOffsets.offsets[row - 1] : undefined,
+                        zIndex: row <= frozenRows ? 6 : 2,
                       }}
+                      className={`row-number ${row >= bounds.top && row <= bounds.bottom ? 'selected-heading' : ''}`}
                     >
-                      {row}
-                    </button>
-                    {resizeHandle('row', row)}
-                  </th>
+                      <button
+                        aria-label={`选择第 ${row} 行`}
+                        onClick={(event) => {
+                          setEditing(null);
+                          setSelection({
+                            anchor: { row: event.shiftKey ? selection.anchor.row : row, col: 0 },
+                            focus: { row, col: MAX_COLUMNS - 1 },
+                          });
+                          focusCell({ row, col: 0 });
+                        }}
+                      >
+                        {row}
+                      </button>
+                      {resizeHandle('row', row)}
+                    </th>
+                  )}
                   {Array.from({ length: columns }, (_, col) => {
                     const address = `${columnName(col)}${row}`,
                       value = calculate(address),
-                      style = sheet.styles?.[address];
+                      style = sheet.styles?.[address],
+                      isCrosshair =
+                        viewSettings.highlightRowCol &&
+                        (row === selection.anchor.row || col === selection.anchor.col);
                     return (
                       <td
                         key={address}
                         data-cell={address}
-                        className={`${selected === address ? 'selected-cell' : ''} ${inSelection(visualSelection, { row, col }) ? 'range-cell' : ''} ${typeof value === 'string' && value.startsWith('#') ? 'cell-error' : ''}`}
+                        className={`${selected === address ? 'selected-cell' : ''} ${inSelection(visualSelection, { row, col }) ? 'range-cell' : ''} ${typeof value === 'string' && value.startsWith('#') ? 'cell-error' : ''} ${isCrosshair ? 'highlight-crosshair' : ''}`}
                         data-range={
                           inSelection(visualSelection, { row, col }) ? 'selected' : undefined
                         }
@@ -958,6 +931,31 @@ export default function SheetEditor({
             </div>
           </form>
         </Modal>
+      )}
+      {findReplaceOpen && (
+        <FindReplaceModal
+          cells={sheet.cells}
+          onClose={() => setFindReplaceOpen(false)}
+          onSelectCell={(pt) => {
+            select(pt);
+            focusCell(pt);
+          }}
+          onReplace={(updatedCells) => {
+            onChange({
+              ...content,
+              sheets: content.sheets.map((s) =>
+                s.id === sheet.id ? { ...s, cells: updatedCells } : s,
+              ),
+            });
+          }}
+        />
+      )}
+      {insertModalType && (
+        <InsertFeatureModal
+          type={insertModalType}
+          onClose={() => setInsertModalType(null)}
+          onConfirm={handleInsertConfirm}
+        />
       )}
       <div className="editor-statusbar">
         <span aria-live="polite">
