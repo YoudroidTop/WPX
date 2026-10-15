@@ -45,7 +45,7 @@ export default function SheetBorderDropdown({
   }
 
   return (
-    <div className="sheet-dropdown-container" ref={containerRef}>
+    <div className={`sheet-dropdown-container ${open ? 'is-open' : ''}`} ref={containerRef}>
       <div className="dropdown-trigger-wrapper" onClick={() => setOpen(!open)}>
         {trigger}
       </div>

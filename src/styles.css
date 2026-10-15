@@ -1707,6 +1707,8 @@ hr {
   border-bottom: 1px solid #dce4d5;
   flex-shrink: 0;
   user-select: none;
+  position: relative;
+  z-index: 50;
 }
 .ribbon-tabs {
   display: flex;
@@ -1743,16 +1745,18 @@ hr {
 .ribbon-panel {
   padding: 6px 12px;
   background: #ffffff;
-  overflow-x: auto;
+  overflow: visible;
   min-height: 40px;
   display: flex;
   align-items: center;
+  position: relative;
+  z-index: 50;
 }
 .ribbon-group-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 .ribbon-group {
   display: flex;
@@ -1975,6 +1979,9 @@ hr {
   position: relative;
   display: inline-flex;
 }
+.sheet-dropdown-container.is-open {
+  z-index: 1000;
+}
 .dropdown-trigger-wrapper {
   display: inline-flex;
   align-items: center;
@@ -1984,13 +1991,13 @@ hr {
 .border-popover,
 .font-dropdown-popover {
   position: absolute;
-  top: calc(100% + 5px);
+  top: calc(100% + 4px);
   left: 0;
-  z-index: 120;
+  z-index: 9999;
   background: #ffffff;
   border: 1px solid #ccd8c8;
   border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(27, 120, 77, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px rgba(27, 120, 77, 0.16), 0 3px 10px rgba(0, 0, 0, 0.1);
   padding: 8px;
   user-select: none;
 }
@@ -2238,6 +2245,8 @@ hr {
   border-bottom: 1px solid #dbe3d5;
   height: 38px;
   flex-shrink: 0;
+  position: relative;
+  z-index: 10;
 }
 .cell-address {
   width: 66px;
@@ -2263,6 +2272,8 @@ hr {
   flex: 1;
   overflow: auto;
   background: white;
+  position: relative;
+  z-index: 1;
 }
 .spreadsheet {
   border-collapse: separate;

@@ -70,7 +70,7 @@ export default function SheetColorPickerDropdown({
   const filteredUsedColors = Array.from(new Set(usedColors.filter(Boolean))).slice(0, 10);
 
   return (
-    <div className="sheet-dropdown-container" ref={containerRef}>
+    <div className={`sheet-dropdown-container ${open ? 'is-open' : ''}`} ref={containerRef}>
       <div className="dropdown-trigger-wrapper" onClick={() => setOpen(!open)}>
         {trigger}
       </div>
