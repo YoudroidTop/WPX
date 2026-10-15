@@ -15,12 +15,14 @@ export const BORDER_OPTIONS = [
 
 interface BorderDropdownProps {
   currentBorder?: boolean;
-  onChange: (hasBorder: boolean) => void;
+  onApplyBorder?: (type: string) => void;
+  onChange?: (hasBorder: boolean) => void;
   trigger: React.ReactNode;
 }
 
 export default function SheetBorderDropdown({
   currentBorder,
+  onApplyBorder,
   onChange,
   trigger,
 }: BorderDropdownProps) {
@@ -39,8 +41,12 @@ export default function SheetBorderDropdown({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [open]);
 
-  function handleSelect(hasBorder: boolean) {
-    onChange(hasBorder);
+  function handleSelect(id: string) {
+    if (onApplyBorder) {
+      onApplyBorder(id);
+    } else if (onChange) {
+      onChange(id !== 'none');
+    }
     setOpen(false);
   }
 
@@ -58,7 +64,7 @@ export default function SheetBorderDropdown({
               type="button"
               className="border-preset-btn"
               title="无边框"
-              onClick={() => handleSelect(false)}
+              onClick={() => handleSelect('none')}
             >
               <div className="border-icon border-icon-none" />
               <span>无边框</span>
@@ -68,7 +74,7 @@ export default function SheetBorderDropdown({
               type="button"
               className="border-preset-btn active"
               title="所有框线 (全边框)"
-              onClick={() => handleSelect(true)}
+              onClick={() => handleSelect('all')}
             >
               <div className="border-icon border-icon-all" />
               <span>所有框线</span>
@@ -78,7 +84,7 @@ export default function SheetBorderDropdown({
               type="button"
               className="border-preset-btn"
               title="外侧框线"
-              onClick={() => handleSelect(true)}
+              onClick={() => handleSelect('outside')}
             >
               <div className="border-icon border-icon-outside" />
               <span>外侧框线</span>
@@ -88,7 +94,7 @@ export default function SheetBorderDropdown({
               type="button"
               className="border-preset-btn"
               title="粗外侧框线"
-              onClick={() => handleSelect(true)}
+              onClick={() => handleSelect('thick-outside')}
             >
               <div className="border-icon border-icon-thick-outside" />
               <span>粗外侧框线</span>
@@ -98,7 +104,7 @@ export default function SheetBorderDropdown({
               type="button"
               className="border-preset-btn"
               title="双底框线"
-              onClick={() => handleSelect(true)}
+              onClick={() => handleSelect('double-bottom')}
             >
               <div className="border-icon border-icon-double-bottom" />
               <span>双底框线</span>
@@ -111,7 +117,7 @@ export default function SheetBorderDropdown({
               type="button"
               className="border-preset-btn"
               title="下框线"
-              onClick={() => handleSelect(true)}
+              onClick={() => handleSelect('bottom')}
             >
               <div className="border-icon border-icon-bottom" />
               <span>下框线</span>
@@ -121,7 +127,7 @@ export default function SheetBorderDropdown({
               type="button"
               className="border-preset-btn"
               title="上框线"
-              onClick={() => handleSelect(true)}
+              onClick={() => handleSelect('top')}
             >
               <div className="border-icon border-icon-top" />
               <span>上框线</span>
@@ -131,7 +137,7 @@ export default function SheetBorderDropdown({
               type="button"
               className="border-preset-btn"
               title="左框线"
-              onClick={() => handleSelect(true)}
+              onClick={() => handleSelect('left')}
             >
               <div className="border-icon border-icon-left" />
               <span>左框线</span>
@@ -141,7 +147,7 @@ export default function SheetBorderDropdown({
               type="button"
               className="border-preset-btn"
               title="右框线"
-              onClick={() => handleSelect(true)}
+              onClick={() => handleSelect('right')}
             >
               <div className="border-icon border-icon-right" />
               <span>右框线</span>
@@ -154,7 +160,7 @@ export default function SheetBorderDropdown({
           <button
             type="button"
             className="border-beautify-btn"
-            onClick={() => handleSelect(true)}
+            onClick={() => handleSelect('all')}
           >
             <Sparkles size={14} />
             <span>一键美化表格框线</span>

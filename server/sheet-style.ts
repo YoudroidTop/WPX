@@ -17,9 +17,18 @@ export function writeCellStyle(cell: ExcelJS.Cell, style: SheetCellStyle) {
     };
   if (style.align) cell.alignment = { horizontal: style.align };
   if (style.numberFormat) cell.numFmt = numberFormats[style.numberFormat];
-  if (style.border) {
+  const hasTop = style.border || style.borderTop;
+  const hasBottom = style.border || style.borderBottom;
+  const hasLeft = style.border || style.borderLeft;
+  const hasRight = style.border || style.borderRight;
+  if (hasTop || hasBottom || hasLeft || hasRight) {
     const edge: Partial<ExcelJS.Border> = { style: 'thin', color: { argb: 'FF53645C' } };
-    cell.border = { top: edge, bottom: edge, left: edge, right: edge };
+    cell.border = {
+      top: hasTop ? edge : undefined,
+      bottom: hasBottom ? edge : undefined,
+      left: hasLeft ? edge : undefined,
+      right: hasRight ? edge : undefined,
+    };
   }
 }
 
@@ -44,12 +53,19 @@ export function readCellStyle(cell: ExcelJS.Cell): SheetCellStyle {
   if (align === 'left' || align === 'center' || align === 'right') style.align = align;
   const format = Object.entries(numberFormats).find(([, code]) => code === cell.numFmt)?.[0];
   if (format && format !== 'general') style.numberFormat = format as SheetCellStyle['numberFormat'];
-  if (
-    cell.border &&
-    ['top', 'bottom', 'left', 'right'].every(
-      (edge) => cell.border[edge as keyof ExcelJS.Borders]?.style,
-    )
-  )
-    style.border = true;
+  if (cell.border) {
+    const hasTop = Boolean(cell.border.top?.style);
+    const hasBottom = Boolean(cell.border.bottom?.style);
+    const hasLeft = Boolean(cell.border.left?.style);
+    const hasRight = Boolean(cell.border.right?.style);
+    if (hasTop && hasBottom && hasLeft && hasRight) {
+      style.border = true;
+    } else {
+      if (hasTop) style.borderTop = true;
+      if (hasBottom) style.borderBottom = true;
+      if (hasLeft) style.borderLeft = true;
+      if (hasRight) style.borderRight = true;
+    }
+  }
   return style;
 }

@@ -12,7 +12,7 @@ import SheetRibbon from './sheet/SheetRibbon';
 import { FindReplaceModal, InsertFeatureModal } from './sheet/SheetModals';
 import type { RibbonTab, ViewSettings, InsertDialogType } from './sheet/types';
 import { sortSheetSelection } from '../../shared/sheet-sort';
-import { formatSelection, formatCellValue } from '../../shared/sheet-format';
+import { formatSelection, formatCellValue, applyBorderSelection } from '../../shared/sheet-format';
 import { useMemo, useState, useRef, useEffect, type PointerEvent, type KeyboardEvent } from 'react';
 import { Plus, FunctionSquare, Eraser } from 'lucide-react';
 import {
@@ -597,6 +597,14 @@ export default function SheetEditor({
             ),
           })
         }
+        onApplyBorder={(borderType) =>
+          onChange({
+            ...content,
+            sheets: content.sheets.map((s) =>
+              s.id === sheet.id ? applyBorderSelection(s, selection, borderType) : s,
+            ),
+          })
+        }
         usedColors={usedColors}
         usedFills={usedFills}
         onClearContent={() => applyCells(clearSelection(sheet.cells, selection))}
@@ -865,7 +873,18 @@ export default function SheetEditor({
                                   : []),
                                 row === frozenRows && 'inset 0 -2px #8b9d92',
                                 col === frozenColumns - 1 && 'inset -2px 0 #8b9d92',
-                                style?.border && 'inset 0 0 0 1px #53645c',
+                                ...(style?.border ||
+                                (style?.borderTop &&
+                                  style?.borderBottom &&
+                                  style?.borderLeft &&
+                                  style?.borderRight)
+                                  ? ['inset 0 0 0 1px #53645c']
+                                  : [
+                                      style?.borderTop && 'inset 0 1px #53645c',
+                                      style?.borderBottom && 'inset 0 -1px #53645c',
+                                      style?.borderLeft && 'inset 1px 0 #53645c',
+                                      style?.borderRight && 'inset -1px 0 #53645c',
+                                    ]),
                               ]
                                 .filter(Boolean)
                                 .join(', ') || undefined,

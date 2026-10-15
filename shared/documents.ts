@@ -27,6 +27,10 @@ export interface SheetCellStyle {
   align?: 'left' | 'center' | 'right';
   numberFormat?: 'general' | 'number' | 'percent' | 'currency';
   border?: boolean;
+  borderTop?: boolean;
+  borderBottom?: boolean;
+  borderLeft?: boolean;
+  borderRight?: boolean;
 }
 export interface SheetPage {
   id: string;
@@ -144,6 +148,10 @@ const sheetCellStyleSchema = z.object({
   italic: z.boolean().optional(),
   underline: z.boolean().optional(),
   border: z.boolean().optional(),
+  borderTop: z.boolean().optional(),
+  borderBottom: z.boolean().optional(),
+  borderLeft: z.boolean().optional(),
+  borderRight: z.boolean().optional(),
   color: z
     .string()
     .regex(/^#[0-9a-f]{6}$/i)

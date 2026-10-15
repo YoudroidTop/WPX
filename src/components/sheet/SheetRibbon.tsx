@@ -57,6 +57,7 @@ export default function SheetRibbon({
   onTabChange,
   currentStyle,
   onStyleChange,
+  onApplyBorder,
   onClearContent,
   onClearFormat,
   usedColors = [],
@@ -253,6 +254,7 @@ export default function SheetRibbon({
               <SheetBorderDropdown
                 currentBorder={currentStyle.border}
                 onChange={(hasBorder) => onStyleChange({ border: hasBorder })}
+                onApplyBorder={onApplyBorder}
                 trigger={
                   <button
                     className={`ribbon-icon-btn ribbon-dropdown-trigger ${currentStyle.border ? 'active' : ''}`}

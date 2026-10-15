@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { contentSchema, type SheetPage, type SheetContent } from '../shared/documents';
-import { formatSelection, formatCellValue } from '../shared/sheet-format';
+import { formatSelection, formatCellValue, applyBorderSelection } from '../shared/sheet-format';
 import { parseSelection, clearSelection } from '../shared/sheet-selection';
 import { changeSheetStructure } from '../shared/sheet-structure';
 import { exportOffice, importOffice } from '../server/office';
@@ -80,4 +80,63 @@ test('basic styles survive validation and XLSX roundtrip, including styled blank
   assert.deepEqual(imported.sheets[0].styles, doc.sheets[0].styles);
   assert.equal(imported.sheets[0].cells.A1, '0.25');
   assert.equal(imported.sheets[0].cells.B1, '=A1*2');
+});
+
+test('applyBorderSelection outside borders only perimeter and preserves inner cells without borders', () => {
+  const page: SheetPage = {
+    id: 's',
+    name: 'Sheet',
+    cells: {},
+    styles: {},
+  };
+  // 3x3 selection: B2:D4
+  const range = parseSelection('B2:D4')!;
+  const next = applyBorderSelection(page, range, 'outside');
+
+  // Corners
+  assert.deepEqual(next.styles?.B2, { borderTop: true, borderLeft: true });
+  assert.deepEqual(next.styles?.D2, { borderTop: true, borderRight: true });
+  assert.deepEqual(next.styles?.B4, { borderBottom: true, borderLeft: true });
+  assert.deepEqual(next.styles?.D4, { borderBottom: true, borderRight: true });
+
+  // Edges
+  assert.deepEqual(next.styles?.C2, { borderTop: true });
+  assert.deepEqual(next.styles?.B3, { borderLeft: true });
+  assert.deepEqual(next.styles?.D3, { borderRight: true });
+  assert.deepEqual(next.styles?.C4, { borderBottom: true });
+
+  // Center (inner cell): MUST NOT have borders!
+  assert.equal(next.styles?.C3, undefined);
+
+  // Clearing borders
+  const cleared = applyBorderSelection(next, range, 'none');
+  assert.equal(cleared.styles?.B2, undefined);
+  assert.equal(cleared.styles?.C2, undefined);
+  assert.equal(cleared.styles?.D4, undefined);
+});
+
+test('directional borders survive validation and XLSX export round trip', async () => {
+  const doc: SheetContent = {
+    type: 'sheet',
+    sheets: [
+      {
+        id: 's',
+        name: 'Sheet',
+        cells: { B2: 'Outer' },
+        styles: {
+          B2: { borderTop: true, borderLeft: true },
+          C2: { borderTop: true },
+          D2: { borderTop: true, borderRight: true },
+        },
+      },
+    ],
+  };
+  assert.deepEqual(contentSchema.parse(doc), doc);
+  const exported = await exportOffice(doc);
+  const imported = await importOffice('test-border.xlsx', exported);
+  assert.equal(imported.type, 'sheet');
+  if (imported.type !== 'sheet') return;
+  assert.deepEqual(imported.sheets[0].styles?.B2, { borderTop: true, borderLeft: true });
+  assert.deepEqual(imported.sheets[0].styles?.C2, { borderTop: true });
+  assert.deepEqual(imported.sheets[0].styles?.D2, { borderTop: true, borderRight: true });
 });

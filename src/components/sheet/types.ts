@@ -33,6 +33,7 @@ export interface SheetRibbonProps {
   // Cell styles & formatting
   currentStyle: SheetCellStyle;
   onStyleChange: (patch: SheetCellStyle) => void;
+  onApplyBorder?: (type: string) => void;
   onClearContent: () => void;
   onClearFormat: () => void;
   usedColors?: string[];

@@ -1,5 +1,10 @@
 import type { SheetCellStyle, SheetPage } from './documents';
-import { selectionCells, type SheetSelection } from './sheet-selection';
+import {
+  cellAddress,
+  selectionBounds,
+  selectionCells,
+  type SheetSelection,
+} from './sheet-selection';
 
 export const numberFormats = {
   general: 'General',
@@ -18,6 +23,68 @@ export function formatSelection(
     if (patch === null) delete styles[address];
     else styles[address] = { ...styles[address], ...patch };
   }
+  return { ...sheet, styles };
+}
+
+export function applyBorderSelection(
+  sheet: SheetPage,
+  selection: SheetSelection,
+  borderType: string,
+): SheetPage {
+  const bounds = selectionBounds(selection);
+  const styles = { ...sheet.styles };
+
+  for (let r = bounds.top; r <= bounds.bottom; r++) {
+    for (let c = bounds.left; c <= bounds.right; c++) {
+      const addr = cellAddress({ row: r, col: c });
+      const current: SheetCellStyle = { ...(styles[addr] ?? {}) };
+
+      if (borderType === 'none') {
+        delete current.border;
+        delete current.borderTop;
+        delete current.borderBottom;
+        delete current.borderLeft;
+        delete current.borderRight;
+      } else if (borderType === 'all') {
+        current.border = true;
+        delete current.borderTop;
+        delete current.borderBottom;
+        delete current.borderLeft;
+        delete current.borderRight;
+      } else if (borderType === 'outside' || borderType === 'thick-outside') {
+        delete current.border;
+        if (r === bounds.top) current.borderTop = true;
+        else delete current.borderTop;
+
+        if (r === bounds.bottom) current.borderBottom = true;
+        else delete current.borderBottom;
+
+        if (c === bounds.left) current.borderLeft = true;
+        else delete current.borderLeft;
+
+        if (c === bounds.right) current.borderRight = true;
+        else delete current.borderRight;
+      } else if (borderType === 'top') {
+        if (r === bounds.top) current.borderTop = true;
+      } else if (borderType === 'bottom' || borderType === 'double-bottom') {
+        if (r === bounds.bottom) current.borderBottom = true;
+      } else if (borderType === 'left') {
+        if (c === bounds.left) current.borderLeft = true;
+      } else if (borderType === 'right') {
+        if (c === bounds.right) current.borderRight = true;
+      }
+
+      const hasKeys = (Object.keys(current) as (keyof SheetCellStyle)[]).some(
+        (k) => current[k] !== undefined,
+      );
+      if (hasKeys) {
+        styles[addr] = current;
+      } else {
+        delete styles[addr];
+      }
+    }
+  }
+
   return { ...sheet, styles };
 }
 
