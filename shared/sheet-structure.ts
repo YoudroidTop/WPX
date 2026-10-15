@@ -1,4 +1,10 @@
-import { columnName, MAX_ROWS, MAX_COLUMNS, type SheetPage } from './documents';
+import {
+  columnName,
+  MAX_ROWS,
+  MAX_COLUMNS,
+  type SheetAutoFilter,
+  type SheetPage,
+} from './documents';
 import { parseSelection, cellAddress } from './sheet-selection';
 import { shiftFrozenBoundary } from './sheet-view';
 
@@ -97,6 +103,39 @@ export function shiftRange(
     to = cellAddress({ row: bottom, col: right });
   return from === to ? from : `${from}:${to}`;
 }
+/**
+ * Moves an AutoFilter with a structure change. Column criteria are re-keyed to their new
+ * letters; deleting the header row or every filtered column removes the filter.
+ */
+function shiftAutoFilter(
+  filter: SheetAutoFilter,
+  axis: Axis,
+  at: number,
+  count: number,
+  operation: Operation,
+): SheetAutoFilter | null {
+  const header = parseSelection(filter.range)?.anchor.row;
+  if (
+    axis === 'row' &&
+    operation === 'delete' &&
+    header !== undefined &&
+    header >= at &&
+    header < at + count
+  )
+    return null;
+  const range = shiftRange(filter.range, axis, at, count, operation);
+  if (!range) return null;
+  if (axis === 'row') return { ...filter, range };
+  const columns: SheetAutoFilter['columns'] = {};
+  for (const [letter, criteria] of Object.entries(filter.columns)) {
+    const col = parseSelection(`${letter}1`)?.anchor.col;
+    if (col === undefined) continue;
+    if (operation === 'delete' && col >= at && col < at + count) continue;
+    const next = col >= at ? col + (operation === 'insert' ? count : -count) : col;
+    if (next <= MAX_COLUMNS - 1) columns[columnName(next)] = criteria;
+  }
+  return { range, columns };
+}
 export function changeSheetStructure(
   sheet: SheetPage,
   axis: Axis,
@@ -144,6 +183,8 @@ export function changeSheetStructure(
     const range = shiftRange(validation.range, axis, at, count, operation);
     return range ? [{ ...validation, range }] : [];
   });
+  const autoFilter =
+    sheet.autoFilter && shiftAutoFilter(sheet.autoFilter, axis, at, count, operation);
   const dimensions = axis === 'row' ? sheet.rowHeights : sheet.columnWidths;
   const shifted: Record<string, number> = {};
   for (const [key, value] of Object.entries(dimensions ?? {})) {
@@ -153,7 +194,7 @@ export function changeSheetStructure(
       coordinate >= at ? coordinate + (operation === 'insert' ? count : -count) : coordinate;
     if (next <= limit) shifted[String(next)] = value;
   }
-  return {
+  const next: SheetPage = {
     ...sheet,
     cells,
     ...(sheet.styles ? { styles } : {}),
@@ -177,6 +218,9 @@ export function changeSheetStructure(
       : {}),
     ...(dimensions ? { [axis === 'row' ? 'rowHeights' : 'columnWidths']: shifted } : {}),
   };
+  if (autoFilter) next.autoFilter = autoFilter;
+  else delete next.autoFilter;
+  return next;
 }
 export function validSheetName(name: string, sheets: SheetPage[], ownId?: string) {
   return (

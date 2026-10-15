@@ -3876,3 +3876,111 @@ hr {
   font-size: 14px;
   background: #fff;
 }
+.has-filter input {
+  padding-right: 22px;
+}
+.sheet-filter-trigger {
+  position: absolute;
+  top: 50%;
+  right: 3px;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  color: #425348;
+  background: #fff;
+  border: 1px solid #c9d4c4;
+  border-radius: 3px;
+  z-index: 2;
+  cursor: pointer;
+}
+.sheet-filter-trigger:hover {
+  background: #eef5ea;
+}
+.sheet-filter-trigger.active {
+  color: #fff;
+  background: var(--green);
+  border-color: var(--green);
+}
+.row-number.filtered-heading button {
+  color: #1f5fbf;
+}
+.sheet-filter-menu {
+  position: fixed;
+  z-index: 60;
+  width: 240px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  background: #fff;
+  border: 1px solid #dce4d5;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px #17271f20;
+  font-size: 13px;
+}
+.sheet-filter-sort {
+  display: flex;
+  gap: 6px;
+}
+.sheet-filter-sort button {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: #2f3d33;
+  background: #f5f8f3;
+  border: 1px solid #dce4d5;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.sheet-filter-sort button:hover {
+  background: #eef5ea;
+}
+.sheet-filter-menu input[type='search'] {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid #c9d4c4;
+  border-radius: 4px;
+  font-size: 13px;
+}
+.sheet-filter-values {
+  max-height: 200px;
+  overflow: auto;
+  display: grid;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid #edf1ea;
+  border-radius: 4px;
+}
+.sheet-filter-values label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sheet-filter-empty {
+  margin: 4px;
+  color: #7a877e;
+}
+.sheet-filter-menu .modal-buttons {
+  margin-top: 0;
+}
+.sheet-filter-menu .modal-buttons button {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.sheet-filter-values label.modal-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 4px;
+  cursor: pointer;
+}
+.sheet-filter-values label.modal-checkbox:hover {
+  background: #f3f7f1;
+}
+.sheet-filter-values .modal-checkbox input {
+  width: auto;
+  margin: 0;
+}

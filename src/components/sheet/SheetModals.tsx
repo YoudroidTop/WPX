@@ -188,10 +188,9 @@ const TITLES: Record<InsertDialogType, string> = {
 
 /**
  * Features that need new persisted structures (validation rules, comments, floating
- * objects, filter state…). They stay visible but never write placeholder text into cells.
+ * objects…). They stay visible but never write placeholder text into cells.
  */
 const UNSUPPORTED: Partial<Record<InsertDialogType, string>> = {
-  filter: '自动筛选需要保存筛选条件与隐藏行',
   image: '图片需要独立的浮动对象与文件存储',
   pivot: '透视表需要生成并维护独立的汇总工作表',
   textbox: '文本框需要独立的浮动对象',

@@ -10,8 +10,9 @@ import {
   type SheetValidation,
   type SheetValidationRule,
 } from '../shared/documents';
-import { parseSelection, type CellPoint } from '../shared/sheet-selection';
+import { cellAddress, parseSelection, type CellPoint } from '../shared/sheet-selection';
 import { numberFormats } from '../shared/sheet-format';
+import { boundsLabel, rangeBounds } from '../shared/sheet-validation';
 
 export function writeCellStyle(cell: ExcelJS.Cell, style: SheetCellStyle) {
   cell.font = {
@@ -239,4 +240,14 @@ export function readValidations(ws: ExcelJS.Worksheet): SheetValidation[] {
     }
   }
   return result;
+}
+
+/** Reads a worksheet's AutoFilter range ("A1:D20"), if it fits within the sheet limits. */
+export function readAutoFilterRange(filter: ExcelJS.Worksheet['autoFilter']): string | null {
+  if (!filter) return null;
+  const end = (ref: string | { row: number; column: number }) =>
+    typeof ref === 'string' ? ref : cellAddress({ row: ref.row, col: ref.column - 1 });
+  const range = typeof filter === 'string' ? filter : `${end(filter.from)}:${end(filter.to)}`;
+  const bounds = rangeBounds(range.replaceAll('$', ''));
+  return bounds ? boundsLabel(bounds) : null;
 }

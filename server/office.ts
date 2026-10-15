@@ -1,5 +1,6 @@
 import {
   readCellNote,
+  readAutoFilterRange,
   readCellStyle,
   readValidations,
   writeCellStyle,
@@ -21,6 +22,8 @@ import {
   AlignmentType,
 } from 'docx';
 import { randomUUID } from 'node:crypto';
+import { filterBounds, filteredRows } from '../shared/sheet-filter';
+import { boundsLabel } from '../shared/sheet-validation';
 import {
   contentSchema,
   MAX_COLUMNS,
@@ -139,6 +142,12 @@ export async function exportOffice(content: DocumentContent): Promise<Buffer> {
         cell.note = comment.text;
       }
       writeValidations(ws, sheet.validations ?? []);
+      const filter = filterBounds(sheet);
+      if (filter) {
+        // Only the range and the resulting hidden rows round-trip; criteria stay app-side.
+        ws.autoFilter = boundsLabel(filter);
+        for (const row of filteredRows(sheet, calculate)) ws.getRow(row).hidden = true;
+      }
       ws.columns?.forEach((column) => {
         column.width = 18;
       });
@@ -274,6 +283,7 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
           rowHeights[row.number] = Math.max(24, Math.min(300, Math.round(row.height / 0.75)));
       });
       const validations = readValidations(ws);
+      const autoFilter = readAutoFilterRange(ws.autoFilter);
       const frozen = ws.views?.find((view) => view.state === 'frozen');
       return {
         id: randomUUID(),
@@ -288,6 +298,7 @@ export async function importOffice(filename: string, bytes: Buffer): Promise<Doc
         ...(Object.keys(styles).length ? { styles } : {}),
         ...(Object.keys(comments).length ? { comments } : {}),
         ...(validations.length ? { validations } : {}),
+        ...(autoFilter ? { autoFilter: { range: autoFilter, columns: {} } } : {}),
         ...(Object.keys(columnWidths).length ? { columnWidths } : {}),
         ...(Object.keys(rowHeights).length ? { rowHeights } : {}),
       };

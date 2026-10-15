@@ -10,6 +10,7 @@ export const MAX_SHEET_COMMENTS = 500;
 export const MAX_COMMENT_LENGTH = 1000;
 export const MAX_SHEET_VALIDATIONS = 50;
 export const MAX_LIST_OPTIONS = 50;
+export const MAX_FILTER_HIDDEN_VALUES = 200;
 export type DocumentKind = 'word' | 'sheet' | 'slide';
 export interface RichNode {
   type: string;
@@ -54,6 +55,12 @@ export interface SheetValidation {
   rule: SheetValidationRule;
   mode: 'stop' | 'warning';
 }
+export interface SheetAutoFilter {
+  /** Header row plus data rows, e.g. "A1:D20"; data appended directly below is included too. */
+  range: string;
+  /** Keyed by column letter; lists the display values whose rows are hidden ('' = blanks). */
+  columns: Record<string, { hidden: string[] }>;
+}
 export interface SheetPage {
   id: string;
   name: string;
@@ -65,6 +72,7 @@ export interface SheetPage {
   columnWidths?: Record<string, number>;
   comments?: Record<string, SheetComment>;
   validations?: SheetValidation[];
+  autoFilter?: SheetAutoFilter;
 }
 export interface SheetContent {
   type: 'sheet';
@@ -230,6 +238,13 @@ const sheetValidationSchema = z.object({
   rule: sheetValidationRuleSchema,
   mode: z.enum(['stop', 'warning']),
 });
+const sheetAutoFilterSchema = z.object({
+  range: rangeSchema,
+  columns: z.record(
+    z.string().regex(/^(?:[A-Z]|A[A-Z])$/),
+    z.object({ hidden: z.array(z.string().max(255)).max(MAX_FILTER_HIDDEN_VALUES) }),
+  ),
+});
 const sheetCommentSchema = z.object({
   text: z.string().min(1).max(MAX_COMMENT_LENGTH),
   author: z.string().max(64).optional(),
@@ -265,6 +280,7 @@ const nativeContentSchema = z.discriminatedUnion('type', [
             .record(z.string().regex(/^(?:[0-9]|[1-4][0-9]|5[01])$/), z.number().min(48).max(600))
             .optional(),
           validations: z.array(sheetValidationSchema).max(MAX_SHEET_VALIDATIONS).optional(),
+          autoFilter: sheetAutoFilterSchema.optional(),
           comments: z
             .record(z.string().regex(cellAddress), sheetCommentSchema)
             .refine((comments) => Object.keys(comments).length <= MAX_SHEET_COMMENTS, {

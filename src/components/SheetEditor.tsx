@@ -11,6 +11,15 @@ import SheetRibbon from './sheet/SheetRibbon';
 import { fontStack } from './sheet/SheetFontDropdown';
 import { CommentBubble, CommentModal } from './sheet/SheetComments';
 import { invalidMessage, ListPopover, ValidationModal } from './sheet/SheetValidation';
+import { FilterMenu } from './sheet/SheetFilter';
+import {
+  createAutoFilter,
+  filterBounds,
+  filterColumnValues,
+  filteredRows,
+  removeAutoFilter,
+  setColumnFilter,
+} from '../../shared/sheet-filter';
 import {
   applyValidation,
   clearValidation,
@@ -55,7 +64,7 @@ import {
   type PointerEvent,
   type KeyboardEvent,
 } from 'react';
-import { Plus, FunctionSquare } from 'lucide-react';
+import { Plus, FunctionSquare, ChevronDown, Filter } from 'lucide-react';
 import {
   columnName,
   MAX_CELL_LENGTH,
@@ -122,6 +131,8 @@ export default function SheetEditor({
   const [hoverComment, setHoverComment] = useState<string | null>(null);
   const [validationDialog, setValidationDialog] = useState<'list' | 'number' | null>(null);
   const [listOpen, setListOpen] = useState(false);
+  const [filterMenu, setFilterMenu] = useState<number | null>(null);
+  const closeFilterMenu = useCallback(() => setFilterMenu(null), []);
   const closeList = useCallback(() => setListOpen(false), []);
   function onChange(next: SheetContent) {
     history.current.undo.push(content);
@@ -362,6 +373,30 @@ export default function SheetEditor({
   const invalid = useMemo(() => invalidCells(sheet, calculate), [sheet, calculate]);
   const anchorValidation = validationAt(sheet.validations, selection.anchor);
   const anchorList = anchorValidation?.rule.type === 'list' ? anchorValidation.rule.options : null;
+  const filterArea = useMemo(() => filterBounds(sheet), [sheet]);
+  const hiddenRows = useMemo(() => filteredRows(sheet, calculate), [sheet, calculate]);
+  const filteredColumns = new Set(
+    Object.entries(sheet.autoFilter?.columns ?? {})
+      .filter(([, column]) => column.hidden.length)
+      .map(([letter]) => letter),
+  );
+
+  function toggleAutoFilter() {
+    setFilterMenu(null);
+    if (sheet.autoFilter) {
+      replaceSheet(removeAutoFilter(sheet));
+      setPasteError('');
+      return;
+    }
+    const next = createAutoFilter(sheet, selection);
+    if (!next) {
+      setPasteError('请先选中包含表头和至少一行数据的区域。');
+      return;
+    }
+    setPasteError('');
+    setEditing(null);
+    replaceSheet(next);
+  }
 
   // Data validation runs when an edit commits (the cell leaves edit mode), comparing with
   // the value from before the edit started; per-keystroke checks would block typing.
@@ -482,6 +517,15 @@ export default function SheetEditor({
         row: Math.max(1, Math.min(rows, origin.row + dr)),
         col: Math.max(0, Math.min(columns - 1, origin.col + dc)),
       };
+      // Rows hidden by the filter are skipped; stay put if only hidden rows lie ahead.
+      while (dr && hiddenRows.has(point.row)) {
+        const next = point.row + Math.sign(dr);
+        if (next < 1 || next > rows) {
+          point.row = origin.row;
+          break;
+        }
+        point.row = next;
+      }
       select(point, event.shiftKey && !!arrows[event.key]);
       focusCell(point);
     }
@@ -605,8 +649,20 @@ export default function SheetEditor({
     onChange({ ...content, sheets: content.sheets.map((s) => (s.id === sheet.id ? next : s)) });
   }
 
-  function handleSort(direction: 'asc' | 'desc') {
-    const range = dataRange(sheet.cells, selection);
+  function handleSort(
+    direction: 'asc' | 'desc',
+    sortCol = selection.anchor.col,
+    fromFilter = false,
+  ) {
+    const anchor = selection.anchor;
+    // Inside a filter area, sort the filter's data rows and keep its header in place.
+    const range =
+      filterArea &&
+      (fromFilter || (anchor.row >= filterArea.top && anchor.row <= filterArea.bottom)) &&
+      sortCol >= filterArea.left &&
+      sortCol <= filterArea.right
+        ? { bounds: filterArea, hasHeader: true }
+        : dataRange(sheet.cells, selection);
     if (!range) {
       setPasteError('请先选中需要排序的数据区域。');
       return;
@@ -615,7 +671,7 @@ export default function SheetEditor({
     setEditing(null);
     replaceSheet(
       sortSheetRows(sheet, range.bounds, direction, {
-        sortCol: selection.anchor.col,
+        sortCol,
         hasHeader: range.hasHeader,
       }),
     );
@@ -684,7 +740,9 @@ export default function SheetEditor({
     if (payload.kind === 'import') {
       const rows = parseDelimitedText(payload.text);
       // Sanitize tabs/newlines inside quoted fields so the TSV round-trip stays rectangular.
-      const tsv = rows.map((row) => row.map((v) => v.replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+      const tsv = rows
+        .map((row) => row.map((v) => v.replace(/[\t\r\n]+/g, ' ')).join('\t'))
+        .join('\n');
       const result = pasteSheetCells(sheet.cells, tsv, selection.anchor.row, selection.anchor.col);
       if (!result.ok) {
         setPasteError('导入内容超出工作表或单元格长度上限，原表格未修改。');
@@ -803,7 +861,13 @@ export default function SheetEditor({
         formatPainterActive={!!painterStyle}
         onToggleFormatPainter={toggleFormatPainter}
         onOpenChart={setChartKind}
-        onOpenDataTool={setDataTool}
+        onOpenDataTool={(type) => {
+          if (type === 'duplicates' && hiddenRows.size) {
+            setPasteError('筛选隐藏了部分行，请先清除筛选条件再删除重复项。');
+            return;
+          }
+          setDataTool(type);
+        }}
         onClearFormat={() =>
           onChange({
             ...content,
@@ -849,7 +913,9 @@ export default function SheetEditor({
               ? setValidationDialog('list')
               : type === 'validation'
                 ? setValidationDialog('number')
-                : setInsertModalType(type)
+                : type === 'filter'
+                  ? toggleAutoFilter()
+                  : setInsertModalType(type)
         }
         onTextToNumber={handleTextToNumber}
         onRecalculate={handleRecalculate}
@@ -981,6 +1047,7 @@ export default function SheetEditor({
           <tbody>
             {Array.from({ length: rows }, (_, index) => {
               const row = index + 1;
+              if (hiddenRows.has(row)) return null;
               return (
                 <tr key={row} style={{ height: heightOf(row) }}>
                   {viewSettings.showHeadings && (
@@ -989,7 +1056,7 @@ export default function SheetEditor({
                         top: row <= frozenRows ? rowOffsets.offsets[row - 1] : undefined,
                         zIndex: row <= frozenRows ? 6 : 2,
                       }}
-                      className={`row-number ${row >= bounds.top && row <= bounds.bottom ? 'selected-heading' : ''}`}
+                      className={`row-number ${row >= bounds.top && row <= bounds.bottom ? 'selected-heading' : ''} ${hiddenRows.size && filterArea && row > filterArea.top && row <= filterArea.bottom ? 'filtered-heading' : ''}`}
                     >
                       <button
                         aria-label={`选择第 ${row} 行`}
@@ -1011,6 +1078,11 @@ export default function SheetEditor({
                     const address = `${columnName(col)}${row}`,
                       value = calculate(address),
                       style = sheet.styles?.[address],
+                      isFilterHeader =
+                        !!filterArea &&
+                        row === filterArea.top &&
+                        col >= filterArea.left &&
+                        col <= filterArea.right,
                       isCrosshair =
                         viewSettings.highlightRowCol &&
                         (row === selection.anchor.row || col === selection.anchor.col);
@@ -1018,7 +1090,7 @@ export default function SheetEditor({
                       <td
                         key={address}
                         data-cell={address}
-                        className={`${selected === address ? 'selected-cell' : ''} ${sheet.comments?.[address] ? 'has-comment' : ''} ${inSelection(visualSelection, { row, col }) ? 'range-cell' : ''} ${typeof value === 'string' && value.startsWith('#') ? 'cell-error' : ''} ${invalid.has(address) ? 'cell-invalid' : ''} ${isCrosshair ? 'highlight-crosshair' : ''}`}
+                        className={`${selected === address ? 'selected-cell' : ''} ${sheet.comments?.[address] ? 'has-comment' : ''} ${isFilterHeader ? 'has-filter' : ''} ${inSelection(visualSelection, { row, col }) ? 'range-cell' : ''} ${typeof value === 'string' && value.startsWith('#') ? 'cell-error' : ''} ${invalid.has(address) ? 'cell-invalid' : ''} ${isCrosshair ? 'highlight-crosshair' : ''}`}
                         data-range={
                           inSelection(visualSelection, { row, col }) ? 'selected' : undefined
                         }
@@ -1126,7 +1198,26 @@ export default function SheetEditor({
                           onKeyDown={(event) => keyboard(event, row, col)}
                           onPaste={(event) => paste(event, row, col)}
                         />
-                        {!editing && anchorList && selected === address && (
+                        {isFilterHeader && (
+                          <button
+                            className={`sheet-filter-trigger ${filteredColumns.has(columnName(col)) ? 'active' : ''}`}
+                            aria-label={`筛选 ${columnName(col)} 列`}
+                            aria-expanded={filterMenu === col}
+                            onPointerDown={(event) => event.stopPropagation()}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setEditing(null);
+                              setFilterMenu((open) => (open === col ? null : col));
+                            }}
+                          >
+                            {filteredColumns.has(columnName(col)) ? (
+                              <Filter size={11} />
+                            ) : (
+                              <ChevronDown size={12} />
+                            )}
+                          </button>
+                        )}
+                        {!editing && anchorList && selected === address && !isFilterHeader && (
                           <button
                             className="sheet-list-trigger"
                             aria-label="打开下拉选项 (Alt+↓)"
@@ -1330,6 +1421,22 @@ export default function SheetEditor({
           onClose={() => setChartKind(null)}
         />
       )}
+      {filterMenu !== null && filterArea && (
+        <FilterMenu
+          key={filterMenu}
+          address={cellAddress({ row: filterArea.top, col: filterMenu })}
+          columnLabel={
+            String(calculate(cellAddress({ row: filterArea.top, col: filterMenu }))) ||
+            `${columnName(filterMenu)} 列`
+          }
+          values={filterColumnValues(sheet, calculate, filterMenu)}
+          hidden={sheet.autoFilter?.columns[columnName(filterMenu)]?.hidden ?? []}
+          grid={grid}
+          onApply={(hidden) => replaceSheet(setColumnFilter(sheet, filterMenu, hidden))}
+          onSort={(direction) => handleSort(direction, filterMenu, true)}
+          onClose={closeFilterMenu}
+        />
+      )}
       {dataTool && (
         <DataToolDialog
           type={dataTool}
@@ -1347,6 +1454,12 @@ export default function SheetEditor({
           {selectionLabel(selection)} · {bounds.bottom - bounds.top + 1} 行 ×{' '}
           {bounds.right - bounds.left + 1} 列
         </span>
+        {hiddenRows.size > 0 && filterArea && (
+          <span>
+            筛选：显示 {filterArea.bottom - filterArea.top - hiddenRows.size} /{' '}
+            {filterArea.bottom - filterArea.top} 条
+          </span>
+        )}
         <span className="selection-statistics">
           计数 {stats.count}
           {stats.numericCount > 0 &&

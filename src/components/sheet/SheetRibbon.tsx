@@ -679,7 +679,7 @@ export default function SheetRibbon({
               </button>
               <button
                 className="ribbon-btn-icon"
-                title="开启自动筛选"
+                title="开启或关闭自动筛选"
                 onClick={() => onOpenInsertDialog('filter')}
               >
                 <Filter size={14} />
