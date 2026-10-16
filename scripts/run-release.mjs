@@ -37,7 +37,9 @@ export function iosDevices(physical, simulated) {
     ...(physical.result?.devices || [])
       .filter(
         (d) =>
-          d.connectionProperties?.tunnelState === 'connected' &&
+          d.connectionProperties?.tunnelState !== 'unavailable' &&
+          (d.connectionProperties?.tunnelState === 'connected' ||
+            d.connectionProperties?.pairingState === 'paired') &&
           d.hardwareProperties?.platform === 'iOS',
       )
       .map((d) => ({
@@ -257,8 +259,9 @@ async function main() {
         ...(device.simulator
           ? ['CODE_SIGNING_ALLOWED=NO']
           : [
+              '-allowProvisioningUpdates',
+              '-allowProvisioningDeviceRegistration',
               `DEVELOPMENT_TEAM=${process.env.APPLE_TEAM_ID || 'Y4MB2B6UD3'}`,
-              'CODE_SIGN_IDENTITY=Apple Development',
             ]),
         'build',
       ]);
