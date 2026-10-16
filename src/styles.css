@@ -2096,6 +2096,12 @@ hr {
   background: #f0f5ec;
   border-color: #b7ceb4;
 }
+.color-special-btn.selected {
+  background: #e2f2e5;
+  border-color: #1b784d;
+  color: #1b784d;
+  font-weight: 600;
+}
 .no-color-slash {
   width: 14px;
   height: 14px;
@@ -2198,6 +2204,15 @@ hr {
   background: #f0f6ed;
   border-color: #bcd4bb;
   color: #1b784d;
+}
+.border-preset-btn.active {
+  background: #e2f2e5;
+  border-color: #1b784d;
+  color: #1b784d;
+  font-weight: 600;
+}
+.border-preset-btn.active .border-icon {
+  filter: drop-shadow(0 0 1px #1b784d);
 }
 .border-icon {
   width: 20px;

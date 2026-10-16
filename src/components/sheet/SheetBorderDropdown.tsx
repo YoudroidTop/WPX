@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Sparkles, Grid } from 'lucide-react';
+import type { SheetCellStyle } from '../../../shared/documents';
 
 export const BORDER_OPTIONS = [
   { id: 'none', label: '无边框', hasBorder: false },
@@ -15,13 +16,31 @@ export const BORDER_OPTIONS = [
 
 interface BorderDropdownProps {
   currentBorder?: boolean;
+  currentStyle?: SheetCellStyle;
   onApplyBorder?: (type: string) => void;
   onChange?: (hasBorder: boolean) => void;
   trigger: React.ReactNode;
 }
 
+export function resolveActiveBorderPreset(
+  currentStyle?: SheetCellStyle,
+  currentBorder?: boolean,
+): string {
+  if (!currentStyle) return currentBorder ? 'all' : 'none';
+  if (currentStyle.border) return 'all';
+  const { borderTop, borderBottom, borderLeft, borderRight } = currentStyle;
+  if (borderTop && borderBottom && borderLeft && borderRight) return 'outside';
+  if (borderTop && !borderBottom && !borderLeft && !borderRight) return 'top';
+  if (borderBottom && !borderTop && !borderLeft && !borderRight) return 'bottom';
+  if (borderLeft && !borderTop && !borderBottom && !borderRight) return 'left';
+  if (borderRight && !borderTop && !borderBottom && !borderLeft) return 'right';
+  if (!borderTop && !borderBottom && !borderLeft && !borderRight) return 'none';
+  return '';
+}
+
 export default function SheetBorderDropdown({
   currentBorder,
+  currentStyle,
   onApplyBorder,
   onChange,
   trigger,
@@ -30,16 +49,23 @@ export default function SheetBorderDropdown({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: PointerEvent | MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     }
     if (open) {
-      document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('pointerdown', handleClickOutside, true);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('pointerdown', handleClickOutside, true);
+    };
   }, [open]);
+
+  const activePreset: string = useMemo(
+    () => resolveActiveBorderPreset(currentStyle, currentBorder),
+    [currentStyle, currentBorder],
+  );
 
   function handleSelect(id: string) {
     if (onApplyBorder) {
@@ -62,7 +88,7 @@ export default function SheetBorderDropdown({
           <div className="border-icons-row">
             <button
               type="button"
-              className="border-preset-btn"
+              className={`border-preset-btn ${activePreset === 'none' ? 'active' : ''}`}
               title="无边框"
               onClick={() => handleSelect('none')}
             >
@@ -72,7 +98,7 @@ export default function SheetBorderDropdown({
 
             <button
               type="button"
-              className="border-preset-btn active"
+              className={`border-preset-btn ${activePreset === 'all' ? 'active' : ''}`}
               title="所有框线 (全边框)"
               onClick={() => handleSelect('all')}
             >
@@ -82,7 +108,7 @@ export default function SheetBorderDropdown({
 
             <button
               type="button"
-              className="border-preset-btn"
+              className={`border-preset-btn ${activePreset === 'outside' ? 'active' : ''}`}
               title="外侧框线"
               onClick={() => handleSelect('outside')}
             >
@@ -92,7 +118,7 @@ export default function SheetBorderDropdown({
 
             <button
               type="button"
-              className="border-preset-btn"
+              className={`border-preset-btn ${activePreset === 'thick-outside' ? 'active' : ''}`}
               title="粗外侧框线"
               onClick={() => handleSelect('thick-outside')}
             >
@@ -102,7 +128,7 @@ export default function SheetBorderDropdown({
 
             <button
               type="button"
-              className="border-preset-btn"
+              className={`border-preset-btn ${activePreset === 'double-bottom' ? 'active' : ''}`}
               title="双底框线"
               onClick={() => handleSelect('double-bottom')}
             >
@@ -115,7 +141,7 @@ export default function SheetBorderDropdown({
           <div className="border-icons-row">
             <button
               type="button"
-              className="border-preset-btn"
+              className={`border-preset-btn ${activePreset === 'bottom' ? 'active' : ''}`}
               title="下框线"
               onClick={() => handleSelect('bottom')}
             >
@@ -125,7 +151,7 @@ export default function SheetBorderDropdown({
 
             <button
               type="button"
-              className="border-preset-btn"
+              className={`border-preset-btn ${activePreset === 'top' ? 'active' : ''}`}
               title="上框线"
               onClick={() => handleSelect('top')}
             >
@@ -135,7 +161,7 @@ export default function SheetBorderDropdown({
 
             <button
               type="button"
-              className="border-preset-btn"
+              className={`border-preset-btn ${activePreset === 'left' ? 'active' : ''}`}
               title="左框线"
               onClick={() => handleSelect('left')}
             >
@@ -145,7 +171,7 @@ export default function SheetBorderDropdown({
 
             <button
               type="button"
-              className="border-preset-btn"
+              className={`border-preset-btn ${activePreset === 'right' ? 'active' : ''}`}
               title="右框线"
               onClick={() => handleSelect('right')}
             >

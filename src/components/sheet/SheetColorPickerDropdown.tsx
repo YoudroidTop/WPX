@@ -50,15 +50,17 @@ export default function SheetColorPickerDropdown({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: PointerEvent | MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     }
     if (open) {
-      document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('pointerdown', handleClickOutside, true);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('pointerdown', handleClickOutside, true);
+    };
   }, [open]);
 
   function handleSelect(color: string | undefined) {
@@ -81,7 +83,7 @@ export default function SheetColorPickerDropdown({
           {type === 'fill' ? (
             <button
               type="button"
-              className="color-special-btn no-color-btn"
+              className={`color-special-btn no-color-btn ${!currentColor ? 'selected' : ''}`}
               onClick={() => handleSelect(undefined)}
             >
               <span className="no-color-slash" />
@@ -90,7 +92,7 @@ export default function SheetColorPickerDropdown({
           ) : (
             <button
               type="button"
-              className="color-special-btn auto-color-btn"
+              className={`color-special-btn auto-color-btn ${!currentColor || currentColor.toLowerCase() === '#000000' ? 'selected' : ''}`}
               onClick={() => handleSelect('#000000')}
             >
               <span className="auto-color-swatch" />

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { THEME_COLOR_MATRIX, STANDARD_COLORS } from '../src/components/sheet/SheetColorPickerDropdown';
-import { BORDER_OPTIONS } from '../src/components/sheet/SheetBorderDropdown';
+import { BORDER_OPTIONS, resolveActiveBorderPreset } from '../src/components/sheet/SheetBorderDropdown';
 import { SYSTEM_FONTS } from '../src/components/sheet/SheetFontDropdown';
 
 test('SheetColorPickerDropdown has valid 6x10 theme color matrix and standard colors', () => {
@@ -41,4 +41,24 @@ test('SheetFontDropdown provides curated font list with English and Chinese name
   assert.ok(song, 'Must include SimSun/SongTi');
   const arial = SYSTEM_FONTS.find((f) => f.name.includes('Arial'));
   assert.ok(arial, 'Must include Arial');
+});
+
+test('resolveActiveBorderPreset accurately identifies active border type from cell style', () => {
+  assert.equal(resolveActiveBorderPreset(undefined, false), 'none');
+  assert.equal(resolveActiveBorderPreset(undefined, true), 'all');
+  assert.equal(resolveActiveBorderPreset({ border: true }), 'all');
+  assert.equal(
+    resolveActiveBorderPreset({
+      borderTop: true,
+      borderBottom: true,
+      borderLeft: true,
+      borderRight: true,
+    }),
+    'outside',
+  );
+  assert.equal(resolveActiveBorderPreset({ borderTop: true }), 'top');
+  assert.equal(resolveActiveBorderPreset({ borderBottom: true }), 'bottom');
+  assert.equal(resolveActiveBorderPreset({ borderLeft: true }), 'left');
+  assert.equal(resolveActiveBorderPreset({ borderRight: true }), 'right');
+  assert.equal(resolveActiveBorderPreset({}), 'none');
 });

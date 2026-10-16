@@ -1078,6 +1078,26 @@ export default function SheetEditor({
                     const address = `${columnName(col)}${row}`,
                       value = calculate(address),
                       style = sheet.styles?.[address],
+                      rightStyle =
+                        col < columns - 1
+                          ? sheet.styles?.[`${columnName(col + 1)}${row}`]
+                          : undefined,
+                      downStyle =
+                        row < rows ? sheet.styles?.[`${columnName(col)}${row + 1}`] : undefined,
+                      hasRight = Boolean(
+                        style?.border ||
+                          style?.borderRight ||
+                          rightStyle?.border ||
+                          rightStyle?.borderLeft,
+                      ),
+                      hasBottom = Boolean(
+                        style?.border ||
+                          style?.borderBottom ||
+                          downStyle?.border ||
+                          downStyle?.borderTop,
+                      ),
+                      hasTop = row === 1 && Boolean(style?.border || style?.borderTop),
+                      hasLeft = col === 0 && Boolean(style?.border || style?.borderLeft),
                       isFilterHeader =
                         !!filterArea &&
                         row === filterArea.top &&
@@ -1096,6 +1116,11 @@ export default function SheetEditor({
                         }
                         style={{
                           ...frozenCellStyle(row, col),
+                          borderRightColor: hasRight ? '#53645c' : undefined,
+                          borderBottomColor: hasBottom ? '#53645c' : undefined,
+                          borderTop: hasTop ? '1px solid #53645c' : undefined,
+                          borderLeft: hasLeft ? '1px solid #53645c' : undefined,
+                          backgroundColor: style?.fill,
                           ...(inSelection(visualSelection, { row, col })
                             ? {
                                 boxShadow:
@@ -1162,18 +1187,6 @@ export default function SheetEditor({
                                   : []),
                                 row === frozenRows && 'inset 0 -2px #8b9d92',
                                 col === frozenColumns - 1 && 'inset -2px 0 #8b9d92',
-                                ...(style?.border ||
-                                (style?.borderTop &&
-                                  style?.borderBottom &&
-                                  style?.borderLeft &&
-                                  style?.borderRight)
-                                  ? ['inset 0 0 0 1px #53645c']
-                                  : [
-                                      style?.borderTop && 'inset 0 1px #53645c',
-                                      style?.borderBottom && 'inset 0 -1px #53645c',
-                                      style?.borderLeft && 'inset 1px 0 #53645c',
-                                      style?.borderRight && 'inset -1px 0 #53645c',
-                                    ]),
                               ]
                                 .filter(Boolean)
                                 .join(', ') || undefined,

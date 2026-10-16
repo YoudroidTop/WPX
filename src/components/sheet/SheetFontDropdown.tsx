@@ -60,15 +60,17 @@ export default function SheetFontDropdown({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: PointerEvent | MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setOpen(false);
       }
     }
     if (open) {
-      document.addEventListener('mousedown', handleClickOutside);
+      window.addEventListener('pointerdown', handleClickOutside, true);
     }
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => {
+      window.removeEventListener('pointerdown', handleClickOutside, true);
+    };
   }, [open]);
 
   const filtered = SYSTEM_FONTS.filter((f) =>

@@ -273,11 +273,20 @@ export default function SheetRibbon({
               {/* 边框下拉菜单 */}
               <SheetBorderDropdown
                 currentBorder={currentStyle.border}
+                currentStyle={currentStyle}
                 onChange={(hasBorder) => onStyleChange({ border: hasBorder })}
                 onApplyBorder={onApplyBorder}
                 trigger={
                   <button
-                    className={`ribbon-icon-btn ribbon-dropdown-trigger ${currentStyle.border ? 'active' : ''}`}
+                    className={`ribbon-icon-btn ribbon-dropdown-trigger ${
+                      currentStyle.border ||
+                      currentStyle.borderTop ||
+                      currentStyle.borderBottom ||
+                      currentStyle.borderLeft ||
+                      currentStyle.borderRight
+                        ? 'active'
+                        : ''
+                    }`}
                     title="设置边框"
                   >
                     <Grid size={15} />
