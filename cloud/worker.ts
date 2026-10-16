@@ -205,9 +205,31 @@ export class Documents extends DurableObject<Env> {
     return guarded(async () => {
       const store = this.documents;
       if (request.method === 'GET') return readDocumentRequest(request, store);
+      const url = new URL(request.url);
+      if (url.pathname === '/api/folders' && request.method === 'POST') {
+        const body = (await request.json()) as { name?: string; parentId?: string | null };
+        if (!body.name || !body.name.trim()) throw new ApiError(400, '文件夹名称不能为空');
+        return json(store.createFolder(body.name, body.parentId), 201);
+      }
+      const folderMatch = url.pathname.match(/^\/api\/folders\/([^/]+)$/);
+      if (folderMatch) {
+        const folderId = folderMatch[1];
+        if (request.method === 'PATCH') {
+          const body = (await request.json()) as {
+            name?: string;
+            parentId?: string | null;
+            deleted?: boolean;
+          };
+          return json(store.updateFolder(folderId, body));
+        }
+        if (request.method === 'DELETE') {
+          store.removeFolder(folderId);
+          return new Response(null, { status: 204 });
+        }
+      }
       const mutation = await parseDocumentMutation(request);
       if (mutation?.kind === 'create')
-        return json(store.create(mutation.name, mutation.content), 201);
+        return json(store.create(mutation.name, mutation.content, mutation.folderId), 201);
       if (mutation?.kind === 'update')
         return json(store.update(mutation.id, mutation.revision, mutation.patch));
       if (mutation?.kind === 'remove') {
@@ -259,9 +281,14 @@ export default {
       }
       const result = await documents.fetch(request);
       if (url.pathname === '/api/documents' && request.method === 'GET' && result.ok) {
-        const payload = (await result.json()) as { documents: unknown; usedBytes: number };
+        const payload = (await result.json()) as {
+          documents: unknown;
+          folders: unknown;
+          usedBytes: number;
+        };
         return json({
           documents: payload.documents,
+          folders: payload.folders,
           account: { ...account, usedBytes: payload.usedBytes, limitBytes: STORAGE_LIMIT },
         });
       }
