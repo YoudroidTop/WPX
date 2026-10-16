@@ -5,7 +5,7 @@ test('native mobile chrome keeps three editors usable across phone and tablet si
 }) => {
   await page.goto('/');
   await page.evaluate(() => document.documentElement.classList.add('native-mobile'));
-  await page.getByRole('button', { name: '创建免费账号' }).click();
+  await page.getByRole('button', { name: '创建免费账号' }).first().click();
   await page.getByLabel('怎么称呼你').fill('移动创作者');
   await page.getByLabel('邮箱地址').fill(`mobile-layout-${crypto.randomUUID()}@example.com`);
   await page.getByLabel('密码', { exact: true }).fill('mobile-test-password');
@@ -54,7 +54,7 @@ for (const size of [
     await page.evaluate(() => document.documentElement.classList.add('native-mobile'));
     const email = `account-layout-${crypto.randomUUID()}@example.com`;
     const password = 'account-layout-test-password';
-    await page.getByRole('button', { name: '创建免费账号' }).click();
+    await page.getByRole('button', { name: '创建免费账号' }).first().click();
     await page.getByLabel('怎么称呼你').fill('Account Layout QA');
     await page.getByLabel('邮箱地址').fill(email);
     await page.getByLabel('密码', { exact: true }).fill(password);

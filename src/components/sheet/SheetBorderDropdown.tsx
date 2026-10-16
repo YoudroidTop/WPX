@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Sparkles, Grid } from 'lucide-react';
 import type { SheetCellStyle } from '../../../shared/documents';
 
@@ -47,18 +48,43 @@ export default function SheetBorderDropdown({
 }: BorderDropdownProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    function updatePos() {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const popoverWidth = 240;
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - popoverWidth - 8));
+      setPos({ top: rect.bottom + 4, left });
+    }
+    updatePos();
+
     function handleClickOutside(event: PointerEvent | MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
+      const target = event.target as Node;
+      if (
+        (containerRef.current && containerRef.current.contains(target)) ||
+        (popoverRef.current && popoverRef.current.contains(target))
+      ) {
+        return;
       }
+      setOpen(false);
     }
-    if (open) {
-      window.addEventListener('pointerdown', handleClickOutside, true);
+    function handleScroll() {
+      setOpen(false);
     }
+    window.addEventListener('pointerdown', handleClickOutside, true);
+    window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+    window.addEventListener('resize', updatePos, { passive: true });
     return () => {
       window.removeEventListener('pointerdown', handleClickOutside, true);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', updatePos);
     };
   }, [open]);
 
@@ -82,8 +108,12 @@ export default function SheetBorderDropdown({
         {trigger}
       </div>
 
-      {open && (
-        <div className="border-popover">
+      {open && pos && createPortal(
+        <div
+          ref={popoverRef}
+          className="border-popover"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
+        >
           {/* Row 1: Common border presets */}
           <div className="border-icons-row">
             <button
@@ -191,7 +221,8 @@ export default function SheetBorderDropdown({
             <Sparkles size={14} />
             <span>一键美化表格框线</span>
           </button>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

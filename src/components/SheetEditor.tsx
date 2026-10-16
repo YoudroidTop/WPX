@@ -1201,13 +1201,18 @@ export default function SheetEditor({
                                 ? ''
                                 : formatCellValue(value, style)
                           }
-                          readOnly={editing !== address}
+                          onFocus={() => {
+                            select({ row, col });
+                          }}
                           onCompositionStart={() => {
                             select({ row, col });
                             setEditing(address);
                           }}
                           onBlur={() => setEditing(null)}
-                          onChange={(event) => setCell(address, event.target.value)}
+                          onChange={(event) => {
+                            setEditing(address);
+                            setCell(address, event.target.value);
+                          }}
                           onKeyDown={(event) => keyboard(event, row, col)}
                           onPaste={(event) => paste(event, row, col)}
                         />

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 async function register(page: Page) {
   await page.goto('/');
-  await page.getByRole('button', { name: '创建免费账号' }).click();
+  await page.getByRole('button', { name: '创建免费账号' }).first().click();
   await page.getByLabel('怎么称呼你').fill('林间');
   await page.getByLabel('邮箱地址').fill(`qa-${crypto.randomUUID()}@example.com`);
   await page.getByLabel('密码', { exact: true }).fill('browser-test-password');

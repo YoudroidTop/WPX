@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, Check } from 'lucide-react';
 
 export const SYSTEM_FONTS = [
@@ -58,18 +59,43 @@ export default function SheetFontDropdown({
   const [open, setOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
+    if (!open) {
+      setPos(null);
+      return;
+    }
+    function updatePos() {
+      if (!containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const popoverWidth = 200;
+      const left = Math.max(8, Math.min(rect.left, window.innerWidth - popoverWidth - 8));
+      setPos({ top: rect.bottom + 4, left });
+    }
+    updatePos();
+
     function handleClickOutside(event: PointerEvent | MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        setOpen(false);
+      const target = event.target as Node;
+      if (
+        (containerRef.current && containerRef.current.contains(target)) ||
+        (popoverRef.current && popoverRef.current.contains(target))
+      ) {
+        return;
       }
+      setOpen(false);
     }
-    if (open) {
-      window.addEventListener('pointerdown', handleClickOutside, true);
+    function handleScroll() {
+      setOpen(false);
     }
+    window.addEventListener('pointerdown', handleClickOutside, true);
+    window.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+    window.addEventListener('resize', updatePos, { passive: true });
     return () => {
       window.removeEventListener('pointerdown', handleClickOutside, true);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', updatePos);
     };
   }, [open]);
 
@@ -95,8 +121,12 @@ export default function SheetFontDropdown({
         {trigger}
       </div>
 
-      {open && (
-        <div className="font-dropdown-popover">
+      {open && pos && createPortal(
+        <div
+          ref={popoverRef}
+          className="font-dropdown-popover"
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999 }}
+        >
           {/* Top search box */}
           <div className="font-search-box">
             <Search size={13} />
@@ -149,7 +179,8 @@ export default function SheetFontDropdown({
               );
             })}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
