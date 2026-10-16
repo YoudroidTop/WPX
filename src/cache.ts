@@ -81,6 +81,26 @@ export async function cacheResponse(path: string, value: any, method: string) {
     if (value.folders) await database.put('entries', value.folders, `${ownerKey()}:folders`);
     await rememberAccount(value.account);
   }
+  if (path === '/folders' && method === 'POST' && value && value.id) {
+    const key = `${ownerKey()}:folders`;
+    const previous = ((await database.get('entries', key)) as FolderSummary[] | undefined) ?? [];
+    await database.put('entries', [value, ...previous.filter((f) => f.id !== value.id)], key);
+  }
+  if (path.startsWith('/folders/') && method === 'PATCH' && value && value.id) {
+    const key = `${ownerKey()}:folders`;
+    const previous = ((await database.get('entries', key)) as FolderSummary[] | undefined) ?? [];
+    await database.put('entries', [value, ...previous.filter((f) => f.id !== value.id)], key);
+  }
+  if (path.startsWith('/folders/') && method === 'DELETE') {
+    const id = path.split('/').pop()!;
+    const key = `${ownerKey()}:folders`;
+    const previous = ((await database.get('entries', key)) as FolderSummary[] | undefined) ?? [];
+    await database.put(
+      'entries',
+      previous.filter((f) => f.id !== id),
+      key,
+    );
+  }
   if (method === 'DELETE' && /^\/documents\/[^/]+$/.test(path)) {
     const id = path.split('/').pop()!;
     await database.delete('entries', `${ownerKey()}:${path}`);

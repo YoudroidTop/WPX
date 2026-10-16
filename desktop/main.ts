@@ -71,7 +71,7 @@ async function handleRequest(request: Request): Promise<Response> {
   if (url.pathname.startsWith('/api/')) {
     if (!cloudOrigin) return errorResponse('请先连接卓乐云文档服务');
     const headers: Record<string, string> = { Origin: cloudOrigin };
-    for (const key of ['content-type', 'x-filename']) {
+    for (const key of ['content-type', 'x-filename', 'x-folder-id']) {
       const value = request.headers.get(key);
       if (value) headers[key] = value;
     }
