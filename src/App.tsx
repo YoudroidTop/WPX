@@ -37,9 +37,10 @@ import {
   type DocumentSummary,
 } from '../shared/documents';
 import Auth from './components/Auth';
+import LandingPage from './components/LandingPage';
 import { listDrafts, isOffline, clearSyncedDocumentCache, type LocalDraft } from './cache';
 import { synchronizeDrafts } from './sync';
-import { nativeBridge, nativeCommand, openNativeFile } from './platform';
+import { isNative, nativeBridge, nativeCommand, openNativeFile } from './platform';
 import Editor from './components/Editor';
 import { KindIcon, Logo, Modal } from './components/ui';
 
@@ -262,13 +263,22 @@ export default function App() {
         <span>正在打开你的工作空间…</span>
       </div>
     );
-  if (!account)
+  if (!account) {
+    if (isNative) {
+      return (
+        <>
+          <Auth onLogin={setAccount} />
+          {toastNode}
+        </>
+      );
+    }
     return (
       <>
-        <Auth onLogin={setAccount} />
+        <LandingPage onLogin={setAccount} onNotify={notify} />
         {toastNode}
       </>
     );
+  }
   if (opened)
     return (
       <>

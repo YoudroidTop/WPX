@@ -1,12 +1,19 @@
-import { isMobile } from '../mobile';
 import { useState, type FormEvent } from 'react';
-import { ArrowUpRight, Cloud, Check, ArrowRight } from 'lucide-react';
+import { ArrowUpRight, Cloud, Check, ArrowRight, ArrowLeft } from 'lucide-react';
+import { isMobile } from '../mobile';
 import { api } from '../api';
 import { isNative } from '../platform';
 import type { Account } from '../../shared/documents';
 import { Logo, KindIcon } from './ui';
-export default function Auth({ onLogin }: { onLogin: (account: Account) => void }) {
-  const [register, setRegister] = useState(false),
+
+interface AuthProps {
+  onLogin: (account: Account) => void;
+  initialRegister?: boolean;
+  onBackToLanding?: () => void;
+}
+
+export default function Auth({ onLogin, initialRegister = false, onBackToLanding }: AuthProps) {
+  const [register, setRegister] = useState(initialRegister),
     [busy, setBusy] = useState(false),
     [error, setError] = useState('');
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -94,6 +101,17 @@ export default function Auth({ onLogin }: { onLogin: (account: Account) => void 
           卓乐文档 / {isMobile ? 'MOBILE EDITION' : isNative ? 'DESKTOP EDITION' : 'WEB EDITION'}
         </span>
         <div className="auth-form-wrap">
+          {onBackToLanding && (
+            <button
+              type="button"
+              className="auth-back-btn"
+              onClick={onBackToLanding}
+              aria-label="返回产品首页"
+            >
+              <ArrowLeft size={15} />
+              <span>返回产品官网</span>
+            </button>
+          )}
           <span className="small-tag">为你的创造留一个位置</span>
           <h2>{register ? '开启你的云端工作空间' : '欢迎回来'}</h2>
           <p>
