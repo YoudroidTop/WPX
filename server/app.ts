@@ -155,17 +155,33 @@ export function createApp({
     res.status(204).end();
   });
   app.get('/api/documents', (req, res) =>
-    res.json({ documents: store.list(req.user.id), account: account(store, req.user) }),
+    res.json({
+      documents: store.list(req.user.id),
+      folders: store.listFolders(req.user.id),
+      account: account(store, req.user),
+    }),
   );
   app.post('/api/documents', (req, res) => {
     const input = z
-      .object({ kind: z.enum(['word', 'sheet', 'slide']), name, content: contentSchema.optional() })
+      .object({
+        kind: z.enum(['word', 'sheet', 'slide']),
+        name,
+        content: contentSchema.optional(),
+        folderId: z.string().nullable().optional(),
+      })
       .parse(req.body);
     if (input.content && input.content.type !== input.kind)
       throw new ApiError(400, '文档类型不匹配');
     res
       .status(201)
-      .json(store.create(req.user.id, input.name, input.content ?? blankContent(input.kind)));
+      .json(
+        store.create(
+          req.user.id,
+          input.name,
+          input.content ?? blankContent(input.kind),
+          input.folderId ?? null,
+        ),
+      );
   });
   app.post(
     '/api/documents/import',
@@ -174,6 +190,9 @@ export function createApp({
       if (!Buffer.isBuffer(req.body) || req.body.length === 0)
         throw new ApiError(400, '请选择非空文件');
       const filename = z.string().min(1).max(500).parse(req.headers['x-filename']);
+      const folderHeader = req.headers['x-folder-id'];
+      const folderId =
+        typeof folderHeader === 'string' && folderHeader.trim() ? folderHeader.trim() : null;
       const decoded = decodeURIComponent(filename);
       let content;
       try {
@@ -187,9 +206,28 @@ export function createApp({
           .replace(/\.[^.]+$/, '')
           .slice(0, 100)
           .trim() || '导入的文档';
-      res.status(201).json(store.create(req.user.id, title, content));
+      res.status(201).json(store.create(req.user.id, title, content, folderId));
     },
   );
+  app.get('/api/folders', (req, res) => res.json(store.listFolders(req.user.id)));
+  app.post('/api/folders', (req, res) => {
+    const input = z.object({ name, parentId: z.string().nullable().optional() }).parse(req.body);
+    res.status(201).json(store.createFolder(req.user.id, input.name, input.parentId ?? null));
+  });
+  app.patch('/api/folders/:id', (req, res) => {
+    const input = z
+      .object({
+        name: name.optional(),
+        parentId: z.string().nullable().optional(),
+        deleted: z.boolean().optional(),
+      })
+      .parse(req.body);
+    res.json(store.updateFolder(req.user.id, String(req.params.id), input));
+  });
+  app.delete('/api/folders/:id', (req, res) => {
+    store.removeFolder(req.user.id, String(req.params.id));
+    res.status(204).end();
+  });
   app.get('/api/documents/:id', (req, res) =>
     res.json(store.get(req.user.id, String(req.params.id))),
   );
@@ -201,6 +239,7 @@ export function createApp({
         content: contentSchema.optional(),
         starred: z.boolean().optional(),
         deleted: z.boolean().optional(),
+        folderId: z.string().nullable().optional(),
       })
       .parse(req.body);
     res.json(store.update(req.user.id, String(req.params.id), input.revision, input));

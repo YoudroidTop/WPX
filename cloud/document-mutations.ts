@@ -17,16 +17,28 @@ export async function parseDocumentMutation(
   const path = new URL(request.url).pathname;
   if (path === '/api/documents' && request.method === 'POST') {
     const input = z
-      .object({ name, kind: z.enum(['word', 'sheet', 'slide']), content: contentSchema.optional() })
+      .object({
+        name,
+        kind: z.enum(['word', 'sheet', 'slide']),
+        content: contentSchema.optional(),
+        folderId: z.string().nullable().optional(),
+      })
       .parse(await body(request));
     if (input.content && input.content.type !== input.kind)
       throw new ApiError(400, '文档类型不匹配');
-    return { kind: 'create', name: input.name, content: input.content ?? blankContent(input.kind) };
+    return {
+      kind: 'create',
+      name: input.name,
+      content: input.content ?? blankContent(input.kind),
+      ...(input.folderId ? { folderId: input.folderId } : {}),
+    };
   }
   if (path === '/api/documents/import' && request.method === 'POST') {
     const filename = decodeURIComponent(
       z.string().min(1).max(500).parse(request.headers.get('x-filename')),
     );
+    const folderHeader = request.headers.get('x-folder-id');
+    const folderId = folderHeader && folderHeader.trim() ? folderHeader.trim() : null;
     const bytes = await bounded(request, MAX_IMPORT_BYTES);
     if (!bytes.length) throw new ApiError(400, '请选择非空文件');
     let content;
@@ -44,6 +56,7 @@ export async function parseDocumentMutation(
           .slice(0, 100)
           .trim() || '导入的文档',
       content,
+      ...(folderId ? { folderId } : {}),
     };
   }
   const match = path.match(/^\/api\/documents\/([^/]+)$/);
@@ -56,9 +69,11 @@ export async function parseDocumentMutation(
         content: contentSchema.optional(),
         starred: z.boolean().optional(),
         deleted: z.boolean().optional(),
+        folderId: z.string().nullable().optional(),
       })
       .parse(await body(request));
     const { revision: expected, ...patch } = input;
+    if (patch.folderId === undefined) delete patch.folderId;
     return { kind: 'update', id: match[1], revision: expected, patch };
   }
   if (request.method === 'DELETE')

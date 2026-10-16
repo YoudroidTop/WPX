@@ -21,7 +21,11 @@ import {
   RotateCcw,
   Pencil,
   Check,
+  Folder,
   FolderOpen,
+  FolderPlus,
+  FolderInput,
+  CornerUpLeft,
   ArrowDownWideNarrow,
 } from 'lucide-react';
 import { api, downloadFile } from './api';
@@ -35,6 +39,7 @@ import {
   type CloudDocument,
   type DocumentKind,
   type DocumentSummary,
+  type FolderSummary,
 } from '../shared/documents';
 import Auth from './components/Auth';
 import LandingPage from './components/LandingPage';
@@ -49,6 +54,13 @@ type Dialog =
   | { type: 'rename' | 'delete'; doc: DocumentSummary }
   | { type: 'account' }
   | { type: 'import'; file: File }
+  | { type: 'create-folder'; parentId?: string | null }
+  | { type: 'rename-folder'; folder: FolderSummary }
+  | { type: 'delete-folder'; folder: FolderSummary }
+  | {
+      type: 'move';
+      target: { kind: 'doc'; item: DocumentSummary } | { kind: 'folder'; item: FolderSummary };
+    }
   | null;
 const navigation = [
   { id: 'recent', label: '最近使用', icon: Clock3 },
@@ -61,6 +73,8 @@ export default function App() {
   const [account, setAccount] = useState<Account | null>(null),
     [booting, setBooting] = useState(true);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]),
+    [folders, setFolders] = useState<FolderSummary[]>([]),
+    [currentFolderId, setCurrentFolderId] = useState<string | null>(null),
     [section, setSection] = useState<Section>('recent');
   const [filter, setFilter] = useState<DocumentKind | 'all'>('all'),
     [query, setQuery] = useState('');
@@ -90,7 +104,11 @@ export default function App() {
     refreshing.current = true;
     setLoading(true);
     try {
-      let result = await api<{ account: Account; documents: DocumentSummary[] }>('/documents');
+      let result = await api<{
+        account: Account;
+        documents: DocumentSummary[];
+        folders?: FolderSummary[];
+      }>('/documents');
       if (nativeBridge && !isOffline() && !nativeState.current.opened) {
         const summary = await synchronizeDrafts();
         if (summary.saved) result = await api('/documents');
@@ -100,10 +118,13 @@ export default function App() {
       setLocalDrafts(await listDrafts());
       setAccount(result.account);
       setDocuments(result.documents);
+      setFolders(result.folders ?? []);
     } catch (error) {
       if (error instanceof RequestError && error.status === 401) {
         setAccount(null);
         setDocuments([]);
+        setFolders([]);
+        setCurrentFolderId(null);
         setLocalDrafts([]);
       } else {
         // Local drafts remain available even when the cloud library cannot be read.
@@ -151,11 +172,11 @@ export default function App() {
       setBusy(false);
     }
   }
-  async function create(kind: DocumentKind) {
+  async function create(kind: DocumentKind, folderId: string | null = currentFolderId) {
     await perform(async () => {
       const doc = await api<CloudDocument>('/documents', {
         method: 'POST',
-        body: JSON.stringify({ kind, name: `未命名${kindLabels[kind]}` }),
+        body: JSON.stringify({ kind, name: `未命名${kindLabels[kind]}`, folderId }),
       });
       setOpened(doc);
     });
@@ -171,11 +192,39 @@ export default function App() {
     });
     await refresh();
   }
+  async function createFolder(name: string, parentId: string | null = currentFolderId) {
+    await perform(async () => {
+      await api('/folders', {
+        method: 'POST',
+        body: JSON.stringify({ name, parentId }),
+      });
+      await refresh();
+    });
+  }
+  async function updateFolder(
+    folder: FolderSummary,
+    patch: { name?: string; parentId?: string | null; deleted?: boolean },
+  ) {
+    await api(`/folders/${folder.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+    await refresh();
+  }
+  async function removeFolder(folder: FolderSummary) {
+    await api(`/folders/${folder.id}`, {
+      method: 'DELETE',
+    });
+    if (currentFolderId === folder.id) setCurrentFolderId(folder.parentId ?? null);
+    await refresh();
+  }
   async function logout() {
     await perform(async () => {
       await api('/auth/logout', { method: 'POST' });
       setAccount(null);
       setDocuments([]);
+      setFolders([]);
+      setCurrentFolderId(null);
       setLocalDrafts([]);
       setDialog(null);
     });
@@ -231,14 +280,43 @@ export default function App() {
     window.addEventListener('online', reconnect);
     return () => window.removeEventListener('online', reconnect);
   }, [refresh]);
+
+  const activeFolders = folders.filter((f) => !f.deletedAt);
+  const rootFolders = activeFolders.filter((f) => !f.parentId);
+  const folderPath: FolderSummary[] = [];
+  let currId = currentFolderId;
+  while (currId) {
+    const f = activeFolders.find((item) => item.id === currId);
+    if (!f) break;
+    folderPath.unshift(f);
+    currId = f.parentId;
+  }
+
+  const visibleFolders = activeFolders
+    .filter((f) => {
+      if (section !== 'all') return false;
+      if (query) return f.name.toLowerCase().includes(query.toLowerCase());
+      return (f.parentId ?? null) === currentFolderId;
+    })
+    .sort((a, b) =>
+      sort === 'name' ? a.name.localeCompare(b.name, 'zh') : b.updatedAt - a.updatedAt,
+    );
+
+  const trashFolders = folders
+    .filter((f) => !!f.deletedAt && (!query || f.name.toLowerCase().includes(query.toLowerCase())))
+    .sort((a, b) => b.updatedAt - a.updatedAt);
+
   const visible = documents
-    .filter(
-      (doc) =>
-        (section === 'trash' ? !!doc.deletedAt : !doc.deletedAt) &&
-        (section !== 'starred' || doc.starred) &&
-        (filter === 'all' || doc.kind === filter) &&
-        doc.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
-    )
+    .filter((doc) => {
+      const isDeleted = !!doc.deletedAt;
+      if (section === 'trash') return isDeleted;
+      if (isDeleted) return false;
+      if (section === 'starred') return doc.starred;
+      if (filter !== 'all' && doc.kind !== filter) return false;
+      if (!doc.name.toLocaleLowerCase().includes(query.toLocaleLowerCase())) return false;
+      if (section === 'all' && !query) return (doc.folderId ?? null) === currentFolderId;
+      return true;
+    })
     .sort((a, b) =>
       sort === 'name'
         ? a.name.localeCompare(b.name, 'zh')
@@ -312,22 +390,44 @@ export default function App() {
         <div className="nav-label">工作空间</div>
         <nav aria-label="工作空间导航">
           {navigation.map((item) => (
-            <button
-              key={item.id}
-              className={`nav-item ${section === item.id ? 'active' : ''}`}
-              onClick={() => {
-                setSection(item.id);
-                setMobileNav(false);
-                setFilter('all');
-                setQuery('');
-              }}
-            >
-              <item.icon size={19} />
-              {item.label}
-              {item.id === 'all' && account.usedBytes !== null && (
-                <span className="nav-count">{active.length}</span>
+            <div key={item.id} className={item.id === 'all' ? 'nav-folder-group' : undefined}>
+              <button
+                className={`nav-item ${section === item.id && !currentFolderId ? 'active' : ''}`}
+                onClick={() => {
+                  setSection(item.id);
+                  if (item.id === 'all') setCurrentFolderId(null);
+                  setMobileNav(false);
+                  setFilter('all');
+                  setQuery('');
+                }}
+              >
+                <item.icon size={19} />
+                {item.label}
+                {item.id === 'all' && account.usedBytes !== null && (
+                  <span className="nav-count">{active.length}</span>
+                )}
+              </button>
+              {item.id === 'all' && rootFolders.length > 0 && (
+                <div className="nav-subfolders">
+                  {rootFolders.map((f) => (
+                    <button
+                      key={f.id}
+                      className={`nav-subfolder-item ${section === 'all' && currentFolderId === f.id ? 'active' : ''}`}
+                      onClick={() => {
+                        setSection('all');
+                        setCurrentFolderId(f.id);
+                        setMobileNav(false);
+                        setFilter('all');
+                        setQuery('');
+                      }}
+                    >
+                      <Folder size={14} className="subfolder-icon" />
+                      <span className="subfolder-name">{f.name}</span>
+                    </button>
+                  ))}
+                </div>
               )}
-            </button>
+            </div>
           ))}
         </nav>
         <div className="sidebar-bottom">
@@ -373,9 +473,51 @@ export default function App() {
             <Menu size={20} />
           </button>
           <span className="breadcrumb">
-            个人空间
+            <button
+              className="breadcrumb-link"
+              onClick={() => {
+                setSection('all');
+                setCurrentFolderId(null);
+                setFilter('all');
+                setQuery('');
+              }}
+            >
+              个人空间
+            </button>
             <ChevronRight size={14} />
-            <strong>{navigation.find((n) => n.id === section)?.label}</strong>
+            <button
+              className={`breadcrumb-link ${section === 'all' && !currentFolderId ? 'is-current' : ''}`}
+              onClick={() => {
+                setSection('all');
+                setCurrentFolderId(null);
+                setFilter('all');
+                setQuery('');
+              }}
+            >
+              我的文档
+            </button>
+            {section === 'all' &&
+              folderPath.map((f, i) => (
+                <span key={f.id} className="breadcrumb-segment">
+                  <ChevronRight size={14} />
+                  <button
+                    className={`breadcrumb-link ${i === folderPath.length - 1 ? 'is-current' : ''}`}
+                    onClick={() => {
+                      setCurrentFolderId(f.id);
+                      setFilter('all');
+                      setQuery('');
+                    }}
+                  >
+                    {f.name}
+                  </button>
+                </span>
+              ))}
+            {section !== 'all' && (
+              <>
+                <ChevronRight size={14} />
+                <strong>{navigation.find((n) => n.id === section)?.label}</strong>
+              </>
+            )}
           </span>
           <div className="topbar-right">
             <span className="cloud-status">
@@ -400,22 +542,38 @@ export default function App() {
                   ? '让空间，轻盈一点。'
                   : section === 'starred'
                     ? '重要的想法，放在眼前。'
-                    : `${account.name}，开启今天的好想法。`}
+                    : currentFolderId
+                      ? (folderPath[folderPath.length - 1]?.name ?? '文件夹')
+                      : `${account.name}，开启今天的好想法。`}
               </h1>
               <p>
                 {section === 'trash'
-                  ? '回收站中的文档仍占用空间，永久删除后释放。'
-                  : '写下灵感，理清思路，让每一次创作都自在发生。'}
+                  ? '回收站中的文档与文件夹仍占用空间，永久删除后释放。'
+                  : currentFolderId
+                    ? '整理思绪，分门别类，让好想法井井有条。'
+                    : '写下灵感，理清思路，让每一次创作都自在发生。'}
               </p>
             </div>
-            <button
-              className="secondary upload-button"
-              disabled={busy}
-              onClick={() => upload.current?.click()}
-            >
-              <Upload size={17} />
-              导入文档
-            </button>
+            <div className="welcome-actions">
+              {section !== 'trash' && (
+                <button
+                  className="secondary"
+                  disabled={busy}
+                  onClick={() => setDialog({ type: 'create-folder', parentId: currentFolderId })}
+                >
+                  <FolderPlus size={17} />
+                  新建文件夹
+                </button>
+              )}
+              <button
+                className="secondary upload-button"
+                disabled={busy}
+                onClick={() => upload.current?.click()}
+              >
+                <Upload size={17} />
+                导入文档
+              </button>
+            </div>
           </section>
           <input
             ref={upload}
@@ -541,9 +699,19 @@ export default function App() {
           <section className="documents-section">
             <div className="section-heading">
               <h2>
-                {section === 'trash' ? '回收站' : section === 'starred' ? '星标文档' : '我的文档'}
+                {section === 'trash'
+                  ? '回收站'
+                  : section === 'starred'
+                    ? '星标文档'
+                    : currentFolderId
+                      ? (folderPath[folderPath.length - 1]?.name ?? '文件夹')
+                      : '我的文档'}
                 {account.usedBytes !== null && (
-                  <span className="count-pill">{visible.length}</span>
+                  <span className="count-pill">
+                    {visible.length +
+                      visibleFolders.length +
+                      (section === 'trash' ? trashFolders.length : 0)}
+                  </span>
                 )}
               </h2>
               <div className="view-toggle">
@@ -565,6 +733,19 @@ export default function App() {
                 </button>
               </div>
             </div>
+            {section === 'all' && currentFolderId && (
+              <button
+                className="back-folder-button"
+                onClick={() => {
+                  const parent = folders.find((f) => f.id === currentFolderId);
+                  setCurrentFolderId(parent?.parentId ?? null);
+                }}
+              >
+                <CornerUpLeft size={16} />
+                <span>返回上一级</span>
+                <span className="muted">· 当前目录：{folderPath[folderPath.length - 1]?.name}</span>
+              </button>
+            )}
             <div className="document-controls">
               <div className="filter-tabs" aria-label="文档类型筛选">
                 {(['all', ...kindOptions] as const).map((kind) => (
@@ -583,7 +764,7 @@ export default function App() {
                   <Search size={17} />
                   <input
                     aria-label="搜索文档"
-                    placeholder="搜索你的文档"
+                    placeholder="搜索你的文档与文件夹"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                   />
@@ -601,7 +782,7 @@ export default function App() {
                     onChange={(e) => setSort(e.target.value)}
                   >
                     <option value="updated">最近修改</option>
-                    <option value="name">文档名称</option>
+                    <option value="name">名称排序</option>
                     <option value="size">文件大小</option>
                   </select>
                 </label>
@@ -609,7 +790,9 @@ export default function App() {
             </div>
             {loading && documents.length === 0 ? (
               <div className="empty-state">正在读取云端文档…</div>
-            ) : visible.length === 0 ? (
+            ) : visibleFolders.length === 0 &&
+              visible.length === 0 &&
+              (section !== 'trash' || trashFolders.length === 0) ? (
               <div className="empty-state">
                 <span className="empty-icon">
                   <FolderOpen size={33} strokeWidth={1.3} />
@@ -618,12 +801,14 @@ export default function App() {
                   {account.usedBytes === null
                     ? '云空间暂时不可用'
                     : query
-                      ? '没有找到匹配的文档'
+                      ? '没有找到匹配的文档或文件夹'
                       : section === 'trash'
                         ? '回收站空空的，很清爽'
                         : section === 'starred'
                           ? '把重要文档标个星吧'
-                          : '第一份好想法，从这里开始'}
+                          : currentFolderId
+                            ? '文件夹是空的'
+                            : '第一份好想法，从这里开始'}
                 </h3>
                 <p>
                   {account.usedBytes === null
@@ -633,143 +818,329 @@ export default function App() {
                       : section === 'starred'
                         ? '点击文档旁的星标，让它随时触手可及。'
                         : section === 'trash'
-                          ? '移入回收站的文档会显示在这里。'
-                          : '新建一份文档，或导入已有的 Office 文件。'}
+                          ? '移入回收站的文档和文件夹会显示在这里。'
+                          : currentFolderId
+                            ? '可以在当前文件夹下新建文档或上传文件。'
+                            : '新建一份文档，或导入已有的 Office 文件。'}
                 </p>
                 {account.usedBytes !== null &&
                   !query &&
                   section !== 'trash' &&
                   section !== 'starred' && (
-                    <button
-                      className="text-button"
-                      disabled={busy}
-                      onClick={() => void create('word')}
-                    >
-                      新建第一份文档 <Plus size={15} />
-                    </button>
+                    <div className="welcome-actions" style={{ marginTop: 12 }}>
+                      <button
+                        className="text-button"
+                        disabled={busy}
+                        onClick={() => void create('word')}
+                      >
+                        新建第一份文档 <Plus size={15} />
+                      </button>
+                      <button
+                        className="text-button"
+                        disabled={busy}
+                        onClick={() =>
+                          setDialog({ type: 'create-folder', parentId: currentFolderId })
+                        }
+                      >
+                        新建文件夹 <FolderPlus size={15} />
+                      </button>
+                    </div>
                   )}
               </div>
             ) : (
               <div className={grid ? 'file-grid' : 'file-list'}>
                 {!grid && (
                   <div className="file-list-header">
-                    <span>文档名称</span>
+                    <span>名称</span>
                     <span>最近修改</span>
                     <span>大小</span>
                     <span />
                   </div>
                 )}
-                {visible.map((doc) => (
-                  <div key={doc.id} className="file-row">
-                    <button
-                      className="file-name"
-                      disabled={busy || !!doc.deletedAt}
-                      onClick={() => void open(doc)}
-                    >
-                      <KindIcon kind={doc.kind} small />
-                      <span>
-                        <strong>{doc.name}</strong>
-                        <small>
-                          {extensions[doc.kind].toUpperCase()} · {kindLabels[doc.kind]}
-                        </small>
-                      </span>
-                    </button>
-                    <span className="file-date">
-                      {new Date(doc.updatedAt).toLocaleString('zh-CN', {
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                    <span className="file-size">{formatBytes(doc.size)}</span>
-                    <div className="file-actions">
-                      {!doc.deletedAt && (
-                        <button
-                          className={`icon-button ${doc.starred ? 'starred' : ''}`}
-                          aria-label={`${doc.starred ? '取消星标' : '星标'} ${doc.name}`}
-                          disabled={busy}
-                          onClick={() => void perform(() => update(doc, { starred: !doc.starred }))}
-                        >
-                          <Star size={16} fill={doc.starred ? 'currentColor' : 'none'} />
-                        </button>
-                      )}
+                {visibleFolders.map((folder) => {
+                  const childDocs = documents.filter(
+                    (d) => !d.deletedAt && d.folderId === folder.id,
+                  );
+                  const childFolders = activeFolders.filter((f) => f.parentId === folder.id);
+                  const count = childDocs.length + childFolders.length;
+                  return (
+                    <div key={folder.id} className="file-row folder-row">
                       <button
-                        className="icon-button"
-                        aria-label={`更多操作 ${doc.name}`}
-                        aria-expanded={menu === doc.id}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setMenu(menu === doc.id ? null : doc.id);
+                        className="file-name"
+                        disabled={busy}
+                        onClick={() => {
+                          setCurrentFolderId(folder.id);
+                          setQuery('');
                         }}
                       >
-                        <MoreHorizontal size={19} />
+                        <span className="folder-icon-wrapper">
+                          <Folder size={18} />
+                        </span>
+                        <span>
+                          <strong>{folder.name}</strong>
+                          <small>文件夹 · {count} 项</small>
+                        </span>
                       </button>
-                      {menu === doc.id && (
-                        <div className="dropdown" onClick={(e) => e.stopPropagation()}>
-                          {doc.deletedAt ? (
-                            <>
-                              <button
-                                disabled={busy}
-                                onClick={() => {
-                                  setMenu(null);
-                                  void perform(() => update(doc, { deleted: false }));
-                                }}
-                              >
-                                <RotateCcw size={15} />
-                                恢复文档
-                              </button>
-                              <button
-                                className="danger"
-                                onClick={() => {
-                                  setMenu(null);
-                                  setDialog({ type: 'delete', doc });
-                                }}
-                              >
-                                <Trash2 size={15} />
-                                永久删除
-                              </button>
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => {
-                                  setMenu(null);
-                                  setDialog({ type: 'rename', doc });
-                                }}
-                              >
-                                <Pencil size={15} />
-                                重命名
-                              </button>
-                              <button
-                                disabled={busy}
-                                onClick={() => {
-                                  setMenu(null);
-                                  void perform(async () => {
-                                    await downloadFile(doc.id, doc.name, extensions[doc.kind]);
-                                  });
-                                }}
-                              >
-                                <Download size={15} />
-                                下载 {extensions[doc.kind].toUpperCase()}
-                              </button>
-                              <button
-                                disabled={busy}
-                                onClick={() => {
-                                  setMenu(null);
-                                  void perform(() => update(doc, { deleted: true }));
-                                }}
-                              >
-                                <Trash2 size={15} />
-                                移入回收站
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      )}
+                      <span className="file-date">
+                        {new Date(folder.updatedAt).toLocaleString('zh-CN', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      <span className="file-size">-</span>
+                      <div className="file-actions">
+                        <button
+                          className="icon-button"
+                          aria-label={`更多操作 ${folder.name}`}
+                          aria-expanded={menu === folder.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenu(menu === folder.id ? null : folder.id);
+                          }}
+                        >
+                          <MoreHorizontal size={19} />
+                        </button>
+                        {menu === folder.id && (
+                          <div className="dropdown" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => {
+                                setMenu(null);
+                                setCurrentFolderId(folder.id);
+                              }}
+                            >
+                              <FolderOpen size={15} />
+                              打开文件夹
+                            </button>
+                            <button
+                              onClick={() => {
+                                setMenu(null);
+                                setDialog({ type: 'rename-folder', folder });
+                              }}
+                            >
+                              <Pencil size={15} />
+                              重命名
+                            </button>
+                            <button
+                              onClick={() => {
+                                setMenu(null);
+                                setDialog({
+                                  type: 'move',
+                                  target: { kind: 'folder', item: folder },
+                                });
+                              }}
+                            >
+                              <FolderInput size={15} />
+                              移动到…
+                            </button>
+                            <button
+                              disabled={busy}
+                              onClick={() => {
+                                setMenu(null);
+                                void perform(() => updateFolder(folder, { deleted: true }));
+                              }}
+                            >
+                              <Trash2 size={15} />
+                              移入回收站
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
+                {section === 'trash' &&
+                  trashFolders.map((folder) => (
+                    <div key={folder.id} className="file-row folder-row">
+                      <div className="file-name">
+                        <span className="folder-icon-wrapper">
+                          <Folder size={18} />
+                        </span>
+                        <span>
+                          <strong>{folder.name}</strong>
+                          <small>已删除文件夹</small>
+                        </span>
+                      </div>
+                      <span className="file-date">
+                        {new Date(folder.updatedAt).toLocaleString('zh-CN', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      <span className="file-size">-</span>
+                      <div className="file-actions">
+                        <button
+                          className="icon-button"
+                          aria-label={`更多操作 ${folder.name}`}
+                          aria-expanded={menu === folder.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setMenu(menu === folder.id ? null : folder.id);
+                          }}
+                        >
+                          <MoreHorizontal size={19} />
+                        </button>
+                        {menu === folder.id && (
+                          <div className="dropdown" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              disabled={busy}
+                              onClick={() => {
+                                setMenu(null);
+                                void perform(() => updateFolder(folder, { deleted: false }));
+                              }}
+                            >
+                              <RotateCcw size={15} />
+                              恢复文件夹
+                            </button>
+                            <button
+                              className="danger"
+                              onClick={() => {
+                                setMenu(null);
+                                setDialog({ type: 'delete-folder', folder });
+                              }}
+                            >
+                              <Trash2 size={15} />
+                              永久删除
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                {visible.map((doc) => {
+                  const parentFolder = doc.folderId
+                    ? folders.find((f) => f.id === doc.folderId)
+                    : null;
+                  return (
+                    <div key={doc.id} className="file-row">
+                      <button
+                        className="file-name"
+                        disabled={busy || !!doc.deletedAt}
+                        onClick={() => void open(doc)}
+                      >
+                        <KindIcon kind={doc.kind} small />
+                        <span>
+                          <strong>{doc.name}</strong>
+                          <small>
+                            {extensions[doc.kind].toUpperCase()} · {kindLabels[doc.kind]}
+                            {parentFolder && section !== 'all' && <> · 📁 {parentFolder.name}</>}
+                          </small>
+                        </span>
+                      </button>
+                      <span className="file-date">
+                        {new Date(doc.updatedAt).toLocaleString('zh-CN', {
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                      <span className="file-size">{formatBytes(doc.size)}</span>
+                      <div className="file-actions">
+                        {!doc.deletedAt && (
+                          <button
+                            className={`icon-button ${doc.starred ? 'starred' : ''}`}
+                            aria-label={`${doc.starred ? '取消星标' : '星标'} ${doc.name}`}
+                            disabled={busy}
+                            onClick={() =>
+                              void perform(() => update(doc, { starred: !doc.starred }))
+                            }
+                          >
+                            <Star size={16} fill={doc.starred ? 'currentColor' : 'none'} />
+                          </button>
+                        )}
+                        <button
+                          className="icon-button"
+                          aria-label={`更多操作 ${doc.name}`}
+                          aria-expanded={menu === doc.id}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setMenu(menu === doc.id ? null : doc.id);
+                          }}
+                        >
+                          <MoreHorizontal size={19} />
+                        </button>
+                        {menu === doc.id && (
+                          <div className="dropdown" onClick={(e) => e.stopPropagation()}>
+                            {doc.deletedAt ? (
+                              <>
+                                <button
+                                  disabled={busy}
+                                  onClick={() => {
+                                    setMenu(null);
+                                    void perform(() => update(doc, { deleted: false }));
+                                  }}
+                                >
+                                  <RotateCcw size={15} />
+                                  恢复文档
+                                </button>
+                                <button
+                                  className="danger"
+                                  onClick={() => {
+                                    setMenu(null);
+                                    setDialog({ type: 'delete', doc });
+                                  }}
+                                >
+                                  <Trash2 size={15} />
+                                  永久删除
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setMenu(null);
+                                    setDialog({ type: 'rename', doc });
+                                  }}
+                                >
+                                  <Pencil size={15} />
+                                  重命名
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setMenu(null);
+                                    setDialog({
+                                      type: 'move',
+                                      target: { kind: 'doc', item: doc },
+                                    });
+                                  }}
+                                >
+                                  <FolderInput size={15} />
+                                  移动到…
+                                </button>
+                                <button
+                                  disabled={busy}
+                                  onClick={() => {
+                                    setMenu(null);
+                                    void perform(async () => {
+                                      await downloadFile(doc.id, doc.name, extensions[doc.kind]);
+                                    });
+                                  }}
+                                >
+                                  <Download size={15} />
+                                  下载 {extensions[doc.kind].toUpperCase()}
+                                </button>
+                                <button
+                                  disabled={busy}
+                                  onClick={() => {
+                                    setMenu(null);
+                                    void perform(() => update(doc, { deleted: true }));
+                                  }}
+                                >
+                                  <Trash2 size={15} />
+                                  移入回收站
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
@@ -788,10 +1159,124 @@ export default function App() {
                 ? '永久删除文档'
                 : dialog.type === 'import'
                   ? '导入到云空间'
-                  : '账号与云空间'
+                  : dialog.type === 'create-folder'
+                    ? '新建文件夹'
+                    : dialog.type === 'rename-folder'
+                      ? '重命名文件夹'
+                      : dialog.type === 'delete-folder'
+                        ? '永久删除文件夹'
+                        : dialog.type === 'move'
+                          ? `移动“${dialog.target.item.name}”`
+                          : '账号与云空间'
           }
           onClose={() => !busy && setDialog(null)}
         >
+          {dialog.type === 'create-folder' && (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                const value = new FormData(event.currentTarget).get('name');
+                if (typeof value === 'string' && value.trim()) {
+                  void perform(async () => {
+                    await createFolder(value.trim(), dialog.parentId ?? currentFolderId);
+                    setDialog(null);
+                  });
+                }
+              }}
+            >
+              <label>
+                文件夹名称
+                <input
+                  name="name"
+                  defaultValue="新建文件夹"
+                  required
+                  maxLength={100}
+                  autoFocus
+                  onFocus={(e) => e.target.select()}
+                />
+              </label>
+              <div className="modal-buttons">
+                <button className="secondary" type="button" onClick={() => setDialog(null)}>
+                  取消
+                </button>
+                <button className="primary" disabled={busy}>
+                  创建
+                </button>
+              </div>
+            </form>
+          )}
+          {dialog.type === 'rename-folder' && (
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                const value = new FormData(event.currentTarget).get('name');
+                if (typeof value === 'string' && value.trim()) {
+                  void perform(async () => {
+                    await updateFolder(dialog.folder, { name: value.trim() });
+                    setDialog(null);
+                  });
+                }
+              }}
+            >
+              <label>
+                文件夹名称
+                <input
+                  name="name"
+                  defaultValue={dialog.folder.name}
+                  required
+                  maxLength={100}
+                  autoFocus
+                  onFocus={(e) => e.target.select()}
+                />
+              </label>
+              <div className="modal-buttons">
+                <button className="secondary" type="button" onClick={() => setDialog(null)}>
+                  取消
+                </button>
+                <button className="primary" disabled={busy}>
+                  保存
+                </button>
+              </div>
+            </form>
+          )}
+          {dialog.type === 'delete-folder' && (
+            <>
+              <p>“{dialog.folder.name}”及其中的文档将被永久删除，无法恢复。</p>
+              <div className="modal-buttons">
+                <button className="secondary" onClick={() => setDialog(null)}>
+                  保留文件夹
+                </button>
+                <button
+                  className="danger-button"
+                  disabled={busy}
+                  onClick={() =>
+                    void perform(async () => {
+                      await removeFolder(dialog.folder);
+                      setDialog(null);
+                    })
+                  }
+                >
+                  永久删除
+                </button>
+              </div>
+            </>
+          )}
+          {dialog.type === 'move' && (
+            <MoveItemDialog
+              target={dialog.target}
+              folders={activeFolders}
+              busy={busy}
+              onCancel={() => setDialog(null)}
+              onMove={async (targetFolderId) => {
+                if (dialog.target.kind === 'doc') {
+                  await update(dialog.target.item, { folderId: targetFolderId });
+                } else {
+                  await updateFolder(dialog.target.item, { parentId: targetFolderId });
+                }
+                setDialog(null);
+              }}
+            />
+          )}
           {dialog.type === 'rename' && (
             <form
               onSubmit={(event) => {
@@ -881,6 +1366,7 @@ export default function App() {
                         headers: {
                           'Content-Type': 'application/octet-stream',
                           'X-Filename': encodeURIComponent(dialog.file.name),
+                          ...(currentFolderId ? { 'X-Folder-Id': currentFolderId } : {}),
                         },
                       });
                       setDialog(null);
@@ -1039,6 +1525,81 @@ function AccountSettings({
         <LogOut size={16} />
         退出登录
       </button>
+    </div>
+  );
+}
+
+function MoveItemDialog({
+  target,
+  folders,
+  busy,
+  onCancel,
+  onMove,
+}: {
+  target: { kind: 'doc'; item: DocumentSummary } | { kind: 'folder'; item: FolderSummary };
+  folders: FolderSummary[];
+  busy: boolean;
+  onCancel: () => void;
+  onMove: (targetFolderId: string | null) => Promise<void>;
+}) {
+  const [selected, setSelected] = useState<string | null>(null);
+
+  // Exclude target folder itself and any descendant folders if moving a folder
+  const forbiddenIds = new Set<string>();
+  if (target.kind === 'folder') {
+    forbiddenIds.add(target.item.id);
+    const findChildren = (pid: string) => {
+      for (const f of folders) {
+        if (f.parentId === pid) {
+          forbiddenIds.add(f.id);
+          findChildren(f.id);
+        }
+      }
+    };
+    findChildren(target.item.id);
+  }
+
+  const allowedFolders = folders.filter((f) => !forbiddenIds.has(f.id));
+
+  return (
+    <div className="move-dialog">
+      <p>
+        选择目标文件夹，将<strong>“{target.item.name}”</strong>移动至：
+      </p>
+      <div className="folder-picker-list">
+        <button
+          type="button"
+          className={`folder-picker-item ${selected === null ? 'selected' : ''}`}
+          onClick={() => setSelected(null)}
+        >
+          <FolderOpen size={16} />
+          <span>我的文档（根目录）</span>
+        </button>
+        {allowedFolders.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            className={`folder-picker-item ${selected === f.id ? 'selected' : ''}`}
+            onClick={() => setSelected(f.id)}
+          >
+            <Folder size={16} />
+            <span>{f.name}</span>
+          </button>
+        ))}
+      </div>
+      <div className="modal-buttons">
+        <button className="secondary" type="button" disabled={busy} onClick={onCancel}>
+          取消
+        </button>
+        <button
+          className="primary"
+          type="button"
+          disabled={busy}
+          onClick={() => void onMove(selected)}
+        >
+          移动到此处
+        </button>
+      </div>
     </div>
   );
 }

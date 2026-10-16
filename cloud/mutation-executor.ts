@@ -5,7 +5,7 @@ import { AccountDocuments, type DocumentPatch, type SqlDatabase, type SqlValue }
 import type { WritePermit } from './write-admission';
 
 export type Mutation =
-  | { kind: 'create'; name: string; content: DocumentContent }
+  | { kind: 'create'; name: string; content: DocumentContent; folderId?: string | null }
   | { kind: 'update'; id: string; revision: number; patch: DocumentPatch }
   | { kind: 'remove'; id: string; revision: number };
 export type MutationReceipt = {
@@ -86,7 +86,7 @@ export class AccountMutationExecutor {
         } else {
           const doc =
             command.kind === 'create'
-              ? this.documents.create(command.name, command.content)
+              ? this.documents.create(command.name, command.content, command.folderId ?? null)
               : this.documents.update(command.id, command.revision, command.patch);
           this.sql.exec('UPDATE documents SET revision=? WHERE id=?', permit.revision, doc.id);
           const { content: _content, ...summary } = doc;

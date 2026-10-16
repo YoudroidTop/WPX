@@ -90,6 +90,14 @@ export interface SlideContent {
   slides: Slide[];
 }
 export type DocumentContent = WordContent | SheetContent | SlideContent;
+export interface FolderSummary {
+  id: string;
+  parentId: string | null;
+  name: string;
+  createdAt: number;
+  updatedAt: number;
+  deletedAt: number | null;
+}
 export interface DocumentSummary {
   id: string;
   name: string;
@@ -100,6 +108,7 @@ export interface DocumentSummary {
   createdAt: number;
   updatedAt: number;
   deletedAt: number | null;
+  folderId?: string | null;
 }
 export interface CloudDocument extends DocumentSummary {
   content: DocumentContent;
@@ -201,7 +210,9 @@ const boundedCellStyleSchema = sheetCellStyleSchema.strict();
 const rangeSchema = z
   .string()
   .max(16)
-  .regex(/^(?:[A-Z]|A[A-Z])(?:[1-9]\d?|[1-4]\d{2}|500)(?::(?:[A-Z]|A[A-Z])(?:[1-9]\d?|[1-4]\d{2}|500))?$/);
+  .regex(
+    /^(?:[A-Z]|A[A-Z])(?:[1-9]\d?|[1-4]\d{2}|500)(?::(?:[A-Z]|A[A-Z])(?:[1-9]\d?|[1-4]\d{2}|500))?$/,
+  );
 const sheetValidationRuleSchema = z.union([
   z.object({
     type: z.literal('list'),

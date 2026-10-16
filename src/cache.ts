@@ -1,5 +1,5 @@
 import { openDB } from 'idb';
-import type { Account, CloudDocument, DocumentSummary } from '../shared/documents';
+import type { Account, CloudDocument, DocumentSummary, FolderSummary } from '../shared/documents';
 import { isNative } from './platform';
 
 export interface LocalDraft {
@@ -58,7 +58,9 @@ export async function cacheRead(path: string): Promise<unknown> {
   if (path === '/documents') {
     const documents = (await database.get('entries', `${ownerKey()}:library`)) as
       DocumentSummary[] | undefined;
-    if (documents) return { documents, account: currentAccount };
+    const folders = (await database.get('entries', `${ownerKey()}:folders`)) as
+      FolderSummary[] | undefined;
+    if (documents) return { documents, folders: folders ?? [], account: currentAccount };
   }
   if (/^\/documents\/[^/]+$/.test(path)) return database.get('entries', `${ownerKey()}:${path}`);
 }
@@ -76,6 +78,7 @@ export async function cacheResponse(path: string, value: any, method: string) {
   const database = await db();
   if (path === '/documents' && method === 'GET') {
     await database.put('entries', value.documents, `${ownerKey()}:library`);
+    if (value.folders) await database.put('entries', value.folders, `${ownerKey()}:folders`);
     await rememberAccount(value.account);
   }
   if (method === 'DELETE' && /^\/documents\/[^/]+$/.test(path)) {

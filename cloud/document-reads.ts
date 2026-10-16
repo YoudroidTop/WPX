@@ -12,7 +12,9 @@ export async function readDocumentRequest(
     path = url.pathname;
   const json = (value: unknown) => Response.json(value);
   if (path === '/usage') return json({ usedBytes: store.used(), limitBytes: STORAGE_LIMIT });
-  if (path === '/api/documents') return json({ documents: store.list(), usedBytes: store.used() });
+  if (path === '/api/documents')
+    return json({ documents: store.list(), folders: store.listFolders(), usedBytes: store.used() });
+  if (path === '/api/folders') return json(store.listFolders());
   const match = path.match(/^\/api\/documents\/([^/]+)(\/export)?$/);
   if (!match) throw new ApiError(404, '接口不存在');
   const id = match[1];
