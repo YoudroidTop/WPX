@@ -73,13 +73,15 @@ export class Store {
         updated_at INTEGER NOT NULL, deleted_at INTEGER
       );
       CREATE INDEX IF NOT EXISTS documents_owner ON documents(owner_id, deleted_at);
-      CREATE INDEX IF NOT EXISTS documents_folder ON documents(owner_id, folder_id);
       PRAGMA user_version=1;
     `);
     try {
       this.db.exec(
         'ALTER TABLE documents ADD COLUMN folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL',
       );
+    } catch {}
+    try {
+      this.db.exec('CREATE INDEX IF NOT EXISTS documents_folder ON documents(owner_id, folder_id)');
     } catch {}
   }
   transaction<T>(fn: () => T): T {

@@ -1834,6 +1834,76 @@ hr {
 }
 .tiptap a {
   color: #247c5c;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 12px 0;
+  display: block;
+}
+.tiptap hr {
+  border: none;
+  border-top: 2px dashed #cfd9c9;
+  margin: 24px 0;
+}
+.tiptap ul[data-type="taskList"] {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+}
+.tiptap ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.tiptap ul[data-type="taskList"] li > label {
+  flex: 0 0 auto;
+  user-select: none;
+  margin-top: 4px;
+}
+.tiptap ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+}
+.tiptap mark {
+  border-radius: 2px;
+  padding: 1px 2px;
+}
+.word-zen-mode {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 99999;
+  background: #f4f6f2;
+}
+.word-ribbon .ribbon-btn {
+  font-size: 12px;
+  color: #415244;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.12s;
+}
+.word-ribbon .ribbon-btn:hover {
+  background: #eaf1e7;
+  color: #1b784d;
+  border-color: #c7dac5;
+}
+.word-ribbon .ribbon-btn.active {
+  background: #e3ede0;
+  color: #1b784d;
+  border-color: #b3cbb0;
 }
 .sheet-tools code {
   font-size: 12px;
