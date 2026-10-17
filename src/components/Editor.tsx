@@ -243,6 +243,7 @@ function EditorSession({
                     : '等待保存…'}
           </span>
         </span>
+        <div id="editor-header-tabs" className="editor-header-tabs" />
         <div className="editor-header-actions">
           <button className="secondary" onClick={() => void flush()} disabled={busy}>
             <Save size={15} />

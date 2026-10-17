@@ -1648,6 +1648,45 @@ hr {
 .save-status.saving {
   color: #a6ab93;
 }
+.editor-header-tabs {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-width: 0;
+  margin: 0 16px;
+}
+.header-ribbon-tabs {
+  display: inline-flex;
+  align-items: center;
+  background: #f0f4ed;
+  padding: 3px 4px;
+  border-radius: 6px;
+  gap: 2px;
+  border: 1px solid #dce4d5;
+}
+.header-tab-btn {
+  border: 0;
+  background: transparent;
+  padding: 4px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #556658;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.header-tab-btn:hover {
+  color: #1b784d;
+  background: #e6ede2;
+}
+.header-tab-btn.active {
+  color: #1b784d;
+  background: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
 .editor-header-actions {
   display: flex;
   gap: 8px;
@@ -3165,6 +3204,9 @@ hr {
     padding: 8px 12px;
   }
   .editor-header-divider {
+    display: none;
+  }
+  .editor-header-tabs {
     display: none;
   }
 }

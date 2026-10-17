@@ -1,4 +1,5 @@
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { Editor } from '@tiptap/react';
 import {
   Undo2,
@@ -128,46 +129,61 @@ export default function WordRibbon({
     editor.chain().focus().insertContent(formatted).run();
   }
 
+  const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const el = document.getElementById('editor-header-tabs');
+    setHeaderTarget(el);
+  }, []);
+
+  const tabContent = (
+    <div className="header-ribbon-tabs">
+      <button
+        type="button"
+        className={`header-tab-btn ${currentTab === 'home' ? 'active' : ''}`}
+        onClick={() => onTabChange('home')}
+      >
+        开始
+      </button>
+      <button
+        type="button"
+        className={`header-tab-btn ${currentTab === 'insert' ? 'active' : ''}`}
+        onClick={() => onTabChange('insert')}
+      >
+        插入
+      </button>
+      <button
+        type="button"
+        className={`header-tab-btn ${currentTab === 'page' ? 'active' : ''}`}
+        onClick={() => onTabChange('page')}
+      >
+        页面
+      </button>
+      <button
+        type="button"
+        className={`header-tab-btn ${currentTab === 'review' ? 'active' : ''}`}
+        onClick={() => onTabChange('review')}
+      >
+        审阅
+      </button>
+      <button
+        type="button"
+        className={`header-tab-btn ${currentTab === 'view' ? 'active' : ''}`}
+        onClick={() => onTabChange('view')}
+      >
+        视图
+      </button>
+    </div>
+  );
+
   return (
     <div className="sheet-ribbon word-ribbon" role="toolbar" aria-label="Word 工具栏">
-      {/* Tab Navigation Headers */}
-      <div className="ribbon-tabs">
-        <button
-          type="button"
-          className={`ribbon-tab-btn ${currentTab === 'home' ? 'active' : ''}`}
-          onClick={() => onTabChange('home')}
-        >
-          开始
-        </button>
-        <button
-          type="button"
-          className={`ribbon-tab-btn ${currentTab === 'insert' ? 'active' : ''}`}
-          onClick={() => onTabChange('insert')}
-        >
-          插入
-        </button>
-        <button
-          type="button"
-          className={`ribbon-tab-btn ${currentTab === 'page' ? 'active' : ''}`}
-          onClick={() => onTabChange('page')}
-        >
-          页面
-        </button>
-        <button
-          type="button"
-          className={`ribbon-tab-btn ${currentTab === 'review' ? 'active' : ''}`}
-          onClick={() => onTabChange('review')}
-        >
-          审阅
-        </button>
-        <button
-          type="button"
-          className={`ribbon-tab-btn ${currentTab === 'view' ? 'active' : ''}`}
-          onClick={() => onTabChange('view')}
-        >
-          视图
-        </button>
-      </div>
+      {/* Tab Navigation: Portal to header center if present, otherwise render inline */}
+      {headerTarget ? (
+        createPortal(tabContent, headerTarget)
+      ) : (
+        <div className="ribbon-tabs">{tabContent}</div>
+      )}
 
       {/* Hidden File Input for Image Upload */}
       <input
