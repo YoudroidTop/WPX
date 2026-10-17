@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import SheetColorPickerDropdown from './SheetColorPickerDropdown';
 import SheetBorderDropdown from './SheetBorderDropdown';
 import SheetFontDropdown, { DEFAULT_FONT } from './SheetFontDropdown';
@@ -112,41 +114,61 @@ export default function SheetRibbon({
     if (next) onStyleChange({ fontSize: next });
   }
 
+  const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const el = document.getElementById('editor-header-tabs');
+    setHeaderTarget(el);
+  }, []);
+
+  const tabContent = (
+    <div className="header-ribbon-tabs">
+      <button
+        type="button"
+        className={`header-tab-btn ribbon-tab-btn ${currentTab === 'home' ? 'active' : ''}`}
+        onClick={() => onTabChange('home')}
+      >
+        开始
+      </button>
+      <button
+        type="button"
+        className={`header-tab-btn ribbon-tab-btn ${currentTab === 'insert' ? 'active' : ''}`}
+        onClick={() => onTabChange('insert')}
+      >
+        插入
+      </button>
+      <button
+        type="button"
+        className={`header-tab-btn ribbon-tab-btn ${currentTab === 'data' ? 'active' : ''}`}
+        onClick={() => onTabChange('data')}
+      >
+        数据
+      </button>
+      <button
+        type="button"
+        className={`header-tab-btn ribbon-tab-btn ${currentTab === 'formula' ? 'active' : ''}`}
+        onClick={() => onTabChange('formula')}
+      >
+        公式
+      </button>
+      <button
+        type="button"
+        className={`header-tab-btn ribbon-tab-btn ${currentTab === 'view' ? 'active' : ''}`}
+        onClick={() => onTabChange('view')}
+      >
+        视图
+      </button>
+    </div>
+  );
+
   return (
     <div className="sheet-ribbon">
-      {/* Tab Headers */}
-      <div className="ribbon-tabs">
-        <button
-          className={`ribbon-tab-btn ${currentTab === 'home' ? 'active' : ''}`}
-          onClick={() => onTabChange('home')}
-        >
-          开始
-        </button>
-        <button
-          className={`ribbon-tab-btn ${currentTab === 'insert' ? 'active' : ''}`}
-          onClick={() => onTabChange('insert')}
-        >
-          插入
-        </button>
-        <button
-          className={`ribbon-tab-btn ${currentTab === 'data' ? 'active' : ''}`}
-          onClick={() => onTabChange('data')}
-        >
-          数据
-        </button>
-        <button
-          className={`ribbon-tab-btn ${currentTab === 'formula' ? 'active' : ''}`}
-          onClick={() => onTabChange('formula')}
-        >
-          公式
-        </button>
-        <button
-          className={`ribbon-tab-btn ${currentTab === 'view' ? 'active' : ''}`}
-          onClick={() => onTabChange('view')}
-        >
-          视图
-        </button>
-      </div>
+      {/* Tab Headers: Portal to header center if present, otherwise render inline */}
+      {headerTarget ? (
+        createPortal(tabContent, headerTarget)
+      ) : (
+        <div className="ribbon-tabs">{tabContent}</div>
+      )}
 
       {/* Ribbon Content Bar */}
       <div className="ribbon-panel">

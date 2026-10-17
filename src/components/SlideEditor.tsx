@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Plus,
   Copy,
@@ -20,6 +21,12 @@ export default function SlideEditor({
 }) {
   const [index, setIndex] = useState(0),
     [presenting, setPresenting] = useState(false);
+  const [headerTarget, setHeaderTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const el = document.getElementById('editor-header-tabs');
+    setHeaderTarget(el);
+  }, []);
   const slide = content.slides[index] ?? content.slides[0];
   useEffect(() => {
     if (!presenting) return;
@@ -103,43 +110,76 @@ export default function SlideEditor({
         </div>
       </div>
     );
+
+  const tools = (
+    <div className="header-ribbon-tabs slide-header-tabs">
+      <button
+        type="button"
+        className="header-tab-btn"
+        disabled={content.slides.length >= 100}
+        onClick={() => add()}
+      >
+        <Plus size={15} />
+        <span>新建幻灯片</span>
+      </button>
+      <button
+        type="button"
+        className="header-tab-btn"
+        disabled={content.slides.length >= 100}
+        onClick={() => add(true)}
+      >
+        <Copy size={15} />
+        <span>复制</span>
+      </button>
+      <button
+        type="button"
+        className="header-tab-btn"
+        disabled={index === 0}
+        aria-label="幻灯片上移"
+        onClick={() => move(-1)}
+      >
+        <ArrowUp size={15} />
+      </button>
+      <button
+        type="button"
+        className="header-tab-btn"
+        disabled={index === content.slides.length - 1}
+        aria-label="幻灯片下移"
+        onClick={() => move(1)}
+      >
+        <ArrowDown size={15} />
+      </button>
+      <button
+        type="button"
+        className="header-tab-btn"
+        disabled={content.slides.length === 1}
+        onClick={() => {
+          onChange({ ...content, slides: content.slides.filter((s) => s.id !== slide.id) });
+          setIndex(Math.max(0, index - 1));
+        }}
+      >
+        <Trash2 size={15} />
+        <span>删除</span>
+      </button>
+      <span style={{ width: 1, height: 16, background: '#dce4d5', margin: '0 2px' }} />
+      <button
+        type="button"
+        className="header-tab-btn play-button"
+        onClick={() => setPresenting(true)}
+      >
+        <Play size={15} />
+        <span>开始放映</span>
+      </button>
+    </div>
+  );
+
   return (
     <div className="slides-editor">
-      <div className="editor-toolbar">
-        <button disabled={content.slides.length >= 100} onClick={() => add()}>
-          <Plus size={16} />
-          新建幻灯片
-        </button>
-        <button disabled={content.slides.length >= 100} onClick={() => add(true)}>
-          <Copy size={16} />
-          复制
-        </button>
-        <button disabled={index === 0} aria-label="幻灯片上移" onClick={() => move(-1)}>
-          <ArrowUp size={16} />
-        </button>
-        <button
-          disabled={index === content.slides.length - 1}
-          aria-label="幻灯片下移"
-          onClick={() => move(1)}
-        >
-          <ArrowDown size={16} />
-        </button>
-        <button
-          disabled={content.slides.length === 1}
-          onClick={() => {
-            onChange({ ...content, slides: content.slides.filter((s) => s.id !== slide.id) });
-            setIndex(Math.max(0, index - 1));
-          }}
-        >
-          <Trash2 size={16} />
-          删除
-        </button>
-        <span className="toolbar-spacer" />
-        <button className="play-button" onClick={() => setPresenting(true)}>
-          <Play size={16} />
-          开始放映
-        </button>
-      </div>
+      {headerTarget ? (
+        createPortal(tools, headerTarget)
+      ) : (
+        <div className="editor-toolbar">{tools}</div>
+      )}
       <div className="slides-body">
         <aside className="slide-thumbnails" aria-label="幻灯片列表">
           {content.slides.map((item, i) => (

@@ -1687,6 +1687,23 @@ hr {
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
+.slide-header-tabs {
+  gap: 3px;
+}
+.slide-header-tabs .header-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+}
+.slide-header-tabs .header-tab-btn:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
+.slide-header-tabs .play-button {
+  color: var(--green);
+  font-weight: 600;
+}
 .editor-header-actions {
   display: flex;
   gap: 8px;
