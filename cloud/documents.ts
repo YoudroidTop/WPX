@@ -64,6 +64,11 @@ export class AccountDocuments {
     try {
       sql.exec('ALTER TABLE documents ADD COLUMN folder_id TEXT');
     } catch {}
+    try {
+      sql.exec(`UPDATE documents
+        SET folder_id = name, name = kind, kind = size, size = revision, revision = 1, starred = 0, created_at = updated_at, deleted_at = NULL
+        WHERE typeof(size) = 'text'`);
+    } catch {}
     sql.exec(`CREATE TABLE IF NOT EXISTS content_chunks (
       document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
       ordinal INTEGER NOT NULL, bytes BLOB NOT NULL,
@@ -159,7 +164,9 @@ export class AccountDocuments {
       const id = crypto.randomUUID(),
         now = Date.now();
       this.sql.exec(
-        'INSERT INTO documents VALUES(?,?,?,?,?,1,0,?,?,NULL)',
+        `INSERT INTO documents(
+          id, folder_id, name, kind, size, revision, starred, created_at, updated_at, deleted_at
+        ) VALUES(?,?,?,?,?,1,0,?,?,NULL)`,
         id,
         folderId ?? null,
         name,
@@ -238,7 +245,7 @@ export class AccountDocuments {
     const id = crypto.randomUUID(),
       now = Date.now();
     this.sql.exec(
-      'INSERT INTO folders VALUES(?,?,?,?,?,NULL)',
+      'INSERT INTO folders(id, parent_id, name, created_at, updated_at, deleted_at) VALUES(?,?,?,?,?,NULL)',
       id,
       parentId ?? null,
       trimmed,
@@ -285,6 +292,10 @@ export class AccountDocuments {
     this.atomic(() => {
       const current = this.getFolder(id);
       if (!current.deletedAt) throw new ApiError(409, '请先将文件夹移入回收站');
+      this.sql.exec(
+        'DELETE FROM content_chunks WHERE document_id IN (SELECT id FROM documents WHERE folder_id=?)',
+        id,
+      );
       this.sql.exec('DELETE FROM documents WHERE folder_id=?', id);
       this.sql.exec('DELETE FROM folders WHERE id=?', id);
     });

@@ -204,3 +204,115 @@ test('empty recovery returns an explicit fence without allocating documents or q
     db.close();
   }
 });
+
+test('legacy documents table schema upgrade safely creates documents and self-heals corrupted records', () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    // 1. Setup legacy table before folder_id existed (only 9 columns)
+    db.exec(`
+      CREATE TABLE documents (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL,
+        size INTEGER NOT NULL CHECK(size >= 0), revision INTEGER NOT NULL,
+        starred INTEGER NOT NULL, created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL, deleted_at INTEGER
+      );
+      CREATE TABLE content_chunks (
+        document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+        ordinal INTEGER NOT NULL, bytes BLOB NOT NULL,
+        PRIMARY KEY(document_id, ordinal)
+      );
+      CREATE TABLE recovery_revision_floor (
+        singleton INTEGER PRIMARY KEY CHECK(singleton=1), revision INTEGER NOT NULL
+      );
+      INSERT INTO recovery_revision_floor VALUES(1,0);
+    `);
+
+    // 2. Insert a valid pre-migration document
+    const validContent = word('Pre-migration document');
+    const validBytes = new TextEncoder().encode(JSON.stringify(validContent));
+    const now = Date.now();
+    db.prepare('INSERT INTO documents VALUES (?, ?, ?, ?, 1, 0, ?, ?, NULL)')
+      .run('valid-legacy-id', 'Valid Legacy Doc', 'word', validBytes.length, now, now);
+    db.prepare('INSERT INTO content_chunks VALUES (?, 0, ?)')
+      .run('valid-legacy-id', validBytes);
+
+    // 3. Insert a corrupted document produced by positional column mismatch
+    const corruptContent = word('Corrupted document recovering');
+    const corruptBytes = new TextEncoder().encode(JSON.stringify(corruptContent));
+    // Simulated positional insert onto legacy table:
+    // col0: id, col1: name <- 'folder-abc', col2: kind <- 'My Note', col3: size <- 'word',
+    // col4: revision <- size, col5: starred <- 1, col6: created_at <- 0, col7: updated_at <- now,
+    // col8: deleted_at <- now, col9: folder_id <- null (added by ALTER TABLE later)
+    db.exec('ALTER TABLE documents ADD COLUMN folder_id TEXT');
+    db.prepare('INSERT INTO documents VALUES (?, ?, ?, ?, ?, 1, 0, ?, ?, NULL)')
+      .run('corrupt-doc-id', 'folder-abc', 'My Note', 'word', corruptBytes.length, now, now);
+    db.prepare('INSERT INTO content_chunks VALUES (?, 0, ?)')
+      .run('corrupt-doc-id', corruptBytes);
+
+    // Verify corrupt row has text size
+    const preCheck = db.prepare('SELECT typeof(size) AS size_type FROM documents WHERE id=?').get('corrupt-doc-id') as { size_type: string };
+    assert.equal(preCheck.size_type, 'text');
+
+    // 4. Initialize AccountDocuments which runs migration and self-healing
+    const sql: SqlDatabase = {
+      exec<T extends Record<string, SqlValue>>(query: string, ...bindings: SqlValue[]): T[] {
+        const stmt = db.prepare(query);
+        if (query.trim().toUpperCase().startsWith('SELECT') || query.trim().toUpperCase().startsWith('PRAGMA')) {
+          return stmt.all(
+            ...bindings.map((v) => (v instanceof ArrayBuffer ? new Uint8Array(v) : v)),
+          ).map((row) =>
+            Object.fromEntries(
+              Object.entries(row).map(([k, v]) => [
+                k,
+                v instanceof Uint8Array ? v.slice().buffer : v,
+              ]),
+            ),
+          ) as T[];
+        }
+        stmt.run(...bindings.map((v) => (v instanceof ArrayBuffer ? new Uint8Array(v) : v)));
+        return [];
+      },
+    };
+
+    const store = new AccountDocuments(sql, (cb) => {
+      db.exec('BEGIN');
+      try {
+        const result = cb();
+        db.exec('COMMIT');
+        return result;
+      } catch (err) {
+        db.exec('ROLLBACK');
+        throw err;
+      }
+    });
+
+    // 5. Verify the corrupted row was self-healed and opens without error
+    const healed = store.get('corrupt-doc-id');
+    assert.equal(healed.name, 'My Note');
+    assert.equal(healed.kind, 'word');
+    assert.equal(healed.size, corruptBytes.length);
+    assert.equal(healed.folderId, 'folder-abc');
+    assert.equal(healed.deletedAt, null);
+    assert.deepEqual(healed.content, corruptContent);
+
+    // 6. Verify pre-migration document also opens normally
+    const legacy = store.get('valid-legacy-id');
+    assert.equal(legacy.name, 'Valid Legacy Doc');
+    assert.equal(legacy.folderId, null);
+    assert.deepEqual(legacy.content, validContent);
+
+    // 7. Verify creating new documents on this upgraded legacy table works without error
+    const newDoc = store.create('New Doc Under Root', word('Fresh content'), null);
+    assert.equal(newDoc.name, 'New Doc Under Root');
+    assert.equal(newDoc.folderId, null);
+    assert.deepEqual(store.get(newDoc.id).content, word('Fresh content'));
+
+    const folder = store.createFolder('Project Folder');
+    const newFolderDoc = store.create('New Doc In Folder', word('Inside folder'), folder.id);
+    assert.equal(newFolderDoc.folderId, folder.id);
+    assert.deepEqual(store.get(newFolderDoc.id).content, word('Inside folder'));
+  } finally {
+    db.close();
+  }
+});
+
