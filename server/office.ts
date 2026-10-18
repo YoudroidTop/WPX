@@ -160,18 +160,28 @@ export async function exportOffice(content: DocumentContent): Promise<Buffer> {
     buffer = Buffer.from(await workbook.xlsx.writeBuffer());
   } else {
     const pptx = new PptxGenJS();
-    pptx.layout = 'LAYOUT_WIDE';
+    pptx.layout = content.ratio === '4:3' ? 'LAYOUT_4x3' : 'LAYOUT_WIDE';
     pptx.author = '卓乐云文档';
     pptx.subject = 'Presentation';
+    const themeColors: Record<string, [string, string]> = {
+      forest: ['EAF1E9', '174C3B'],
+      paper: ['FAF8F3', '2B342D'],
+      midnight: ['172A33', 'F3F1E9'],
+      ocean: ['0F172A', 'F8FAFC'],
+      crimson: ['FFF1F2', '881337'],
+      amber: ['FFFBEB', '78350F'],
+      lavender: ['F5F3FF', '4C1D95'],
+      slate: ['F1F5F9', '334155'],
+    };
     for (const data of content.slides) {
       const slide = pptx.addSlide();
       const colors =
-        data.theme === 'forest'
-          ? ['EAF1E9', '174C3B']
-          : data.theme === 'midnight'
-            ? ['172A33', 'F3F1E9']
-            : ['FAF8F3', '2B342D'];
-      slide.background = { color: colors[0] };
+        themeColors[data.theme] ??
+        (data.theme === 'midnight' ? ['172A33', 'F3F1E9'] : ['FAF8F3', '2B342D']);
+      const bgHex = data.background?.color
+        ? data.background.color.replace('#', '').toUpperCase()
+        : colors[0];
+      slide.background = { color: bgHex };
       slide.addText(data.title, {
         x: 0.85,
         y: 1.1,

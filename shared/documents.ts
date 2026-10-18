@@ -78,15 +78,54 @@ export interface SheetContent {
   type: 'sheet';
   sheets: SheetPage[];
 }
+export type SlideTheme =
+  'forest' | 'paper' | 'midnight' | 'ocean' | 'crimson' | 'amber' | 'lavender' | 'slate';
+
+export type SlideLayout =
+  'title' | 'content' | 'two-column' | 'three-card' | 'timeline' | 'big-image' | 'quote' | 'blank';
+
+export type SlideTransition = 'none' | 'fade' | 'slide' | 'zoom' | 'flip';
+
+export interface SlideCardItem {
+  title: string;
+  desc: string;
+  icon?: string;
+}
+
+export interface SlideElementBase {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  [key: string]: any;
+}
+
+export interface SlideBackground {
+  type: 'color' | 'gradient';
+  color: string;
+  gradientEnd?: string;
+  gradientAngle?: number;
+}
+
 export interface Slide {
   id: string;
   title: string;
   body: string;
   notes: string;
-  theme: 'forest' | 'paper' | 'midnight';
+  theme: SlideTheme;
+  layout?: SlideLayout;
+  background?: SlideBackground;
+  transition?: SlideTransition;
+  secondaryBody?: string;
+  imageUrl?: string;
+  cardItems?: SlideCardItem[];
+  elements?: SlideElementBase[];
 }
 export interface SlideContent {
   type: 'slide';
+  ratio?: '16:9' | '4:3';
   slides: Slide[];
 }
 export type DocumentContent = WordContent | SheetContent | SlideContent;
@@ -305,6 +344,7 @@ const nativeContentSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('slide'),
+    ratio: z.enum(['16:9', '4:3']).optional(),
     slides: z
       .array(
         z.object({
@@ -312,7 +352,64 @@ const nativeContentSchema = z.discriminatedUnion('type', [
           title: z.string().max(500),
           body: z.string().max(10_000),
           notes: z.string().max(10_000),
-          theme: z.enum(['forest', 'paper', 'midnight']),
+          theme: z.enum([
+            'forest',
+            'paper',
+            'midnight',
+            'ocean',
+            'crimson',
+            'amber',
+            'lavender',
+            'slate',
+          ]),
+          layout: z
+            .enum([
+              'title',
+              'content',
+              'two-column',
+              'three-card',
+              'timeline',
+              'big-image',
+              'quote',
+              'blank',
+            ])
+            .optional(),
+          background: z
+            .object({
+              type: z.enum(['color', 'gradient']),
+              color: z.string().max(100),
+              gradientEnd: z.string().max(100).optional(),
+              gradientAngle: z.number().optional(),
+            })
+            .optional(),
+          transition: z.enum(['none', 'fade', 'slide', 'zoom', 'flip']).optional(),
+          secondaryBody: z.string().max(10_000).optional(),
+          imageUrl: z.string().max(500_000).optional(),
+          cardItems: z
+            .array(
+              z.object({
+                title: z.string().max(500),
+                desc: z.string().max(2000),
+                icon: z.string().max(100).optional(),
+              }),
+            )
+            .max(20)
+            .optional(),
+          elements: z
+            .array(
+              z
+                .object({
+                  id: z.string().max(100),
+                  type: z.string().max(50),
+                  x: z.number(),
+                  y: z.number(),
+                  width: z.number(),
+                  height: z.number(),
+                })
+                .passthrough(),
+            )
+            .max(100)
+            .optional(),
         }),
       )
       .min(1)
