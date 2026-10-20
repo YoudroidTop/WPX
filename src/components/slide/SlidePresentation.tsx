@@ -40,6 +40,7 @@ export default function SlidePresentation({
   const [blankMode, setBlankMode] = useState<'none' | 'black' | 'white'>('none');
   const [seconds, setSeconds] = useState(0);
   const [timerRunning, setTimerRunning] = useState(true);
+  const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
 
   const currentSlide = slides[index] ?? slides[0];
   const nextSlide = slides[index + 1] ?? null;
@@ -133,6 +134,39 @@ export default function SlidePresentation({
     setIsDrawing(false);
   }
 
+  // Touch Swipe for Mobile Navigation
+  function handleTouchStart(e: React.TouchEvent<HTMLDivElement>) {
+    if (penActive) return; // Allow pen drawing without triggering slide navigation
+    const touch = e.touches[0];
+    if (touch) {
+      touchStartRef.current = { x: touch.clientX, y: touch.clientY, time: Date.now() };
+    }
+  }
+
+  function handleTouchEnd(e: React.TouchEvent<HTMLDivElement>) {
+    if (penActive || !touchStartRef.current) return;
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+
+    const deltaX = touch.clientX - touchStartRef.current.x;
+    const deltaY = touch.clientY - touchStartRef.current.y;
+    const deltaTime = Date.now() - touchStartRef.current.time;
+    touchStartRef.current = null;
+
+    // Must be predominantly horizontal swipe and within reasonable time
+    if (deltaTime < 600 && Math.abs(deltaX) > 40 && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+      if (deltaX < 0) {
+        // Swipe left -> Next slide
+        setIndex((i) => Math.min(slides.length - 1, i + 1));
+        setBlankMode('none');
+      } else {
+        // Swipe right -> Previous slide
+        setIndex((i) => Math.max(0, i - 1));
+        setBlankMode('none');
+      }
+    }
+  }
+
   // Slide transition effect class
   const transitionClass = `trans-${currentSlide.transition || 'fade'}`;
 
@@ -142,6 +176,8 @@ export default function SlidePresentation({
       role="dialog"
       aria-modal="true"
       aria-label="幻灯片放映"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Blank screen overlay (B / W key) */}
       {blankMode !== 'none' && (

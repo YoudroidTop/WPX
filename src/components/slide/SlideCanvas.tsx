@@ -93,11 +93,11 @@ export default function SlideCanvas({
     bgStyle.backgroundColor = slide.background.color;
   }
 
-  // Handle Drag / Resize Mouse Events
+  // Handle Drag / Resize Pointer Events
   useEffect(() => {
     if (!dragState) return;
 
-    function handleMouseMove(e: MouseEvent) {
+    function handlePointerMove(e: PointerEvent) {
       if (!dragState || !containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       const deltaXPercent = ((e.clientX - dragState.startX) / rect.width) * 100;
@@ -138,15 +138,17 @@ export default function SlideCanvas({
       }
     }
 
-    function handleMouseUp() {
+    function handlePointerUp() {
       setDragState(null);
     }
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
   }, [dragState, onUpdateElement]);
 
@@ -638,12 +640,13 @@ export default function SlideCanvas({
           top: `${elem.y}%`,
           width: `${elem.width}%`,
           height: `${elem.height}%`,
+          touchAction: 'none',
         }}
         onClick={(e) => {
           e.stopPropagation();
           onSelectElement(elem.id);
         }}
-        onMouseDown={(e) => {
+        onPointerDown={(e) => {
           if (isReadOnly || (e.target as HTMLElement).tagName === 'INPUT') return;
           // Start moving
           setDragState({
@@ -667,7 +670,7 @@ export default function SlideCanvas({
               <span
                 key={h}
                 className={`resize-handle handle-${h}`}
-                onMouseDown={(e) => {
+                onPointerDown={(e) => {
                   e.stopPropagation();
                   setDragState({
                     elementId: elem.id,

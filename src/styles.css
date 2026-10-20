@@ -6521,6 +6521,18 @@ hr {
   border: 1.5px solid #2f855a;
   border-radius: 50%;
   pointer-events: auto;
+  touch-action: none;
+}
+
+.resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  pointer-events: auto;
 }
 
 .handle-tl { top: -4px; left: -4px; cursor: nwse-resize; }
