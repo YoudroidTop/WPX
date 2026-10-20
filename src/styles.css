@@ -3851,6 +3851,13 @@ hr {
     min-height: 44px;
     font-size: 11px;
   }
+  .native-mobile .spreadsheet .sheet-fill-handle {
+    width: 12px;
+    height: 12px;
+    right: -6px;
+    bottom: -6px;
+    border-radius: 2px;
+  }
   .sheet-ribbon {
     flex-shrink: 0;
   }
@@ -4039,6 +4046,12 @@ hr {
   touch-action: none;
   background: transparent;
 }
+.spreadsheet th .sheet-resize-handle::before {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  pointer-events: auto;
+}
 .spreadsheet th .resize-col {
   right: -3px;
   top: 0;
@@ -4100,6 +4113,16 @@ hr {
   cursor: crosshair;
   touch-action: none;
   z-index: 10;
+}
+.spreadsheet .sheet-fill-handle::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  pointer-events: auto;
 }
 .spreadsheet .sheet-fill-handle:focus-visible {
   outline: 2px solid var(--green);

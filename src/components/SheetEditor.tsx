@@ -1138,8 +1138,13 @@ export default function SheetEditor({
                         onPointerDown={(event) => {
                           if (event.button !== 0 || editing === address) return;
                           if (event.pointerType === 'touch') {
-                            select({ row, col }, event.shiftKey);
-                            setEditing(address);
+                            // If tapping the already-selected single cell, enter editing mode; otherwise just select
+                            if (selected === address && selectionLabel(selection) === address) {
+                              setEditing(address);
+                              focusCell({ row, col });
+                            } else {
+                              select({ row, col }, event.shiftKey);
+                            }
                             return;
                           }
                           event.preventDefault();
