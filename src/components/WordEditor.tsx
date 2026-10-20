@@ -22,6 +22,7 @@ import WordSymbolModal from './word/WordSymbolModal';
 import WordCountModal, { computeWordStats } from './word/WordCountModal';
 import WordFindReplaceBar from './word/WordFindReplaceBar';
 import WordOutlineDrawer from './word/WordOutlineDrawer';
+import WordMobileToolbar from './word/WordMobileToolbar';
 import type {
   WordRibbonTab,
   WordPageSettings,
@@ -81,13 +82,19 @@ export default function WordEditor({
   });
 
   // View settings
-  const [viewSettings, setViewSettings] = useState<WordViewSettings>({
-    showRuler: true,
-    eyeCare: false,
-    zoom: 1,
-    zenMode: false,
-    showOutline: false,
-    readOnly: false,
+  const [viewSettings, setViewSettings] = useState<WordViewSettings>(() => {
+    const isMobileClient =
+      typeof window !== 'undefined' &&
+      (window.innerWidth <= 768 || document.documentElement.classList.contains('native-mobile'));
+    return {
+      showRuler: !isMobileClient,
+      eyeCare: false,
+      zoom: 1,
+      zenMode: false,
+      showOutline: false,
+      readOnly: false,
+      mobileReflow: isMobileClient,
+    };
   });
 
   const editor = useEditor({
@@ -345,17 +352,17 @@ export default function WordEditor({
             }}
           >
             <div
-              className="word-page"
+              className={`word-page ${viewSettings.mobileReflow ? 'mobile-reflow-active' : ''}`}
               style={{
-                maxWidth: pageDimensions.width,
+                maxWidth: viewSettings.mobileReflow ? '100%' : pageDimensions.width,
                 width: '100%',
-                minHeight: pageDimensions.minHeight,
-                padding: pageDimensions.padding,
+                minHeight: viewSettings.mobileReflow ? 'auto' : pageDimensions.minHeight,
+                padding: viewSettings.mobileReflow ? '20px 16px 80px' : pageDimensions.padding,
                 backgroundColor: pageSettings.backgroundColor,
-                margin: 'auto',
+                margin: viewSettings.mobileReflow ? '0' : 'auto',
                 position: 'relative',
-                boxShadow: '0 4px 18px rgba(0, 0, 0, 0.08)',
-                borderRadius: 2,
+                boxShadow: viewSettings.mobileReflow ? 'none' : '0 4px 18px rgba(0, 0, 0, 0.08)',
+                borderRadius: viewSettings.mobileReflow ? 0 : 2,
               }}
             >
               {/* Watermark Overlay */}
@@ -396,6 +403,15 @@ export default function WordEditor({
           </div>
         </div>
       </div>
+
+      {/* Mobile Accessory Toolbar (visible on mobile / narrow viewports) */}
+      <WordMobileToolbar
+        editor={editor}
+        viewSettings={viewSettings}
+        onViewSettingsChange={(patch) => setViewSettings((prev) => ({ ...prev, ...patch }))}
+        onOpenOutline={() => setViewSettings((prev) => ({ ...prev, showOutline: true }))}
+        onInsertImage={handleInsertImage}
+      />
 
       {/* Editor Status Bar */}
       <div

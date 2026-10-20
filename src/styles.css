@@ -3781,17 +3781,29 @@ hr {
   flex-shrink: 0;
 }
 .native-mobile .editor-header {
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   flex-shrink: 0;
-  gap: 4px;
+  gap: 6px;
+  padding: 6px 10px;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.native-mobile .editor-header::-webkit-scrollbar {
+  display: none;
 }
 .native-mobile .editor-header-actions {
-  width: 100%;
+  width: auto;
+  margin-left: auto;
+  flex-shrink: 0;
   justify-content: flex-end;
+  gap: 4px;
 }
 .native-mobile .editor-header-actions button {
-  min-height: 44px;
-  min-width: 44px;
+  min-height: 36px;
+  min-width: 36px;
+  padding: 4px 8px;
+  font-size: 12px;
 }
 .native-mobile .editor-statusbar {
   flex-shrink: 0;
@@ -7440,4 +7452,176 @@ hr {
 .statusbar-play-btn:hover {
   background: #276749;
   color: #ffffff;
+}
+
+/* ==========================================================================
+   Mobile Word Accessory Toolbar & Reflow View
+   ========================================================================== */
+.word-mobile-toolbar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .word-mobile-toolbar,
+  .native-mobile .word-mobile-toolbar {
+    display: flex;
+    align-items: center;
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--line);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+    padding: 4px 6px calc(env(safe-area-inset-bottom) + 2px);
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+}
+
+.native-mobile .word-mobile-toolbar {
+  display: flex;
+}
+
+.mobile-toolbar-track {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  width: 100%;
+}
+
+.mobile-toolbar-track::-webkit-scrollbar {
+  display: none;
+}
+
+.m-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #374151;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: all 0.15s ease;
+}
+
+.m-btn:active,
+.m-btn.active {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.m-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.m-btn.heading-trigger {
+  width: auto;
+  padding: 0 8px;
+  gap: 4px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.m-btn.reflow-btn {
+  width: auto;
+  padding: 0 8px;
+  background: #f3f4f6;
+  border-color: #e5e7eb;
+}
+
+.m-btn.reflow-btn.active {
+  background: #dcfce7;
+  color: #15803d;
+  border-color: #86efac;
+}
+
+.m-divider {
+  width: 1px;
+  height: 20px;
+  background: #e5e7eb;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.mobile-toolbar-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  padding: 4px;
+  z-index: 35;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 110px;
+}
+
+.mobile-toolbar-popup.heading-popup {
+  left: 50px;
+}
+
+.mobile-toolbar-popup.image-popup {
+  right: 60px;
+  min-width: 130px;
+}
+
+.mobile-toolbar-popup .popup-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #374151;
+  border: none;
+  background: transparent;
+  border-radius: 5px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.mobile-toolbar-popup .popup-item:active,
+.mobile-toolbar-popup .popup-item.active {
+  background: #f0fdf4;
+  color: #166534;
+  font-weight: 600;
+}
+
+/* Word Mobile Reflow Content Styling */
+.word-page.mobile-reflow-active {
+  border: none !important;
+  box-shadow: none !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+.word-page.mobile-reflow-active .tiptap {
+  min-height: auto;
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.word-page.mobile-reflow-active img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 6px;
 }

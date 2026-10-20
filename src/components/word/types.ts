@@ -20,6 +20,7 @@ export interface WordViewSettings {
   zenMode: boolean;
   showOutline: boolean;
   readOnly: boolean;
+  mobileReflow: boolean; // Mobile responsive reflow view
 }
 
 export interface WordHeadingItem {
