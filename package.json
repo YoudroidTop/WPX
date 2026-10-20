@@ -21,7 +21,7 @@
     "desktop:pack:mac": "npm run desktop:build && electron-builder --config electron-builder.yml --mac --publish never",
     "desktop:pack:win": "npm run desktop:build && electron-builder --config electron-builder.yml --win --x64 --publish never && electron-builder --config electron-builder.yml --win --arm64 --publish never",
     "test:desktop": "playwright test --config playwright.desktop.config.ts",
-    "mobile:sync": "npm run build && cap sync",
+    "mobile:sync": "npm run build && NODE_OPTIONS=\"--experimental-strip-types\" cap sync",
     "cloud:dev": "wrangler dev --port 8787 --var APP_ORIGIN:http://127.0.0.1:8787",
     "cloud:build": "tsc -p tsconfig.cloud.json && npm run build && wrangler deploy --dry-run --outdir releases/cloudflare",
     "test:cloud": "node tests/cloud-integration.mjs",
