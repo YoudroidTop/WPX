@@ -170,57 +170,151 @@ export const extensions: Record<DocumentKind, string> = {
   slide: 'pptx',
 };
 
+export const WORD_NODE_TYPES = [
+  'doc',
+  'paragraph',
+  'text',
+  'heading',
+  'bulletList',
+  'orderedList',
+  'listItem',
+  'taskList',
+  'taskItem',
+  'blockquote',
+  'codeBlock',
+  'hardBreak',
+  'horizontalRule',
+  'image',
+  'table',
+  'tableRow',
+  'tableCell',
+  'tableHeader',
+] as const;
+export const WORD_MARK_TYPES = [
+  'bold',
+  'italic',
+  'strike',
+  'underline',
+  'code',
+  'link',
+  'textStyle',
+  'highlight',
+  'subscript',
+  'superscript',
+] as const;
+type WordNodeType = (typeof WORD_NODE_TYPES)[number];
+const WORD_BLOCKS: readonly WordNodeType[] = [
+  'paragraph',
+  'heading',
+  'bulletList',
+  'orderedList',
+  'taskList',
+  'blockquote',
+  'codeBlock',
+  'horizontalRule',
+  'table',
+];
+const WORD_INLINE: readonly WordNodeType[] = ['text', 'hardBreak', 'image'];
+// Mirrors the Word editor's content expressions; tests compare it with the editor schema.
+export const WORD_CHILD_TYPES: Partial<Record<WordNodeType, readonly WordNodeType[]>> = {
+  doc: WORD_BLOCKS,
+  paragraph: WORD_INLINE,
+  heading: WORD_INLINE,
+  codeBlock: ['text'],
+  bulletList: ['listItem'],
+  orderedList: ['listItem'],
+  taskList: ['taskItem'],
+  listItem: WORD_BLOCKS,
+  taskItem: WORD_BLOCKS,
+  blockquote: WORD_BLOCKS,
+  table: ['tableRow'],
+  tableRow: ['tableCell', 'tableHeader'],
+  tableCell: WORD_BLOCKS,
+  tableHeader: WORD_BLOCKS,
+};
+// Attribute values are rendered into inline CSS, so restrict them to characters that
+// cannot terminate a declaration.
+const cssColor = z
+  .string()
+  .max(64)
+  .regex(/^[#\w(),.%\s+-]+$/);
+const cssFontFamily = z
+  .string()
+  .max(200)
+  .regex(/^[^;:{}<>\\]+$/);
+const cssNumber = z.union([
+  z.number().positive().max(1000),
+  z
+    .string()
+    .max(10)
+    .regex(/^\d{1,3}(?:\.\d{1,2})?$/),
+]);
+const imageSource = z
+  .string()
+  .max(MAX_CONTENT_BYTES)
+  .refine(
+    (s) => /^https:\/\//i.test(s) || /^data:image\/[\w.+-]+;base64,[A-Za-z0-9+/=\s]+$/.test(s),
+  );
+const imageSize = z.union([
+  z.number().positive().max(100_000),
+  z
+    .string()
+    .max(20)
+    .regex(/^\d{1,5}(?:\.\d+)?(?:px|%)?$/),
+]);
 const richNode: z.ZodType<RichNode> = z.lazy(() =>
-  z.object({
-    type: z.enum([
-      'doc',
-      'paragraph',
-      'text',
-      'heading',
-      'bulletList',
-      'orderedList',
-      'listItem',
-      'blockquote',
-      'codeBlock',
-      'hardBreak',
-      'horizontalRule',
-      'table',
-      'tableRow',
-      'tableCell',
-      'tableHeader',
-    ]),
-    text: z.string().max(1_000_000).optional(),
-    attrs: z
-      .object({
-        level: z.number().int().min(1).max(6).optional(),
-        textAlign: z.enum(['left', 'center', 'right', 'justify']).optional(),
-        start: z.number().int().optional(),
-        colspan: z.number().int().min(1).max(52).optional(),
-        rowspan: z.number().int().min(1).max(500).optional(),
-        colwidth: z.array(z.number().positive()).nullable().optional(),
-      })
-      .optional(),
-    marks: z
-      .array(
-        z.object({
-          type: z.enum(['bold', 'italic', 'strike', 'underline', 'code', 'link']),
-          attrs: z
-            .object({
-              href: z
-                .string()
-                .max(2048)
-                .refine((s) => /^(https?:\/\/|mailto:)/i.test(s))
-                .optional(),
-              target: z.string().optional(),
-              rel: z.string().optional(),
-              class: z.string().nullable().optional(),
-            })
-            .optional(),
-        }),
-      )
-      .optional(),
-    content: z.array(richNode).max(10_000).optional(),
-  }),
+  z
+    .object({
+      type: z.enum(WORD_NODE_TYPES),
+      text: z.string().max(1_000_000).optional(),
+      attrs: z
+        .object({
+          level: z.number().int().min(1).max(6).optional(),
+          textAlign: z.enum(['left', 'center', 'right', 'justify']).nullable().optional(),
+          start: z.number().int().optional(),
+          type: z.enum(['1', 'a', 'A', 'i', 'I']).nullable().optional(),
+          language: z.string().max(50).nullable().optional(),
+          checked: z.boolean().optional(),
+          src: imageSource.nullable().optional(),
+          alt: z.string().max(1000).nullable().optional(),
+          title: z.string().max(1000).nullable().optional(),
+          width: imageSize.nullable().optional(),
+          height: imageSize.nullable().optional(),
+          colspan: z.number().int().min(1).max(52).optional(),
+          rowspan: z.number().int().min(1).max(500).optional(),
+          colwidth: z.array(z.number().positive()).nullable().optional(),
+          align: z.enum(['left', 'center', 'right', 'justify']).nullable().optional(),
+        })
+        .optional(),
+      marks: z
+        .array(
+          z.object({
+            type: z.enum(WORD_MARK_TYPES),
+            attrs: z
+              .object({
+                href: z
+                  .string()
+                  .max(2048)
+                  .refine((s) => /^(https?:\/\/|mailto:)/i.test(s))
+                  .optional(),
+                target: z.string().optional(),
+                rel: z.string().optional(),
+                class: z.string().nullable().optional(),
+                title: z.string().max(1000).nullable().optional(),
+                color: cssColor.nullable().optional(),
+                fontFamily: cssFontFamily.nullable().optional(),
+                fontSize: cssNumber.nullable().optional(),
+                lineHeight: cssNumber.nullable().optional(),
+              })
+              .optional(),
+          }),
+        )
+        .optional(),
+      content: z.array(richNode).max(10_000).optional(),
+    })
+    .refine((node) => node.type !== 'image' || typeof node.attrs?.src === 'string', {
+      message: 'Image source is required',
+    }),
 );
 const cellAddress = /^(?:[A-Z]|A[A-Z])(?:[1-9]\d?|[1-4]\d{2}|500)$/;
 const sheetCellStyleSchema = z.object({
@@ -472,56 +566,15 @@ export const contentSchema = z
       if (new Set(value.slides.map((s) => s.id)).size !== value.slides.length)
         context.addIssue({ code: 'custom', message: 'Slide IDs must be unique' });
     } else {
-      const allowed: Record<string, string[]> = {
-        doc: [
-          'paragraph',
-          'heading',
-          'bulletList',
-          'orderedList',
-          'blockquote',
-          'codeBlock',
-          'horizontalRule',
-          'table',
-        ],
-        paragraph: ['text', 'hardBreak'],
-        heading: ['text', 'hardBreak'],
-        codeBlock: ['text'],
-        bulletList: ['listItem'],
-        orderedList: ['listItem'],
-        listItem: [
-          'paragraph',
-          'heading',
-          'bulletList',
-          'orderedList',
-          'blockquote',
-          'codeBlock',
-          'table',
-        ],
-        blockquote: [
-          'paragraph',
-          'heading',
-          'bulletList',
-          'orderedList',
-          'blockquote',
-          'codeBlock',
-          'table',
-        ],
-        table: ['tableRow'],
-        tableRow: ['tableCell', 'tableHeader'],
-        tableCell: ['paragraph', 'heading', 'bulletList', 'orderedList', 'blockquote', 'codeBlock'],
-        tableHeader: [
-          'paragraph',
-          'heading',
-          'bulletList',
-          'orderedList',
-          'blockquote',
-          'codeBlock',
-        ],
-      };
       const walk = (node: RichNode) => {
         if (
           (node.type === 'text' && !node.text) ||
-          (node.content ?? []).some((child) => !(allowed[node.type] ?? []).includes(child.type))
+          (node.content ?? []).some(
+            (child) =>
+              !(WORD_CHILD_TYPES[node.type as WordNodeType] ?? []).includes(
+                child.type as WordNodeType,
+              ),
+          )
         )
           context.addIssue({ code: 'custom', message: 'Invalid rich-text structure' });
         for (const child of node.content ?? []) walk(child);

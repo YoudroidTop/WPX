@@ -404,3 +404,59 @@ test('authenticated storage outage keeps account settings available and never di
   await page.getByRole('button', { name: '退出登录', exact: true }).click();
   await expect(page.getByRole('button', { name: '登录', exact: true })).toBeVisible();
 });
+
+test('Word ribbon rich formatting, task lists and images survive save and reload', async ({
+  page,
+}) => {
+  await register(page);
+  await page.getByRole('button', { name: /新建文字文档 落笔/ }).click();
+  await page.getByRole('textbox', { name: '文档名称', exact: true }).fill('Rich formatting');
+  const body = page.getByRole('textbox', { name: '文档正文' });
+  await body.fill('重点内容');
+  // Select within the paragraph; clicking the text afterwards collapses the selection
+  // even when a color dropdown kept keyboard focus.
+  await body.press('Shift+Home');
+  await page.getByRole('button', { name: '高亮', exact: true }).click();
+  await page.getByRole('button', { name: '明黄', exact: true }).click();
+  await body.getByText('重点内容').click();
+  await body.press('End');
+  await body.press('Shift+Home');
+  await page.getByRole('button', { name: '字体颜色', exact: true }).click();
+  await page.getByTitle('#ff0000', { exact: true }).first().click();
+  await body.getByText('重点内容').click();
+  await body.press('End');
+  await page.getByRole('button', { name: '上标', exact: true }).click();
+  await body.pressSequentially('2');
+  await body.press('Enter');
+  await page.getByRole('button', { name: '任务列表', exact: true }).click();
+  await expect(body.locator('ul[data-type="taskList"]')).toHaveCount(1);
+  await body.locator('ul[data-type="taskList"] p').click();
+  await body.pressSequentially('待办事项');
+  await page.getByRole('button', { name: '插入', exact: true }).click();
+  await page
+    .locator('input[type="file"][accept="image/*"]')
+    .first()
+    .setInputFiles({
+      name: 'dot.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+        'base64',
+      ),
+    });
+  await expect(body.locator('img[src^="data:image/png;base64,"]')).toHaveCount(1);
+  await expect(body.locator('ul[data-type="taskList"]')).toContainText('待办事项');
+  await saved(page);
+  await back(page);
+  await page.reload();
+  await page.getByRole('button', { name: 'Rich formatting DOCX · 文字文档' }).click();
+  // Mark boundaries may split the highlighted run, so check the paragraph as a whole.
+  await expect(body.locator('p').first()).toHaveText('重点内容2');
+  await expect(
+    body.locator('p').first().locator('mark[data-color="#fffb8f"]').first(),
+  ).toBeVisible();
+  await expect(body.locator('p').first().locator('span[style*="color"]').first()).toBeVisible();
+  await expect(body.locator('sup')).toHaveText('2');
+  await expect(body.locator('ul[data-type="taskList"]')).toContainText('待办事项');
+  await expect(body.locator('img[src^="data:image/png;base64,"]')).toHaveCount(1);
+});

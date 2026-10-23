@@ -55,7 +55,11 @@ function wordBlocks(nodes: RichNode[]): (Paragraph | Table)[] {
           ),
         }),
       ];
-    if (['bulletList', 'orderedList', 'listItem', 'blockquote'].includes(node.type))
+    if (
+      ['bulletList', 'orderedList', 'listItem', 'taskList', 'taskItem', 'blockquote'].includes(
+        node.type,
+      )
+    )
       return wordBlocks(node.content ?? []);
     const runs = (node.content ?? []).map(
       (child) =>

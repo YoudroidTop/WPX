@@ -1,21 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
-import StarterKit from '@tiptap/starter-kit';
-import Placeholder from '@tiptap/extension-placeholder';
-import TextAlign from '@tiptap/extension-text-align';
-import { TableKit } from '@tiptap/extension-table';
-import Underline from '@tiptap/extension-underline';
-import Link from '@tiptap/extension-link';
-import { TextStyle } from '@tiptap/extension-text-style';
-import Color from '@tiptap/extension-color';
-import Highlight from '@tiptap/extension-highlight';
-import FontFamily from '@tiptap/extension-font-family';
-import Subscript from '@tiptap/extension-subscript';
-import Superscript from '@tiptap/extension-superscript';
-import TaskList from '@tiptap/extension-task-list';
-import TaskItem from '@tiptap/extension-task-item';
-import Image from '@tiptap/extension-image';
-
 import type { WordContent } from '../../shared/documents';
 import WordRibbon from './word/WordRibbon';
 import WordSymbolModal from './word/WordSymbolModal';
@@ -23,37 +7,13 @@ import WordCountModal, { computeWordStats } from './word/WordCountModal';
 import WordFindReplaceBar from './word/WordFindReplaceBar';
 import WordOutlineDrawer from './word/WordOutlineDrawer';
 import WordMobileToolbar from './word/WordMobileToolbar';
+import { wordExtensions } from './word/extensions';
 import type {
   WordRibbonTab,
   WordPageSettings,
   WordViewSettings,
   WordHeadingItem,
 } from './word/types';
-
-// Extend TextStyle to support custom fontSize and lineHeight
-const CustomTextStyle = TextStyle.extend({
-  addAttributes() {
-    return {
-      ...this.parent?.(),
-      fontSize: {
-        default: null,
-        parseHTML: (element: HTMLElement) => element.style.fontSize?.replace('pt', ''),
-        renderHTML: (attributes: Record<string, any>) => {
-          if (!attributes.fontSize) return {};
-          return { style: `font-size: ${attributes.fontSize}pt` };
-        },
-      },
-      lineHeight: {
-        default: null,
-        parseHTML: (element: HTMLElement) => element.style.lineHeight,
-        renderHTML: (attributes: Record<string, any>) => {
-          if (!attributes.lineHeight) return {};
-          return { style: `line-height: ${attributes.lineHeight}` };
-        },
-      },
-    };
-  },
-});
 
 export default function WordEditor({
   content,
@@ -98,26 +58,7 @@ export default function WordEditor({
   });
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        link: false,
-        underline: false,
-      }),
-      Underline,
-      Link.configure({ openOnClick: false, autolink: true }),
-      CustomTextStyle,
-      Color,
-      Highlight.configure({ multicolor: true }),
-      FontFamily,
-      Subscript,
-      Superscript,
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Image.configure({ inline: true, allowBase64: true }),
-      Placeholder.configure({ placeholder: '写下你的第一行好想法…' }),
-      TextAlign.configure({ types: ['heading', 'paragraph'], defaultAlignment: 'left' }),
-      TableKit,
-    ],
+    extensions: wordExtensions(),
     content: content.doc,
     editable: !viewSettings.readOnly,
     shouldRerenderOnTransaction: true,
@@ -295,7 +236,9 @@ export default function WordEditor({
       )}
 
       {/* Main Workspace with optional Outline Drawer */}
-      <div style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+      <div
+        style={{ display: 'flex', flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}
+      >
         {/* Document Outline Drawer */}
         {viewSettings.showOutline && (
           <WordOutlineDrawer
