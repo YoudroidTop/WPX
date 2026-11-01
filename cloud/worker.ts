@@ -244,6 +244,15 @@ export class Documents extends DurableObject<Env> {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
+    if (
+      url.protocol === 'http:' &&
+      env.APP_ORIGIN?.startsWith('https://') &&
+      url.host === new URL(env.APP_ORIGIN).host
+    ) {
+      const httpsUrl = new URL(request.url);
+      httpsUrl.protocol = 'https:';
+      return Response.redirect(httpsUrl.toString(), 308);
+    }
     const response = await guarded(async () => {
       if (
         url.pathname === '/api/releases/desktop' ||
